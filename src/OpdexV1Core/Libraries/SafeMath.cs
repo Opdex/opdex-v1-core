@@ -14,14 +14,19 @@ public static class SafeMath
     {
         ulong z = 0;
         
-        if (y > 3) {
+        if (y > 3) 
+        {
             z = y;
+            
             var x = y / 2 + 1;
-            while (x < z) {
+            
+            while (x < z) 
+            {
                 z = x;
                 x = (y / x + x) / 2;
             }
-        } else if (y != 0) {
+        } 
+        else if (y != 0) {
             z = 1;
         }
 
