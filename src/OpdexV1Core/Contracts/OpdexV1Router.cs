@@ -1,201 +1,210 @@
 ﻿using Stratis.SmartContracts;
 
+[Deploy]
 public class OpdexV1Router : SmartContract
 {
-    public OpdexV1Router(ISmartContractState smartContractState, Address factory, Address wcrs) : base(smartContractState)
+    public OpdexV1Router(ISmartContractState smartContractState, Address feeToSetter, Address feeTo) : base(smartContractState)
     {
-        Factory = factory;
-        WCRS = wcrs;
-    }
-
-    public override void Receive()
-    {
-        Assert(Message.Sender == WCRS, "OpdexV2: UNACCEPTED_CRS");
-        base.Receive();
-    }
-
-    public Address Factory
-    {
-        get => PersistentState.GetAddress(nameof(Factory));
-        set => PersistentState.SetAddress(nameof(Factory), value);
+        FeeToSetter = feeToSetter;
+        FeeTo = feeTo;
     }
     
-    public Address WCRS
+    private void SetPair(Address token, Address contract) 
+        => PersistentState.SetAddress($"Pair:{token}", contract);
+
+    public Address GetPair(Address token) 
+        => PersistentState.GetAddress($"Pair:{token}");
+
+    public Address FeeToSetter
     {
-        get => PersistentState.GetAddress(nameof(WCRS));
-        set => PersistentState.SetAddress(nameof(WCRS), value);
+        get => PersistentState.GetAddress(nameof(FeeToSetter));
+        private set => PersistentState.SetAddress(nameof(FeeToSetter), value);
+    }
+    
+    public Address FeeTo
+    {
+        get => PersistentState.GetAddress(nameof(FeeTo));
+        private set => PersistentState.SetAddress(nameof(FeeTo), value);
+    }
+    
+    public Address CreatePair(Address token)
+    {
+        Assert(token != Address.Zero, "OpdexV1: ZERO_ADDRESS");
+
+        var pair = GetPair(token);
+
+        Assert(pair == Address.Zero, "OpdexV1: PAIR_EXISTS");
+        
+        var pairContract = Create<OpdexV1Pair>();
+        
+        pair = pairContract.NewContractAddress;
+        
+        SetPair(token, pair);
+        
+        // Track list of all pairs?
+
+        Log(new PairCreatedEvent
+        {
+            Token = token,
+            Pair = pair
+        });
+        
+        return pair;
+    }
+
+    public void SetFeeTo(Address feeTo)
+    {
+        Assert(Message.Sender == FeeToSetter, "OpdexV1: FORBIDDEN");
+        FeeTo = feeTo;
+    }
+
+    public void SetFeeToSetter(Address feeToSetter)
+    {
+        Assert(Message.Sender == FeeToSetter, "OpdexV1: FORBIDDEN");
+        FeeToSetter = feeToSetter;
     }
 
     # region Liquidity
-    public AddLiquidityResponseModel AddLiquidity(Address tokenA, Address tokenB, ulong amountADesired, ulong amountBDesired, ulong amountAMin, ulong amountBMin, Address to, ulong deadline)
+    
+    public AddLiquidityResponseModel AddLiquidity(Address token, ulong amountTokenDesired, ulong amountCrsMin, ulong amountTokenMin, Address to, ulong deadline)
     {
-        var liquidityDto = CalcLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+        var liquidityDto = CalcLiquidity(token, Message.Value, amountTokenDesired, amountCrsMin, amountTokenMin);
 
-        var pairResponse = Call(Factory, 0, "GetPair", new object[] {tokenA, tokenB});
-        var pair = (Address)pairResponse.ReturnValue;
+        var pair = GetPair(token);
         
         // Pull tokens from sender - move to safe transfer method - assert validity checks
-        Call(tokenA, 0, "TransferFrom", new object[] {Message.Sender, pair, liquidityDto.AmountA});
-        Call(tokenB, 0, "TransferFrom", new object[] {Message.Sender, pair, liquidityDto.AmountB});
+        SafeTransferFrom(token, 0, new object[] {Message.Sender, pair, liquidityDto.AmountToken});
+        
+        // Deposit (transfer) sent CRS
+        SafeTransfer(pair, Message.Value);
         
         // Call Pair Contract, mint LP tokens for sender
         var liquidityResponse = Call(pair, 0, "Mint", new object[] {to});
 
         return new AddLiquidityResponseModel
         {
-            AmountA = liquidityDto.AmountA,
-            AmountB = liquidityDto.AmountB,
+            AmountCrs = liquidityDto.AmountCrs,
+            AmountToken = liquidityDto.AmountToken,
             Liquidity = (ulong)liquidityResponse.ReturnValue
         };
     }
-
-    public AddLiquidityCRSResponseModel AddLiquidityCRS(Address token, ulong amountTokenDesired, ulong amountTokenMin, ulong amountCRSMin, Address to, ulong deadline)
+    
+    public RemoveLiquidityResponseModel RemoveLiquidity(Address token, ulong liquidity, ulong amountCrsMin, ulong amountTokenMin, Address to, ulong deadline)
     {
-        var liquidityDto = CalcLiquidity(token, WCRS, amountTokenDesired, Message.Value, amountTokenMin, amountCRSMin);
+        var pair = GetPair(token);
 
-        var pairResponse = Call(Factory, 0, "GetPair", new object[] {token, WCRS});
-        var pair = (Address)pairResponse.ReturnValue;
+        // Send liquidity to pair
+        SafeTransferFrom(pair, 0, new object[] {Message.Sender, pair, liquidity});
         
-        Call(token, 0, "TransferFrom", new object[] {Message.Sender, pair, liquidityDto.AmountA});
+        var burnDtoResponse = Call(pair, 0, "Burn", new object[] {to});
+        var burnDto = (BurnDto)burnDtoResponse.ReturnValue;
+
+        Assert(burnDto.AmountCrs >= amountCrsMin, "OpdexV1: INSUFFICIENT_CRS_AMOUNT");
+        Assert(burnDto.AmountToken >= amountTokenMin, "OpdexV1: INSUFFICIENT_TOKEN_AMOUNT");
         
-        // Deposit (transfer) sent CRS to WCRS
+        // Transfer tokens from this contract to destination
+        SafeTransferTo(token, 0, new object[] {to, burnDto.AmountToken});
         
-        var mintResponse = Call(pair, 0, "Mint", new object[] {to});
-        
-        return new AddLiquidityCRSResponseModel
+        // Transfer the CRS to it's destination
+        // Todo: Should this transfer this entire contracts Balance?
+        // This contract should never hold a balance outside of each individual call
+        Transfer(to, burnDto.AmountCrs);
+
+        return new RemoveLiquidityResponseModel
         {
-            AmountToken = liquidityDto.AmountA,
-            AmountCRS = liquidityDto.AmountB,
-            Liquidity = (ulong)mintResponse.ReturnValue
+            AmountCrs = burnDto.AmountCrs,
+            AmountToken = burnDto.AmountToken
         };
     }
-
-    private CalcLiquidityDto CalcLiquidity(Address tokenA, Address tokenB, ulong amountADesired, ulong amountBDesired, ulong amountAMin, ulong amountBMin)
+    
+    private CalcLiquidityDto CalcLiquidity(Address token, ulong amountCrsDesired, ulong amountTokenDesired, ulong amountCrsMin, ulong amountTokenMin)
     {
-        var pairResponse = Call(Factory, 0, "GetPair", new object[] {tokenA, tokenB});
-        var pair = (Address)pairResponse.ReturnValue;
+        var pair = GetPair(token);
 
-        if (pair == Address.Zero)
-        {
-            var createResponse = Call(Factory, 0, "CreatePair", new object[] {tokenA, tokenB});
-            pair = (Address)createResponse.ReturnValue;
-        }
+        if (pair == Address.Zero) pair = CreatePair(token);
 
-        var reservesDtoResponse = Call(Factory, 0, "GetReserves", new object[] {pair});
+        var reservesDtoResponse = Call(pair, 0, "GetReserves");
         var reservesDto = (ReservesDto)reservesDtoResponse.ReturnValue;
 
-        ulong amountA = 0;
-        ulong amountB = 0;
+        ulong amountCrs = 0;
+        ulong amountToken = 0;
         
-        if (reservesDto.ReserveA == 0 && reservesDto.ReserveB == 0)
+        if (reservesDto.ReserveCrs == 0 && reservesDto.ReserveToken == 0)
         {
-            amountA = amountADesired;
-            amountB = amountBDesired;
+            amountCrs = amountCrsDesired;
+            amountToken = amountTokenDesired;
         }
         else
         {
-            ulong amountBOptimal = 0; // Get Quote for amountADesired
-            if (amountBOptimal <= amountBDesired)
+            ulong amountTokenOptimal = 0; // Get Quote for amountADesired
+            if (amountTokenOptimal <= amountTokenDesired)
             {
-                Assert(amountBOptimal >= amountBMin, "OpdexV1: INSUFFICIENT_B_AMOUNT");
-                amountA = amountADesired;
-                amountB = amountBOptimal;
+                Assert(amountTokenOptimal >= amountTokenMin, "OpdexV1: INSUFFICIENT_B_AMOUNT");
+                amountCrs = amountCrsDesired;
+                amountToken = amountTokenOptimal;
             }
             else
             {
-                ulong amountAOptimal = 0; // Get quote for amountBDesired
-                Assert(amountAOptimal <= amountADesired && amountAOptimal >= amountAMin, "OpdexV1: INSUFFICIENT_A_AMOUNT");
-                amountA = amountAOptimal;
-                amountB = amountBDesired;
+                ulong amountCrsOptimal = 0; // Get quote for amountBDesired
+                Assert(amountCrsOptimal <= amountCrsDesired && amountCrsOptimal >= amountCrsMin, "OpdexV1: INSUFFICIENT_A_AMOUNT");
+                amountCrs = amountCrsOptimal;
+                amountToken = amountTokenDesired;
             }
         }
 
         return new CalcLiquidityDto
         {
-            AmountA = amountA,
-            AmountB = amountB
+            AmountCrs = amountCrs,
+            AmountToken = amountToken
         };
     }
-
-    public RemoveLiquidityResponseModel RemoveLiquidity(Address tokenA, Address tokenB, ulong liquidity, ulong amountAMin, ulong amountBMin, Address to, ulong deadline)
-    {
-        var pairResponse = Call(Factory, 0, "GetPair", new object[] {tokenA, tokenB});
-        var pair = (Address)pairResponse.ReturnValue;
-
-        // Send liquidity to pair
-        Call(pair, 0, "TransferFrom", new object[] {Message.Sender, pair, liquidity});
-        
-        // Burn
-        var burnDtoResponse = Call(pair, 0, "Burn", new object[] {to});
-        var burnDto = (BurnDto)burnDtoResponse.ReturnValue;
-        
-        // Sort tokens
-        // Allows for tokenA and tokenB based params to be in whatever order for the pair. Orders tokens and amounts respectively 
-        
-        Assert(burnDto.AmountA >= amountAMin, "OpdexV1: INSUFFICIENT_A_AMOUNT");
-        Assert(burnDto.AmountB >= amountAMin, "OpdexV1: INSUFFICIENT_B_AMOUNT");
-        
-        return new RemoveLiquidityResponseModel
-        {
-            AmountA = burnDto.AmountA,
-            AmountB = burnDto.AmountB
-        };
-    }
-
-    public RemoveLiquidityCRSResponseModel RemoveLiquidityCRS(Address token, ulong liquidity, ulong amountTokenMin, ulong amountCRSMin, Address to, ulong deadline)
-    {
-        var tokenAmounts = RemoveLiquidity(token, WCRS, liquidity, amountTokenMin, amountCRSMin, Address, deadline);
-
-        // Todo: think about and validate that this will always be A
-        Call(token, 0, "TransferTo", new object[] {to, tokenAmounts.AmountA});
-
-        // Todo: There's permission issues here, the current implementation would suggest
-        // that the router is withdrawing WCRS on its own, receiving the CRS balance,  
-        // then transferring the CRS back to the caller.
-        Call(WCRS, 0, "Withdraw", new object[] { tokenAmounts.AmountB });
-
-        Transfer(to, tokenAmounts.AmountB);
-
-        return new RemoveLiquidityCRSResponseModel
-        {
-            AmountToken = tokenAmounts.AmountA,
-            AmountCRS = tokenAmounts.AmountB
-        };
-    }
+    
     #endregion
     
     #region Swaps
 
-    public void SwapExactTokensForTokens()
-    {
-        
-    }
+    // Todo: Maybe enable these for a single hop SRC -> CRS -> SRC swap
+    // Single hop limit possibility, will need to stay under gas limits per transaction
+    // public void SwapExactTokensForTokens()
+    // {
+    //     
+    // }
+    
+    // public void SwapTokensForExactTokens()
+    // {
+    //     
+    // }
 
-    public void SwapTokensForExactTokens()
-    {
-        
-    }
-
+    // Equivalent to a CRS sell
+    // Swap exactly 1 CRS for 10 OPD
     public void SwapExactCRSForTokens()
     {
         
     }
 
+    // Equivalent to a SRC sell
+    // Swap 10 OPD for exactly 1 CRS
     public void SwapTokensForExactCRS()
     {
         
     }
 
+    // Equivalent to a SRC sell
+    // Swap exactly 10 OPD for 1 CRS
     public void SwapExactTokensForCRS()
     {
         
     }
 
+    // Equivalent to a CRS sell
+    // Swap 1 CRS for exactly 10 OPD
     public void SwapCRSForExactTokens()
     {
         
     }
 
+    // Adjust logic to allow for 1 hop or allow as many as input and just let the 
+    // GasLimitExceededException get thrown?
     private void Swap(ulong[] amounts, Address[] path, Address _to)
     {
         for (uint i = 0; i < path.Length - 1; i++)
@@ -224,51 +233,66 @@ public class OpdexV1Router : SmartContract
     }
     
     #endregion
+    
+    #region Private Helpers
+
+    private void SafeTransfer(Address to, ulong amount)
+    {
+        var result = Transfer(to, amount);
+        Assert(result.Success, "OpdexV1: INVALID_TRANSFER");
+    }
+    
+    private void SafeTransferTo(Address to, ulong amount, object[] data)
+    {
+        var result = Call(to, amount, "TransferTo", data);
+        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
+    }
+
+    private void SafeTransferFrom(Address to, ulong amount, object[] data)
+    {
+        var result = Call(to, amount, "TransferFrom", data);
+        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
+    }
+    
+    #endregion
 
     #region Models
 
     public struct AddLiquidityResponseModel
     {
-        public ulong AmountA;
-        public ulong AmountB;
-        public ulong Liquidity;
-    }
-    
-    public struct AddLiquidityCRSResponseModel
-    {
+        public ulong AmountCrs;
         public ulong AmountToken;
-        public ulong AmountCRS;
         public ulong Liquidity;
     }
 
     public struct RemoveLiquidityResponseModel
     {
-        public ulong AmountA;
-        public ulong AmountB;
-    }
-    
-    public struct RemoveLiquidityCRSResponseModel
-    {
+        public ulong AmountCrs;
         public ulong AmountToken;
-        public ulong AmountCRS;
     }
 
     private struct BurnDto
     {
-        public ulong AmountA;
-        public ulong AmountB;
+        public ulong AmountCrs;
+        public ulong AmountToken;
     }
 
     private struct ReservesDto
     {
-        public ulong ReserveA;
-        public ulong ReserveB;
+        public ulong ReserveCrs;
+        public ulong ReserveToken;
     }
     
     private struct CalcLiquidityDto
     {
-        public ulong AmountA;
-        public ulong AmountB;
+        public ulong AmountCrs;
+        public ulong AmountToken;
+    }
+
+    public struct PairCreatedEvent
+    {
+        public Address Token;
+        public Address Pair;
     }
 
     #endregion
