@@ -1,13 +1,13 @@
 using Stratis.SmartContracts;
 
 [Deploy]
-// Todo: this contract itself needs to inherit a base Token type class
 // Todo: This contract may need to be included in OpdexV1Router.cs
-public class OpdexV1Pair : SmartContract
+public class OpdexV1Pair : OpdexV1SRC
 {
     public OpdexV1Pair(ISmartContractState smartContractState, Address token) : base(smartContractState)
     {
         Factory = Message.Sender;
+        // Todo: Get decimals/stratsPer / get uint256 support
         Token = token;
     }
     
@@ -29,6 +29,12 @@ public class OpdexV1Pair : SmartContract
     {
         get => PersistentState.GetAddress(nameof(Token));
         private set => PersistentState.SetAddress(nameof(Token), value);
+    }
+
+    public uint TokenSats
+    {
+        get => PersistentState.GetUInt32(nameof(TokenSats));
+        private set => PersistentState.SetUInt32(nameof(TokenSats), value);
     }
     
     // Probably needs to be TokenAmounts Struct or wait for uint256 support
@@ -65,27 +71,112 @@ public class OpdexV1Pair : SmartContract
         };
     }
     
-    public void Mint()
+    public void Mint(Address to, Address from)
     {
-        Assert(Message.Sender == Factory, "OpdexV1: FORBIDDEN");
+        Authorize();
         var reserves = GetReserves();
+        var balanceCrs = Balance;
+        var balanceToken = GetSrcBalance(Token, Address);
+        // funds are already sent, find out how much by subtracting last recorded
+        // reserves from the current balances
+        var amountCrs = SafeMath.Sub(balanceCrs, reserves.ReserveCrs);
+        var amountToken = SafeMath.Sub(balanceToken, reserves.ReserveToken);
+        var totalSupply = TotalSupply;
+        ulong liquidity = 0;
+        
+        if (totalSupply == 0)
+        {
+            // Todo: Update when safe math is updated for ulong * ulong 
+            liquidity = 0;
+        }
+        else
+        {
+            // Todo: Update when safe math is updated for ulong * ulong 
+            liquidity = 1;
+        }
+        
+        Assert(liquidity > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        MintExecute(to, liquidity);
+        
+        Update(balanceCrs, balanceToken, ReserveCrs, ReserveToken);
+
+        Log(new MintEvent
+        {
+            AmountCrs = amountCrs,
+            AmountToken = amountToken,
+            Sender = from // Should this be from address or to address?
+        });
     }
 
     public void Burn()
     {
-        Assert(Message.Sender == Factory, "OpdexV1: FORBIDDEN");
+        Authorize();
         var reserves = GetReserves();
     }
 
     public void Swap()
     {
-        Assert(Message.Sender == Factory, "OpdexV1: FORBIDDEN");
+        Authorize();
         var reserves = GetReserves();
+    }
+    
+    public void Skim(Address to)
+    {
+        var token = Token;
+        var balanceToken = SafeMath.Sub(GetSrcBalance(token, Address), ReserveToken);
+        var balanceCrs = SafeMath.Sub(Balance, ReserveCrs);
+        SafeTransfer(to, balanceToken);
+        SafeTransferTo(token, to, balanceCrs);
+    }
+
+    public void Sync()
+    {
+        Update(Balance, GetSrcBalance(Token, Address), ReserveCrs, ReserveToken);
     }
     
     #endregion
     
     #region Private Methods
+
+    private void Authorize()
+    {
+        Assert(Message.Sender == Factory, "OpdexV1: FORBIDDEN");
+    }
+
+    private void Update(ulong balanceCrs, ulong balanceToken, ulong reserveCrs, ulong reserveToken)
+    {
+        
+    }
+
+    private void MintFee()
+    {
+        
+    }
+    
+    private void SafeTransfer(Address to, ulong amount)
+    {
+        var result = Transfer(to, amount);
+        Assert(result.Success, "OpdexV1: INVALID_TRANSFER");
+    }
+    
+    private void SafeTransferTo(Address token, Address to, ulong amount)
+    {
+        var result = Call(token, 0, "TransferTo", new object[] {to, amount});
+        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
+    }
+
+    private void SafeTransferFrom(Address token, Address from, Address to, ulong amount)
+    {
+        var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
+        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
+    }
+
+    private ulong GetSrcBalance(Address token, Address owner)
+    {
+        var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
+        Assert(balanceResponse.Success, "OpdexV1: INVALID_BALANCE");
+        return (ulong) balanceResponse.ReturnValue;
+    }
     
     #endregion
 
