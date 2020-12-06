@@ -9,11 +9,9 @@ public class OpdexV1Router : SmartContract
         FeeTo = feeTo;
     }
     
-    private void SetPair(Address token, Address contract) 
-        => PersistentState.SetAddress($"Pair:{token}", contract);
+    private void SetPair(Address token, Address contract) => PersistentState.SetAddress($"Pair:{token}", contract);
 
-    public Address GetPair(Address token) 
-        => PersistentState.GetAddress($"Pair:{token}");
+    public Address GetPair(Address token) => PersistentState.GetAddress($"Pair:{token}");
 
     public Address FeeToSetter
     {
@@ -27,31 +25,6 @@ public class OpdexV1Router : SmartContract
         private set => PersistentState.SetAddress(nameof(FeeTo), value);
     }
     
-    public Address CreatePair(Address token)
-    {
-        Assert(token != Address.Zero, "OpdexV1: ZERO_ADDRESS");
-
-        var pair = GetPair(token);
-
-        Assert(pair == Address.Zero, "OpdexV1: PAIR_EXISTS");
-        
-        var pairContract = Create<OpdexV1Pair>();
-        
-        pair = pairContract.NewContractAddress;
-        
-        SetPair(token, pair);
-        
-        // Track list of all pairs?
-
-        Log(new PairCreatedEvent
-        {
-            Token = token,
-            Pair = pair
-        });
-        
-        return pair;
-    }
-
     public void SetFeeTo(Address feeTo)
     {
         Assert(Message.Sender == FeeToSetter, "OpdexV1: FORBIDDEN");
@@ -63,6 +36,19 @@ public class OpdexV1Router : SmartContract
         Assert(Message.Sender == FeeToSetter, "OpdexV1: FORBIDDEN");
         FeeToSetter = feeToSetter;
     }
+    
+    public Address CreatePair(Address token)
+    {
+        Assert(token != Address.Zero, "OpdexV1: ZERO_ADDRESS");
+        var pair = GetPair(token);
+        Assert(pair == Address.Zero, "OpdexV1: PAIR_EXISTS");
+        var pairContract = Create<OpdexV1Pair>();
+        pair = pairContract.NewContractAddress;
+        SetPair(token, pair);
+        // Track list of all pairs?
+        Log(new PairCreatedEvent { Token = token, Pair = pair });
+        return pair;
+    }
 
     # region Liquidity
     
@@ -73,7 +59,7 @@ public class OpdexV1Router : SmartContract
         var pair = GetPair(token);
         
         // Pull tokens from sender - move to safe transfer method - assert validity checks
-        SafeTransferFrom(token, 0, new object[] {Message.Sender, pair, liquidityDto.AmountToken});
+        SafeTransferFrom(token, Message.Sender, pair, liquidityDto.AmountToken);
         
         // Deposit (transfer) sent CRS
         SafeTransfer(pair, Message.Value);
@@ -94,7 +80,7 @@ public class OpdexV1Router : SmartContract
         var pair = GetPair(token);
 
         // Send liquidity to pair
-        SafeTransferFrom(pair, 0, new object[] {Message.Sender, pair, liquidity});
+        SafeTransferFrom(pair, Message.Sender, pair, liquidity);
         
         var burnDtoResponse = Call(pair, 0, "Burn", new object[] {to});
         var burnDto = (BurnDto)burnDtoResponse.ReturnValue;
@@ -103,7 +89,7 @@ public class OpdexV1Router : SmartContract
         Assert(burnDto.AmountToken >= amountTokenMin, "OpdexV1: INSUFFICIENT_TOKEN_AMOUNT");
         
         // Transfer tokens from this contract to destination
-        SafeTransferTo(token, 0, new object[] {to, burnDto.AmountToken});
+        SafeTransferTo(token, to, burnDto.AmountToken);
         
         // Transfer the CRS to it's destination
         // Todo: Should this transfer this entire contracts Balance?
@@ -236,21 +222,39 @@ public class OpdexV1Router : SmartContract
     
     #region Private Helpers
 
+    /// <summary>
+    /// Transfers CRS tokens to an address
+    /// </summary>
+    /// <param name="to">The address to send tokens to</param>
+    /// <param name="amount">The amount to send</param>
     private void SafeTransfer(Address to, ulong amount)
     {
         var result = Transfer(to, amount);
         Assert(result.Success, "OpdexV1: INVALID_TRANSFER");
     }
     
-    private void SafeTransferTo(Address to, ulong amount, object[] data)
+    /// <summary>
+    /// Calls SRC TransferTo method and validates the response
+    /// </summary>
+    /// <param name="token">The src token contract address</param>
+    /// <param name="to">The address to transfer tokens to</param>
+    /// <param name="amount">The amount to transfer</param>
+    private void SafeTransferTo(Address token, Address to, ulong amount)
     {
-        var result = Call(to, amount, "TransferTo", data);
+        var result = Call(token, 0, "TransferTo", new object[] {to, amount});
         Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
     }
 
-    private void SafeTransferFrom(Address to, ulong amount, object[] data)
+    /// <summary>
+    /// Calls SRC TransferFrom method and validates the response.
+    /// </summary>
+    /// <param name="token">The src token contract address</param>
+    /// <param name="from">The approvers address</param>
+    /// <param name="to">Address to transfer tokens to</param>
+    /// <param name="amount">The amount to transfer</param>
+    private void SafeTransferFrom(Address token, Address from, Address to, ulong amount)
     {
-        var result = Call(to, amount, "TransferFrom", data);
+        var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
         Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
     }
     
