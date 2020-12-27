@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpdexV1Core", "src/OpdexV1Core\OpdexV1Core.csproj", "{E6F55B0F-20D0-4873-9C36-7A9DB8D4EF3F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpdexV1Contracts", "src\OpdexV1Contracts\OpdexV1Contracts.csproj", "{E6F55B0F-20D0-4873-9C36-7A9DB8D4EF3F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

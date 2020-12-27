@@ -1,4 +1,5 @@
-﻿using Stratis.SmartContracts;
+﻿using System.Threading;
+using Stratis.SmartContracts;
 
 [Deploy]
 public class OpdexV1Router : SmartContract
@@ -9,9 +10,11 @@ public class OpdexV1Router : SmartContract
         FeeTo = feeTo;
     }
     
-    private void SetPair(Address token, Address contract) => PersistentState.SetAddress($"Pair:{token}", contract);
+    private void SetPair(Address token, Address contract) 
+        => PersistentState.SetAddress($"Pair:{token}", contract);
 
-    public Address GetPair(Address token) => PersistentState.GetAddress($"Pair:{token}");
+    public Address GetPair(Address token) 
+        => PersistentState.GetAddress($"Pair:{token}");
 
     public Address FeeToSetter
     {
@@ -40,13 +43,23 @@ public class OpdexV1Router : SmartContract
     public Address CreatePair(Address token)
     {
         Assert(token != Address.Zero, "OpdexV1: ZERO_ADDRESS");
+        
         var pair = GetPair(token);
         Assert(pair == Address.Zero, "OpdexV1: PAIR_EXISTS");
+        
         var pairContract = Create<OpdexV1Pair>();
         pair = pairContract.NewContractAddress;
+        
         SetPair(token, pair);
+        
         // Track list of all pairs?
-        Log(new PairCreatedEvent { Token = token, Pair = pair });
+        
+        Log(new PairCreatedEvent
+        {
+            Token = token, 
+            Pair = pair
+        });
+       
         return pair;
     }
 
@@ -109,20 +122,19 @@ public class OpdexV1Router : SmartContract
 
         if (pair == Address.Zero) pair = CreatePair(token);
 
-        var reservesDtoResponse = Call(pair, 0, "GetReserves");
-        var reservesDto = (ReservesDto)reservesDtoResponse.ReturnValue;
+        var reserves = GetReserves(pair);
 
-        ulong amountCrs = 0;
-        ulong amountToken = 0;
+        ulong amountCrs;
+        ulong amountToken;
         
-        if (reservesDto.ReserveCrs == 0 && reservesDto.ReserveToken == 0)
+        if (reserves.ReserveCrs == 0 && reserves.ReserveToken == 0)
         {
             amountCrs = amountCrsDesired;
             amountToken = amountTokenDesired;
         }
         else
         {
-            ulong amountTokenOptimal = 0; // Get Quote for amountADesired
+            var amountTokenOptimal = GetQuote(amountCrsDesired, reserves.ReserveCrs, reserves.ReserveToken);
             if (amountTokenOptimal <= amountTokenDesired)
             {
                 Assert(amountTokenOptimal >= amountTokenMin, "OpdexV1: INSUFFICIENT_B_AMOUNT");
@@ -131,7 +143,7 @@ public class OpdexV1Router : SmartContract
             }
             else
             {
-                ulong amountCrsOptimal = 0; // Get quote for amountBDesired
+                var amountCrsOptimal = GetQuote(amountTokenDesired, reserves.ReserveToken, reserves.ReserveCrs);
                 Assert(amountCrsOptimal <= amountCrsDesired && amountCrsOptimal >= amountCrsMin, "OpdexV1: INSUFFICIENT_A_AMOUNT");
                 amountCrs = amountCrsOptimal;
                 amountToken = amountTokenDesired;
@@ -189,34 +201,79 @@ public class OpdexV1Router : SmartContract
         
     }
 
-    // Adjust logic to allow for 1 hop or allow as many as input and just let the 
-    // GasLimitExceededException get thrown?
+    // Todo: Determine if gas limits allow for a single hop, SRC => CRS => SRC
     private void Swap(ulong[] amounts, Address[] path, Address _to)
     {
-        for (uint i = 0; i < path.Length - 1; i++)
-        {
-            var input = path[i];
-            var output = path[i + 1];
-            
-            // Sort tokens decides between input vs output
-            // Allows for tokenA and tokenB based params to be in whatever order for the pair. Orders tokens and amounts respectively 
-            
-            // incorrectly just setting input temporarily
-            var token0 = input;
-            
-            var amountOut = amounts[i + 1];
-            var amount0Out = input == token0 ? 0 : amountOut;
-            var amount1Out = input == token0 ? amountOut : 0;
-            
-            // Using PairFor, select to, setting Addrss.Zero temporarily.
-            var to = i < path.Length - 2 ? Address.Zero : _to;
-            
-            // Get Pair
-            var pair = Address.Zero;
-            
-            Call(pair, 0, "Swap", new object[] {amount0Out, amount1Out, to});
-        }
+        // for (uint i = 0; i < path.Length - 1; i++)
+        // {
+        //     var input = path[i];
+        //     var output = path[i + 1];
+        //     
+        //     // Sort tokens decides between input vs output
+        //     // Allows for tokenA and tokenB based params to be in whatever order for the pair. Orders tokens and amounts respectively 
+        //     
+        //     // incorrectly just setting input temporarily
+        //     var token0 = input;
+        //     
+        //     var amountOut = amounts[i + 1];
+        //     var amount0Out = input == token0 ? 0 : amountOut;
+        //     var amount1Out = input == token0 ? amountOut : 0;
+        //     
+        //     // Using PairFor, select to, setting Addrss.Zero temporarily.
+        //     var to = i < path.Length - 2 ? Address.Zero : _to;
+        //     
+        //     // Get Pair
+        //     var pair = Address.Zero;
+        //     
+        //     Call(pair, 0, "Swap", new object[] {amount0Out, amount1Out, to});
+        // }
     }
+    
+    #endregion
+    
+    #region Public Helpers
+    
+    public ulong GetQuote(ulong amountA, ulong reserveA, ulong reserveB)
+    {
+        Assert(amountA > 0, "OpdexV1: INSUFFICIENT_AMOUNT");
+        Assert(reserveA > 0 && reserveB > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        
+        return SafeMath.Div(SafeMath.Mul(amountA, reserveB), reserveA);
+    }
+
+    public ulong GetAmountOut(ulong amountIn, ulong reserveIn, ulong reserveOut)
+    {
+        Assert(amountIn > 0, "OpdexV1: INSUFFICIENT_INPUT_AMOUNT");
+        Assert(reserveIn > 0 && reserveOut > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        
+        var amountInWithFee = SafeMath.Mul(amountIn, 997);
+        var numerator = SafeMath.Mul(amountInWithFee, reserveOut);
+        var denominator = SafeMath.Add(SafeMath.Mul(reserveIn, 1000), amountInWithFee);
+        
+        return SafeMath.Div(numerator, denominator);
+    }
+
+    public ulong GetAmountIn(ulong amountOut, ulong reserveIn, ulong reserveOut)
+    {
+        Assert(amountOut > 0, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
+        Assert(reserveIn > 0 && reserveOut > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        
+        var numerator = SafeMath.Mul(SafeMath.Mul(reserveIn, amountOut), 1000);
+        var denominator = SafeMath.Mul(SafeMath.Sub(reserveOut, amountOut), 997);
+        
+        return SafeMath.Add(SafeMath.Div(numerator, denominator), 1);
+    }
+
+    // Todo: Depends on gas limitations, even single hop may be too much
+    // public static void GetAmountsOut()
+    // {
+    //         
+    // }
+    //
+    // public static void GetAmountsIn()
+    // {
+    //         
+    // }
     
     #endregion
     
@@ -242,7 +299,7 @@ public class OpdexV1Router : SmartContract
     private void SafeTransferTo(Address token, Address to, ulong amount)
     {
         var result = Call(token, 0, "TransferTo", new object[] {to, amount});
-        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
+        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_TO");
     }
 
     /// <summary>
@@ -258,6 +315,13 @@ public class OpdexV1Router : SmartContract
         Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
     }
     
+    private ReservesDto GetReserves(Address pair)
+    {
+        var reservesResponse = Call(pair, 0, "GetReserves");
+        Assert(reservesResponse.Success, "OpdexV1: INVALID_PAIR");
+        return (ReservesDto)reservesResponse.ReturnValue;
+    }
+
     #endregion
 
     #region Models

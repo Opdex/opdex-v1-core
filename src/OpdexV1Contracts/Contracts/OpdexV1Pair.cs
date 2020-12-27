@@ -83,8 +83,7 @@ public class OpdexV1Pair : OpdexV1SRC
         var reserves = GetReserves();
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(Token, Address);
-        // funds are already sent, find out how much by subtracting last recorded
-        // reserves from the current balances
+        // funds are already sent, find out how much by subtracting last recorded reserves from the current balances
         var amountCrs = SafeMath.Sub(balanceCrs, reserves.ReserveCrs);
         var amountToken = SafeMath.Sub(balanceToken, reserves.ReserveToken);
         var totalSupply = TotalSupply;
@@ -109,9 +108,17 @@ public class OpdexV1Pair : OpdexV1SRC
         }
         
         Assert(liquidity > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        
         MintExecute(to, liquidity);
+        
         Update(balanceCrs, balanceToken, ReserveCrs, ReserveToken);
-        Log(new MintEvent { AmountCrs = amountCrs, AmountToken = amountToken, Sender = from });
+        
+        Log(new MintEvent
+        {
+            AmountCrs = amountCrs, 
+            AmountToken = amountToken, 
+            Sender = from
+        });
     }
 
     /// <summary>
@@ -129,15 +136,28 @@ public class OpdexV1Pair : OpdexV1SRC
         var totalSupply = TotalSupply;
         var amountCrs = SafeMath.Div(SafeMath.Mul(liquidity, balanceCrs), totalSupply);
         var amountToken = SafeMath.Div(SafeMath.Mul(liquidity, balanceToken), totalSupply);
+        
         Assert(amountCrs > 0 && amountToken > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY_BURNED");
+        
         BurnExecute(Address, liquidity);
+        
         SafeTransfer(to, amountCrs);
         SafeTransferTo(token, to, amountToken);
+        
         balanceCrs = Balance;
         balanceToken = GetSrcBalance(token, Address);
+        
         Update(balanceCrs, balanceToken, reserves.ReserveCrs, reserves.ReserveToken);
+        
         // KLast
-        Log(new BurnEvent { Sender = from, To = to, AmountCrs = amountCrs, AmountToken = amountToken });
+        
+        Log(new BurnEvent
+        {
+            Sender = from, 
+            To = to, 
+            AmountCrs = amountCrs, 
+            AmountToken = amountToken
+        });
     }
 
     /// <summary>
@@ -152,23 +172,41 @@ public class OpdexV1Pair : OpdexV1SRC
     {
         Authorize();
         Assert(amountCrsOut > 0 || amountTokenOut > 0, "OpdexV1: INVALID_OUTPUT_AMOUNT");
+        
         var reserves = GetReserves();
         Assert(amountCrsOut < reserves.ReserveCrs && amountTokenOut < reserves.ReserveToken, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        
         var token = Token;
         Assert(to != token, "OpdexV1: INVALID_TO");
+        
         if (amountCrsOut > 0) SafeTransfer(to, amountCrsOut);
         if (amountTokenOut > 0) SafeTransferTo(token, to, amountTokenOut);
+        
         // if data.length
+        
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(token, Address);
         var amountCrsIn = balanceCrs > SafeMath.Sub(reserves.ReserveCrs, amountCrsOut) ? SafeMath.Sub(balanceCrs, SafeMath.Sub(reserves.ReserveCrs,amountCrsOut)) : 0;
         var amountTokenIn = balanceToken > SafeMath.Sub(reserves.ReserveToken, amountTokenOut) ? SafeMath.Sub(balanceToken, SafeMath.Sub(reserves.ReserveToken, amountTokenOut)) : 0;
+        
         Assert(amountCrsIn > 0 || amountTokenIn > 0, "OpdexV1: INSUFFICIENT_INPUT_AMOUNT");
+        
         var balanceCrsAdjusted = SafeMath.Sub(SafeMath.Mul(balanceCrs, 1000), SafeMath.Mul(amountCrsIn, 3));
-        var balanceAdjusted = SafeMath.Sub(SafeMath.Mul(balanceToken, 1000), SafeMath.Mul(amountTokenIn, 3));
-        Assert(SafeMath.Mul(balanceCrsAdjusted, balanceAdjusted) >= SafeMath.Mul(SafeMath.Mul(reserves.ReserveCrs, reserves.ReserveToken), 1_000_000));
+        var balanceTokenAdjusted = SafeMath.Sub(SafeMath.Mul(balanceToken, 1000), SafeMath.Mul(amountTokenIn, 3));
+        
+        Assert(SafeMath.Mul(balanceCrsAdjusted, balanceTokenAdjusted) >= SafeMath.Mul(SafeMath.Mul(reserves.ReserveCrs, reserves.ReserveToken), 1_000_000));
+        
         Update(balanceCrs, balanceToken, reserves.ReserveCrs, reserves.ReserveToken);
-        Log(new SwapEvent { AmountCrsIn = amountCrsIn, AmountCrsOut = amountCrsOut, AmountTokenIn = amountTokenIn, AmountTokenOut = amountTokenOut, Sender = from, To = to });
+        
+        Log(new SwapEvent
+        {
+            AmountCrsIn = amountCrsIn, 
+            AmountCrsOut = amountCrsOut, 
+            AmountTokenIn = amountTokenIn, 
+            AmountTokenOut = amountTokenOut, 
+            Sender = from, 
+            To = to
+        });
     }
     
     /// <summary>
@@ -180,6 +218,7 @@ public class OpdexV1Pair : OpdexV1SRC
         var token = Token;
         var balanceToken = SafeMath.Sub(GetSrcBalance(token, Address), ReserveToken);
         var balanceCrs = SafeMath.Sub(Balance, ReserveCrs);
+        
         SafeTransfer(to, balanceToken);
         SafeTransferTo(token, to, balanceCrs);
     }
@@ -210,7 +249,12 @@ public class OpdexV1Pair : OpdexV1SRC
         ReserveCrs = balanceCrs;
         ReserveToken = balanceToken;
         LastBlock = Block.Number;
-        Log(new SyncEvent { ReserveCrs = balanceCrs, ReserveToken = reserveToken });
+        
+        Log(new SyncEvent
+        {
+            ReserveCrs = balanceCrs, 
+            ReserveToken = reserveToken
+        });
     }
 
     /// <summary>
