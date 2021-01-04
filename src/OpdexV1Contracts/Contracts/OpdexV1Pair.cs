@@ -94,6 +94,7 @@ public class OpdexV1Pair : OpdexV1SRC
             // Todo: This is flawed and temporary intentionally
             // uint64 * uint64 will result in overflows, need uint128 && uint256 support
             // or break this down further (maybe not even possible with SC limitations)
+            // squareRoot(amountCrs * TotalSupply) - MinimumLiquidity
             liquidity = SafeMath.Sub(SafeMath.Sqrt(SafeMath.Mul(amountCrs, TotalSupply)), MinimumLiquidity);
             MintExecute(Address.Zero, MinimumLiquidity);
         }
@@ -186,8 +187,13 @@ public class OpdexV1Pair : OpdexV1SRC
         
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(token, Address);
-        var amountCrsIn = balanceCrs > SafeMath.Sub(reserves.ReserveCrs, amountCrsOut) ? SafeMath.Sub(balanceCrs, SafeMath.Sub(reserves.ReserveCrs,amountCrsOut)) : 0;
-        var amountTokenIn = balanceToken > SafeMath.Sub(reserves.ReserveToken, amountTokenOut) ? SafeMath.Sub(balanceToken, SafeMath.Sub(reserves.ReserveToken, amountTokenOut)) : 0;
+        var amountCrsIn = balanceCrs > SafeMath.Sub(reserves.ReserveCrs, amountCrsOut) 
+            ? SafeMath.Sub(balanceCrs, SafeMath.Sub(reserves.ReserveCrs,amountCrsOut)) 
+            : 0;
+        
+        var amountTokenIn = balanceToken > SafeMath.Sub(reserves.ReserveToken, amountTokenOut) 
+            ? SafeMath.Sub(balanceToken, SafeMath.Sub(reserves.ReserveToken, amountTokenOut)) 
+            : 0;
         
         Assert(amountCrsIn > 0 || amountTokenIn > 0, "OpdexV1: INSUFFICIENT_INPUT_AMOUNT");
         
@@ -250,6 +256,7 @@ public class OpdexV1Pair : OpdexV1SRC
         ReserveToken = balanceToken;
         LastBlock = Block.Number;
         
+        // Todo: Double check this, should ReserveCrs be set to balanceCrs or reserveCrs?
         Log(new SyncEvent
         {
             ReserveCrs = balanceCrs, 
@@ -262,7 +269,8 @@ public class OpdexV1Pair : OpdexV1SRC
     /// </summary>
     private void MintFee()
     {
-        
+        // Todo: Implement mint fee
+        // Would Mint 1/6 of the latest swap transactions fee, applied to Opdex FeeTo address
     }
     
     /// <summary>

@@ -28,6 +28,9 @@ public abstract class OpdexV1SRC : SmartContract
         private set => PersistentState.SetUInt64(nameof(TotalSupply), value);
     }
 
+    // When these are minted and assigned, _should_ we automatically give the router contract
+    // an allowance equal to the users balance? Saves them from setting allowance later
+    // but maybe not everyone wants to have their allowance open like that all the time
     protected void MintExecute(Address to, ulong value)
     {
         var balance = GetBalance(to);
