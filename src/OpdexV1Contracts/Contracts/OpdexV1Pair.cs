@@ -13,7 +13,7 @@ public class OpdexV1Pair : OpdexV1SRC
     /// <summary>
     /// Only accept CRS sent by the Factory contract
     /// </summary>
-    public override void Receive()
+    public override void Receive() // Todo: not if we open up methods to not be authed requiring the caller to be the router
     {
         Assert(Message.Sender == Factory, "OpdexV1: UNACCEPTED_CRS");
         base.Receive();
@@ -33,25 +33,28 @@ public class OpdexV1Pair : OpdexV1SRC
         private set => PersistentState.SetAddress(nameof(Token), value);
     }
 
-    // Todo: Broken down token amounts or UInt256 support
     public ulong ReserveCrs
     {
         get => PersistentState.GetUInt32(nameof(ReserveCrs));
         private set => PersistentState.SetUInt64(nameof(ReserveCrs), value);
     }
     
-    // Todo: Broken down token amounts or UInt256 support
     public ulong ReserveToken
     {
         get => PersistentState.GetUInt64(nameof(ReserveToken));
         private set => PersistentState.SetUInt64(nameof(ReserveToken), value);
     }
     
-    // Todo: UNIX timestamp if possible
     public ulong LastBlock
     {
         get => PersistentState.GetUInt64(nameof(LastBlock));
         private set => PersistentState.SetUInt64(nameof(LastBlock), value);
+    }
+
+    public ulong KLast
+    {
+        get => PersistentState.GetUInt64(nameof(KLast));
+        private set => PersistentState.SetUInt64(nameof(KLast), value);
     }
     
     #endregion
@@ -62,15 +65,8 @@ public class OpdexV1Pair : OpdexV1SRC
     /// Returns the pools reserves for this pairing
     /// </summary>
     /// <returns>Reserves</returns>
-    public Reserves GetReserves()
-    {
-        return new Reserves
-        {
-            ReserveCrs = ReserveCrs,
-            ReserveToken = ReserveToken,
-            LastBlock = LastBlock
-        };
-    }
+    public Reserves GetReserves() 
+        => new Reserves { ReserveCrs = ReserveCrs, ReserveToken = ReserveToken, LastBlock = LastBlock };
     
     /// <summary>
     /// Mints new tokens for providing liquidity, should be called from the Factory contract only
@@ -79,11 +75,10 @@ public class OpdexV1Pair : OpdexV1SRC
     /// <param name="from">The original callers address</param>
     public void Mint(Address to, Address from)
     {
-        Authorize();
+        Authorize(); // Todo: This may not need to be authed - preferably not
         var reserves = GetReserves();
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(Token, Address);
-        // funds are already sent, find out how much by subtracting last recorded reserves from the current balances
         var amountCrs = SafeMath.Sub(balanceCrs, reserves.ReserveCrs);
         var amountToken = SafeMath.Sub(balanceToken, reserves.ReserveToken);
         var totalSupply = TotalSupply;
@@ -91,18 +86,11 @@ public class OpdexV1Pair : OpdexV1SRC
         
         if (totalSupply == 0)
         {
-            // Todo: This is flawed and temporary intentionally
-            // uint64 * uint64 will result in overflows, need uint128 && uint256 support
-            // or break this down further (maybe not even possible with SC limitations)
-            // squareRoot(amountCrs * TotalSupply) - MinimumLiquidity
             liquidity = SafeMath.Sub(SafeMath.Sqrt(SafeMath.Mul(amountCrs, TotalSupply)), MinimumLiquidity);
             MintExecute(Address.Zero, MinimumLiquidity);
         }
         else
         {
-            // Todo: This is flawed and temporary intentionally
-            // uint64 * uint64 will result in overflows, need uint128 && uint256 support
-            // or break this down further (maybe not even possible with SC limitations)
             var amountCrsLiquidity = SafeMath.Div(SafeMath.Mul(amountCrs, TotalSupply), ReserveCrs);
             var amountTokenLiquidity = SafeMath.Div(SafeMath.Mul(amountToken, TotalSupply), ReserveToken);
             liquidity = amountCrsLiquidity > amountTokenLiquidity ? amountTokenLiquidity : amountCrsLiquidity;
@@ -114,12 +102,7 @@ public class OpdexV1Pair : OpdexV1SRC
         
         Update(balanceCrs, balanceToken, ReserveCrs, ReserveToken);
         
-        Log(new MintEvent
-        {
-            AmountCrs = amountCrs, 
-            AmountToken = amountToken, 
-            Sender = from
-        });
+        Log(new MintEvent { AmountCrs = amountCrs, AmountToken = amountToken, Sender = from });
     }
 
     /// <summary>
@@ -128,7 +111,7 @@ public class OpdexV1Pair : OpdexV1SRC
     /// <param name="to">The address to transfer CRS/SRC tokens to</param>
     public void Burn(Address to, Address from)
     {
-        Authorize();
+        Authorize(); // Todo: This may not need to be authed - preferably not
         var reserves = GetReserves();
         var token = Token;
         var balanceCrs = Balance;
@@ -149,16 +132,10 @@ public class OpdexV1Pair : OpdexV1SRC
         balanceToken = GetSrcBalance(token, Address);
         
         Update(balanceCrs, balanceToken, reserves.ReserveCrs, reserves.ReserveToken);
+
+        KLast = SafeMath.Mul(SafeMath.Sub(reserves.ReserveCrs, balanceCrs), SafeMath.Sub(reserves.ReserveToken, balanceToken));
         
-        // KLast
-        
-        Log(new BurnEvent
-        {
-            Sender = from, 
-            To = to, 
-            AmountCrs = amountCrs, 
-            AmountToken = amountToken
-        });
+        Log(new BurnEvent { Sender = from,  To = to, AmountCrs = amountCrs, AmountToken = amountToken });
     }
 
     /// <summary>
@@ -171,7 +148,7 @@ public class OpdexV1Pair : OpdexV1SRC
     /// <param name="data"></param>
     public void Swap(ulong amountCrsOut, ulong amountTokenOut, Address to, byte[] data, Address from)
     {
-        Authorize();
+        Authorize(); // Todo: This may not need to be authed - preferably not
         Assert(amountCrsOut > 0 || amountTokenOut > 0, "OpdexV1: INVALID_OUTPUT_AMOUNT");
         
         var reserves = GetReserves();
@@ -204,15 +181,8 @@ public class OpdexV1Pair : OpdexV1SRC
         
         Update(balanceCrs, balanceToken, reserves.ReserveCrs, reserves.ReserveToken);
         
-        Log(new SwapEvent
-        {
-            AmountCrsIn = amountCrsIn, 
-            AmountCrsOut = amountCrsOut, 
-            AmountTokenIn = amountTokenIn, 
-            AmountTokenOut = amountTokenOut, 
-            Sender = from, 
-            To = to
-        });
+        Log(new SwapEvent { AmountCrsIn = amountCrsIn, AmountCrsOut = amountCrsOut, 
+            AmountTokenIn = amountTokenIn, AmountTokenOut = amountTokenOut, Sender = from, To = to });
     }
     
     /// <summary>
@@ -260,17 +230,26 @@ public class OpdexV1Pair : OpdexV1SRC
         Log(new SyncEvent
         {
             ReserveCrs = balanceCrs, 
-            ReserveToken = reserveToken
+            ReserveToken = balanceToken
         });
     }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    private void MintFee()
+    
+    private void MintFee(ulong reserveCrs, ulong reserveToken, Address feeTo)
     {
-        // Todo: Implement mint fee
-        // Would Mint 1/6 of the latest swap transactions fee, applied to Opdex FeeTo address
+        var kLast = KLast;
+        
+        if (kLast == 0) return;
+        
+        var rootK = SafeMath.Mul(SafeMath.Sqrt(reserveCrs), reserveToken);
+        var rootKLast = SafeMath.Sqrt(kLast);
+
+        if (rootK <= rootKLast) return;
+            
+        var numerator = SafeMath.Mul(TotalSupply, SafeMath.Sub(rootK, rootKLast));
+        var denominator = SafeMath.Add(SafeMath.Mul(rootK, 5), rootKLast);
+        var liquidity = SafeMath.Div(numerator, denominator);
+
+        if (liquidity > 0) MintExecute(feeTo, liquidity);
     }
     
     /// <summary>
@@ -319,7 +298,7 @@ public class OpdexV1Pair : OpdexV1SRC
     {
         var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
         Assert(balanceResponse.Success, "OpdexV1: INVALID_BALANCE");
-        return (ulong) balanceResponse.ReturnValue;
+        return (ulong)balanceResponse.ReturnValue;
     }
     
     #endregion
@@ -361,7 +340,6 @@ public class OpdexV1Pair : OpdexV1SRC
     {
         public ulong ReserveCrs;
         public ulong ReserveToken;
-        // Preferably LastBlockTimestamp - UNIX timestamp
         public ulong LastBlock;
     }
 

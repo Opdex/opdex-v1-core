@@ -51,11 +51,7 @@ public class OpdexV1Router : SmartContract
         
         SetPair(token, pair);
         
-        Log(new PairCreatedEvent
-        {
-            Token = token, 
-            Pair = pair
-        });
+        Log(new PairCreatedEvent { Token = token, Pair = pair });
        
         return pair;
     }
@@ -89,8 +85,7 @@ public class OpdexV1Router : SmartContract
     // Todo: This entire method can likely be refactored to be more gas performant
     public RemoveLiquidityResponseModel RemoveLiquidity(Address token, ulong liquidity, ulong amountCrsMin, ulong amountTokenMin, Address to, ulong deadline)
     {
-        var pair = GetPair(token);
-        Assert(pair != Address.Zero, "OpdexV1: INVALID_PAIR");
+        var pair = GetAndValidatePairExists(token);
 
         // Todo: Can the transferFrom and burn call to the pair use/take advantage of a shared method saving 1 call
         // Send liquidity to pair
@@ -185,7 +180,11 @@ public class OpdexV1Router : SmartContract
     // }
 
     // Todo: Support potential future fee on transfer tokens
-    
+    // fee on transfer tokens on Stratis do not exist yet but _when_ they do,
+    // transfers may burn a bit of the supply so the transferred balance after a swap 
+    // Needs to be equal to the balance of the address after its been transferred from
+    // the pair contract to the router contract
+
     /// <summary>
     /// Equivalent to a CRS sell (e.g. Sell exactly 1 CRS for about 10 OPD)
     /// </summary>
@@ -195,13 +194,12 @@ public class OpdexV1Router : SmartContract
     /// <param name="deadline"></param>
     public void SwapExactCRSForTokens(ulong amountTokenOutMin, Address token, Address to, ulong deadline)
     {
-        var pair = GetPair(token);
-        Assert(pair != Address.Zero, "OpdexV1: INVALID_PAIR");
+        var pair = GetAndValidatePairExists(token);
         var reserves = GetReserves(pair);
-        var amounts = GetAmountOut(Message.Value, reserves.ReserveCrs, reserves.ReserveToken);
-        Assert(amounts >= amountTokenOutMin, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
+        var amountOut = GetAmountOut(Message.Value, reserves.ReserveCrs, reserves.ReserveToken);
+        Assert(amountOut >= amountTokenOutMin, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
         SafeTransfer(pair, Message.Value);
-        Swap(0, amounts, pair, to);
+        Swap(0, amountOut, pair, to);
     }
     
     /// <summary>
@@ -214,12 +212,12 @@ public class OpdexV1Router : SmartContract
     /// <param naem="deadline"></param>
     public void SwapTokensForExactCRS(ulong amountCrsOut, ulong amountTokenInMax, Address token, Address to, ulong deadline)
     {
-        var pair = GetPair(token);
-        Assert(pair != Address.Zero, "OpdexV1: INVALID_PAIR");
+        var pair = GetAndValidatePairExists(token);
         var reserves = GetReserves(pair);
-        var amounts = GetAmountIn(amountCrsOut, reserves.ReserveToken, reserves.ReserveCrs);
-        Assert(amounts <= amountTokenInMax, "OpdexV1: EXCESSIVE_INPUT_AMOUNT");
-        Swap(amounts, 0, pair, to);
+        var amountIn = GetAmountIn(amountCrsOut, reserves.ReserveToken, reserves.ReserveCrs);
+        Assert(amountIn <= amountTokenInMax, "OpdexV1: EXCESSIVE_INPUT_AMOUNT");
+        SafeTransferFrom(token, Message.Sender, pair, amountIn);
+        Swap(amountCrsOut, 0, pair, to);
     }
     
     /// <summary>
@@ -232,12 +230,12 @@ public class OpdexV1Router : SmartContract
     /// <param name="deadline"></param>
     public void SwapExactTokensForCRS(ulong amountTokenIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
-        var pair = GetPair(token);
-        Assert(pair != Address.Zero, "OpdexV1: INVALID_PAIR");
+        var pair = GetAndValidatePairExists(token);
         var reserves = GetReserves(pair);
-        var amounts = GetAmountOut(amountTokenIn, reserves.ReserveToken, reserves.ReserveCrs);
-        Assert(amounts >= amountCrsOutMin, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");  
-        Swap(amounts, 0, pair, to);
+        var amountOut = GetAmountOut(amountTokenIn, reserves.ReserveToken, reserves.ReserveCrs);
+        Assert(amountOut >= amountCrsOutMin, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");  
+        SafeTransferFrom(token, Message.Sender, pair, amountTokenIn);
+        Swap(amountOut, 0, pair, to);
     }
     
     /// <summary>
@@ -249,12 +247,14 @@ public class OpdexV1Router : SmartContract
     /// <param name="deadline"></param>
     public void SwapCRSForExactTokens(ulong amountTokenOut, Address token, Address to, ulong deadline)
     {
-        var pair = GetPair(token);
-        Assert(pair != Address.Zero, "OpdexV1: INVALID_PAIR");
+        var pair = GetAndValidatePairExists(token);
         var reserves = GetReserves(pair);
-        var amounts = GetAmountIn(amountTokenOut, reserves.ReserveCrs, reserves.ReserveToken);
-        Assert(amounts <= Message.Value, "OpdexV1: EXCESSIVE_INPUT_AMOUNT");
-        Swap(0, amounts, pair, to);
+        var amountIn = GetAmountIn(amountTokenOut, reserves.ReserveCrs, reserves.ReserveToken);
+        Assert(amountIn <= Message.Value, "OpdexV1: EXCESSIVE_INPUT_AMOUNT");
+        var change = Message.Value - amountIn;
+        SafeTransfer(pair, amountIn);
+        Swap(0, amountTokenOut, pair, to);
+        SafeTransfer(Message.Sender, change);
     }
     
     // No hops for now due to gas limits.
@@ -313,6 +313,13 @@ public class OpdexV1Router : SmartContract
     #endregion
     
     #region Private Helpers
+
+    private Address GetAndValidatePairExists(Address token)
+    {
+        var pair = GetPair(token);
+        Assert(pair != Address.Zero, "OpdexV1: INVALID_PAIR");
+        return pair;
+    }
 
     /// <summary>
     /// Transfers CRS tokens to an address

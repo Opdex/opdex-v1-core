@@ -9,7 +9,6 @@ namespace OpdexV1Contracts.Tests
     public class OpdexV1RouterTests
     {
         private readonly Mock<ISmartContractState> _mockContractState;
-        private readonly Mock<IPersistentState> _mockPersistentState;
         private readonly Mock<IContractLogger> _mockContractLogger;
         private readonly Mock<IInternalTransactionExecutor> _mockInternalExecutor;
         private readonly Address _router;
@@ -21,11 +20,12 @@ namespace OpdexV1Contracts.Tests
 
         public OpdexV1RouterTests()
         {
+            var mockPersistentState = new Mock<IPersistentState>();
+
             _mockContractLogger = new Mock<IContractLogger>();
-            _mockPersistentState = new Mock<IPersistentState>();
             _mockContractState = new Mock<ISmartContractState>();
             _mockInternalExecutor = new Mock<IInternalTransactionExecutor>();
-            _mockContractState.Setup(x => x.PersistentState).Returns(_mockPersistentState.Object);
+            _mockContractState.Setup(x => x.PersistentState).Returns(mockPersistentState.Object);
             _mockContractState.Setup(x => x.ContractLogger).Returns(_mockContractLogger.Object);
             _mockContractState.Setup(x => x.InternalTransactionExecutor).Returns(_mockInternalExecutor.Object);
             _router = "0x0000000000000000000000000000000000000001".HexToAddress();
@@ -132,11 +132,9 @@ namespace OpdexV1Contracts.Tests
             var pair = router.CreatePair(_token);
             
             _mockContractState.Verify(x => x.PersistentState.SetAddress($"Pair:{_token}", _pair), Times.Once);
-            
-            _mockContractLogger.Verify(x => x.Log(_mockContractState.Object, new OpdexV1Router.PairCreatedEvent {
-                Token = _token, 
-                Pair = _pair
-            }), Times.Once);
+
+            var expectedPairCreatedEvent = new OpdexV1Router.PairCreatedEvent { Token = _token, Pair = _pair };
+            _mockContractLogger.Verify(x => x.Log(_mockContractState.Object, expectedPairCreatedEvent), Times.Once);
 
             pair.Should().Be(_pair);
         }
@@ -502,8 +500,349 @@ namespace OpdexV1Contracts.Tests
         
         #endregion
         
-        #region Swap
+        #region Swap Exact CRS for Tokens
+
+        [Theory]
+        [InlineData(6500, 17_000, 200_000, 450_000)]
+        public void SwapExactCrsForTokens_Success(ulong amountTokenOutMin, ulong amountCrsIn, ulong reserveToken, ulong reserveCrs)
+        {
+            // Arrange
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsIn));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+            
+            // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
+            var amountOut = router.GetAmountOut(amountCrsIn, expectedReserves.ReserveCrs, expectedReserves.ReserveToken);
+
+            // Transfer CRS to Pair
+            _mockInternalExecutor
+                .Setup(x => x.Transfer(_mockContractState.Object, _pair, amountCrsIn))
+                .Returns(TransferResult.Transferred(true));
+            
+            // Call pair to swap
+            var swapParams = new object[] {0ul, amountOut, _someOtherAddress};
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(true));
+            
+            // Act
+            router.SwapExactCRSForTokens(amountTokenOutMin, _token, _someOtherAddress, 0);
+            
+            // Assert
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Transfer(_mockContractState.Object, _pair, amountCrsIn), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()), Times.Once);
+        }
+
+        [Fact]
+        public void SwapExactCrsForTokens_Throws_InvalidPair()
+        {
+            var router = CreateNewRouter();
+            
+            router
+                .Invoking(c => c.SwapExactCRSForTokens(1000, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: INVALID_PAIR");
+        }
         
+        [Theory]
+        [InlineData(6500, 14625, 200_000, 450_000)]
+        public void SwapExactCrsForTokens_Throws_InsufficientOutputAmount(ulong amountTokenOutMin, ulong amountCrsIn, ulong reserveToken, ulong reserveCrs)
+        {
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsIn));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+            
+            router
+                .Invoking(c => c.SwapExactCRSForTokens(amountTokenOutMin, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
+        }
+        
+        #endregion
+        
+        #region Swap Tokens for Exact CRS
+
+        [Theory]
+        [InlineData(6500, 17_000, 200_000, 450_000)]
+        public void SwapTokensForExactCRS_Success(ulong amountCrsOut, ulong amountTokenInMax, ulong reserveToken, ulong reserveCrs)
+        {
+            // Arrange
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+
+            // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
+            var amountIn = router.GetAmountIn(amountCrsOut, expectedReserves.ReserveToken, expectedReserves.ReserveCrs);
+            
+            // Call token to Transfer from caller to Pair
+            var transferFromParams = new object[] { _someOtherAddress, _pair, amountIn };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _token, 0, "TransferFrom", transferFromParams, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(true));
+            
+            // Call pair to swap
+            var swapParams = new object[] {amountCrsOut, 0ul, _someOtherAddress};
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(true));
+            
+            // Act
+            router.SwapTokensForExactCRS(amountCrsOut, amountIn, _token, _someOtherAddress, 0);
+            
+            // Assert
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _token, 0, "TransferFrom", transferFromParams, It.IsAny<ulong>()), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()), Times.Once);
+        }
+
+        [Fact]
+        public void SwapTokensForExactCRS_Throws_InvalidPair()
+        {
+            var router = CreateNewRouter();
+            
+            router
+                .Invoking(c => c.SwapTokensForExactCRS(1000, 1000, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: INVALID_PAIR");
+        }
+        
+        [Theory]
+        [InlineData(6500, 2000, 200_000, 450_000)]
+        public void SwapTokensForExactCRS_Throws_ExcessiveInputAmount(ulong amountCrsOut, ulong amountTokenInMax, ulong reserveToken, ulong reserveCrs)
+        {
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+            
+            router
+                .Invoking(c => c.SwapTokensForExactCRS(amountCrsOut, amountTokenInMax, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: EXCESSIVE_INPUT_AMOUNT");
+        }
+        
+        #endregion
+        
+        #region Swap Exact Tokens for CRS
+
+        [Theory]
+        [InlineData(8000, 17_000, 200_000, 450_000)]
+        public void SwapExactTokensForCRS_Success(ulong amountTokenIn, ulong amountCrsOutMin, ulong reserveToken, ulong reserveCrs)
+        {
+            // Arrange
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+
+            // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
+            var amountOut = router.GetAmountOut(amountTokenIn, expectedReserves.ReserveToken, expectedReserves.ReserveCrs);
+            
+            // Call token to Transfer from caller to Pair
+            var transferFromParams = new object[] { _someOtherAddress, _pair, amountTokenIn };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _token, 0, "TransferFrom", transferFromParams, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(true));
+            
+            // Call pair to swap
+            var swapParams = new object[] {amountOut, 0ul, _someOtherAddress};
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(true));
+            
+            // Act
+            router.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, _token, _someOtherAddress, 0);
+            
+            // Assert
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _token, 0, "TransferFrom", transferFromParams, It.IsAny<ulong>()), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()), Times.Once);
+        }
+
+        [Fact]
+        public void SwapExactTokensForCRS_Throws_InvalidPair()
+        {
+            var router = CreateNewRouter();
+            
+            router
+                .Invoking(c => c.SwapExactTokensForCRS(1000, 1000, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: INVALID_PAIR");
+        }
+        
+        [Theory]
+        [InlineData(6500, 20000, 200_000, 450_000)]
+        public void SwapExactTokensForCRS_Throws_InsufficientOutputAmount(ulong amountTokenIn, ulong amountCrsOutMin, ulong reserveToken, ulong reserveCrs)
+        {
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+            
+            router
+                .Invoking(c => c.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
+        }
+        
+        #endregion
+        
+        #region Swap CRS for Exact Tokens
+
+        [Theory]
+        [InlineData(24_000, 10_000, 200_000, 450_000)]
+        public void SwapCRSForExactTokens_Success(ulong amountCrsIn, ulong amountTokenOut, ulong reserveToken, ulong reserveCrs)
+        {
+            // Arrange
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsIn));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+
+            var amountIn = router.GetAmountIn(amountTokenOut, expectedReserves.ReserveCrs, expectedReserves.ReserveToken);
+
+            var change = amountCrsIn - amountIn;
+            
+            // Transfer CRS to Pair
+            _mockInternalExecutor
+                .Setup(x => x.Transfer(_mockContractState.Object, _pair, amountIn))
+                .Returns(TransferResult.Transferred(true));
+            
+            // Call pair to swap
+            var swapParams = new object[] {0ul, amountTokenOut, _someOtherAddress};
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(true));
+
+            if (change > 0)
+            {
+                _mockInternalExecutor
+                    .Setup(x => x.Transfer(_mockContractState.Object, _someOtherAddress, change))
+                    .Returns(TransferResult.Transferred(true));
+            }
+            
+            // Act
+            router.SwapCRSForExactTokens(amountTokenOut, _token, _someOtherAddress, 0);
+            
+            // Assert
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Transfer(_mockContractState.Object, _pair, amountIn), Times.Once);
+            
+            _mockInternalExecutor
+                .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "Swap", swapParams, It.IsAny<ulong>()), Times.Once);
+
+            if (change > 0)
+            {
+                _mockInternalExecutor
+                    .Setup(x => x.Transfer(_mockContractState.Object, _someOtherAddress, change))
+                    .Returns(TransferResult.Transferred(true));
+            }
+        }
+
+        [Fact]
+        public void SwapCRSForExactTokens_Throws_InvalidPair()
+        {
+            var router = CreateNewRouter();
+            
+            router
+                .Invoking(c => c.SwapCRSForExactTokens(1000, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: INVALID_PAIR");
+        }
+        
+        [Theory]
+        [InlineData(6500, 2000, 200_000, 450_000)]
+        public void SwapCRSForExactTokens_Throws_ExcessiveInputAmount(ulong amountCrsIn, ulong amountTokenOut, ulong reserveToken, ulong reserveCrs)
+        {
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.PersistentState.GetAddress($"Pair:{_token}")).Returns(_pair);
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
+            
+            // Call to get reserves from pair
+            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(expectedReserves));
+            
+            router
+                .Invoking(c => c.SwapCRSForExactTokens(amountTokenOut, _token, _someOtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OpdexV1: EXCESSIVE_INPUT_AMOUNT");
+        }
+
         #endregion
         
         # region Public Helpers
