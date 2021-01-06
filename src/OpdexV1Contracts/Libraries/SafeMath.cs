@@ -13,13 +13,10 @@ public static class SafeMath
     public static ulong Sqrt(ulong y)
     {
         ulong z = 0;
-        
         if (y > 3) 
         {
             z = y;
-            
             var x = y / 2 + 1;
-            
             while (x < z) 
             {
                 z = x;
@@ -29,7 +26,6 @@ public static class SafeMath
         else if (y != 0) {
             z = 1;
         }
-
         return z;
     }
 }

@@ -83,6 +83,21 @@ namespace OpdexV1Contracts.Tests
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: FORBIDDEN");
         }
+
+        [Fact]
+        public void GetFeeTo()
+        {
+            var router = CreateNewRouter();
+            
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _feeToSetter, 0));
+            _mockContractState.Setup(x => x.PersistentState.GetAddress("FeeTo")).Returns(_someOtherAddress);
+
+            var feeTo = router.GetFeeTo();
+
+            feeTo.Should().Be(_someOtherAddress);
+
+            _mockContractState.Verify(x => x.PersistentState.GetAddress("FeeTo"), Times.Once());
+        }
         
         [Fact]
         public void SetFeeToSetter_Success()
@@ -186,8 +201,7 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsDesired));
 
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto
-                { ReserveCrs = expectedReserveCrs, ReserveToken = expectedReserveToken };
+            var expectedReserves = new [] { expectedReserveCrs, expectedReserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
@@ -245,8 +259,7 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsDesired));
 
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto
-                { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
@@ -306,8 +319,7 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsDesired));
 
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto
-                { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
@@ -383,23 +395,10 @@ namespace OpdexV1Contracts.Tests
             
             // Burn liquidity tokens
             var burnParams = new object[] {_someOtherAddress};
-            var expectedBurnDto = new OpdexV1Router.BurnDto
-                { AmountCrs = amountCrsMin, AmountToken = amountTokenMin };
+            var expectedBurnResponse = new [] { amountCrsMin, amountTokenMin };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "Burn", burnParams, It.IsAny<ulong>()))
-                .Returns(TransferResult.Transferred(expectedBurnDto));
-            
-            // Transfer tokens from router contract to sender
-            // Todo: This entire flow can probably be done in one call to the pair contract....
-            var transferToParams = new object[] {_someOtherAddress, expectedBurnDto.AmountToken};
-            _mockInternalExecutor
-                .Setup(x => x.Call(_mockContractState.Object, _token, 0, "TransferTo", transferToParams, It.IsAny<ulong>()))
-                .Returns(TransferResult.Transferred(true));
-            
-            // Transfer CRS to User
-            _mockInternalExecutor
-                .Setup(x => x.Transfer(_mockContractState.Object, _someOtherAddress, expectedBurnDto.AmountCrs))
-                .Returns(TransferResult.Transferred(true));
+                .Returns(TransferResult.Transferred(expectedBurnResponse));
 
             var removeLiquidityResponse = router.RemoveLiquidity(_token, liquidity, amountCrsMin, amountCrsMin, _someOtherAddress, 0ul);
 
@@ -411,12 +410,6 @@ namespace OpdexV1Contracts.Tests
             
             _mockInternalExecutor
                 .Verify(x => x.Call(_mockContractState.Object, _pair, 0, "Burn", burnParams, It.IsAny<ulong>()), Times.Once);
-            
-            _mockInternalExecutor
-                .Verify(x => x.Call(_mockContractState.Object, _token, 0, "TransferTo", transferToParams, It.IsAny<ulong>()), Times.Once);
-
-            _mockInternalExecutor
-                .Verify(x => x.Transfer(_mockContractState.Object, _someOtherAddress, expectedBurnDto.AmountCrs), Times.Once);
         }
 
         [Fact]
@@ -453,11 +446,10 @@ namespace OpdexV1Contracts.Tests
             // Burn liquidity tokens
             var burnParams = new object[] {_someOtherAddress};
             const ulong expectedAmountCrsMin = amountCrsMin - 1;
-            var expectedBurnDto = new OpdexV1Router.BurnDto
-                { AmountCrs = expectedAmountCrsMin, AmountToken = amountTokenMin };
+            var expectedBurnResponse = new [] { expectedAmountCrsMin, amountTokenMin };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "Burn", burnParams, It.IsAny<ulong>()))
-                .Returns(TransferResult.Transferred(expectedBurnDto));
+                .Returns(TransferResult.Transferred(expectedBurnResponse));
             
             router
                 .Invoking(c => c.RemoveLiquidity(_token, liquidity, amountCrsMin, amountTokenMin, _someOtherAddress, 0))
@@ -486,11 +478,10 @@ namespace OpdexV1Contracts.Tests
             // Burn liquidity tokens
             var burnParams = new object[] {_someOtherAddress};
             const ulong expectedAmountTokenMin = amountTokenMin - 1;
-            var expectedBurnDto = new OpdexV1Router.BurnDto
-                { AmountCrs = amountCrsMin, AmountToken = expectedAmountTokenMin };
+            var expectedBurnResponse = new [] { amountCrsMin, expectedAmountTokenMin };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "Burn", burnParams, It.IsAny<ulong>()))
-                .Returns(TransferResult.Transferred(expectedBurnDto));
+                .Returns(TransferResult.Transferred(expectedBurnResponse));
             
             router
                 .Invoking(c => c.RemoveLiquidity(_token, liquidity, amountCrsMin, amountTokenMin, _someOtherAddress, 0))
@@ -514,13 +505,13 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsIn));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
             
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
-            var amountOut = router.GetAmountOut(amountCrsIn, expectedReserves.ReserveCrs, expectedReserves.ReserveToken);
+            var amountOut = router.GetAmountOut(amountCrsIn, expectedReserves[0], expectedReserves[1]);
 
             // Transfer CRS to Pair
             _mockInternalExecutor
@@ -569,7 +560,7 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsIn));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
@@ -596,13 +587,13 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
-            var amountIn = router.GetAmountIn(amountCrsOut, expectedReserves.ReserveToken, expectedReserves.ReserveCrs);
+            var amountIn = router.GetAmountIn(amountCrsOut, expectedReserves[1], expectedReserves[0]);
             
             // Call token to Transfer from caller to Pair
             var transferFromParams = new object[] { _someOtherAddress, _pair, amountIn };
@@ -652,7 +643,7 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
@@ -679,13 +670,13 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
-            var amountOut = router.GetAmountOut(amountTokenIn, expectedReserves.ReserveToken, expectedReserves.ReserveCrs);
+            var amountOut = router.GetAmountOut(amountTokenIn, expectedReserves[1], expectedReserves[0]);
             
             // Call token to Transfer from caller to Pair
             var transferFromParams = new object[] { _someOtherAddress, _pair, amountTokenIn };
@@ -735,7 +726,7 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
@@ -762,12 +753,12 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, amountCrsIn));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));
 
-            var amountIn = router.GetAmountIn(amountTokenOut, expectedReserves.ReserveCrs, expectedReserves.ReserveToken);
+            var amountIn = router.GetAmountIn(amountTokenOut, expectedReserves[0], expectedReserves[1]);
 
             var change = amountCrsIn - amountIn;
             
@@ -832,7 +823,7 @@ namespace OpdexV1Contracts.Tests
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _someOtherAddress, 0));
             
             // Call to get reserves from pair
-            var expectedReserves = new OpdexV1Router.ReservesDto { ReserveCrs = reserveCrs, ReserveToken = reserveToken };
+            var expectedReserves = new [] { reserveCrs, reserveToken };
             _mockInternalExecutor
                 .Setup(x => x.Call(_mockContractState.Object, _pair, 0, "GetReserves", null, It.IsAny<ulong>()))
                 .Returns(TransferResult.Transferred(expectedReserves));

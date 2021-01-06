@@ -1,61 +1,112 @@
 using Stratis.SmartContracts;
 
-[Deploy]
-public class OpdexV1Pair : OpdexV1SRC
+public class OpdexV1PairDraft : SmartContract
 {
-    private const ulong MinimumLiquidity = 1000;
-    public OpdexV1Pair(ISmartContractState smartContractState, Address token) : base(smartContractState)
+    private const ulong MinimumLiquidity = 10;
+    public OpdexV1PairDraft(ISmartContractState smartContractState, Address token) : base(smartContractState)
     {
         Factory = Message.Sender;
         Token = token;
     }
-    
-    /// <summary>
-    /// Only accept CRS sent by the Factory contract
-    /// </summary>
-    public override void Receive() // Todo: not if we open up methods to not be authed requiring the caller to be the router
-    {
-        Assert(Message.Sender == Factory, "OpdexV1: UNACCEPTED_CRS");
-        base.Receive();
-    }
 
     #region Properties
     
+    /// <summary>
+    /// 
+    /// </summary>
     public Address Factory
     {
         get => PersistentState.GetAddress(nameof(Factory));
         private set => PersistentState.SetAddress(nameof(Factory), value);
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public Address Token
     {
         get => PersistentState.GetAddress(nameof(Token));
         private set => PersistentState.SetAddress(nameof(Token), value);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public ulong ReserveCrs
     {
         get => PersistentState.GetUInt32(nameof(ReserveCrs));
         private set => PersistentState.SetUInt64(nameof(ReserveCrs), value);
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public ulong ReserveToken
     {
         get => PersistentState.GetUInt64(nameof(ReserveToken));
         private set => PersistentState.SetUInt64(nameof(ReserveToken), value);
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public ulong LastBlock
     {
         get => PersistentState.GetUInt64(nameof(LastBlock));
         private set => PersistentState.SetUInt64(nameof(LastBlock), value);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public ulong KLast
     {
         get => PersistentState.GetUInt64(nameof(KLast));
         private set => PersistentState.SetUInt64(nameof(KLast), value);
     }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public ulong TotalSupply 
+    {
+        get => PersistentState.GetUInt64(nameof(TotalSupply));
+        private set => PersistentState.SetUInt64(nameof(TotalSupply), value);
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    public ulong GetBalance(Address address) 
+        => PersistentState.GetUInt64($"Balance:{address}");
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    private void SetBalance(Address address, ulong value) 
+        => PersistentState.SetUInt64($"Balance:{address}", value);
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="owner"></param>
+    /// <param name="spender"></param>
+    /// <returns></returns>
+    public ulong GetAllowance(Address owner, Address spender) 
+        => PersistentState.GetUInt64($"Allowance:{owner}:{spender}");
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="owner"></param>
+    /// <param name="spender"></param>
+    /// <param name="value"></param>
+    private void SetAllowance(Address owner, Address spender, ulong value) 
+        => PersistentState.SetUInt64($"Allowance:{owner}:{spender}", value);
     
     #endregion
 
@@ -73,69 +124,64 @@ public class OpdexV1Pair : OpdexV1SRC
     /// </summary>
     /// <param name="to">The address to transfer the minted tokens to</param>
     /// <param name="from">The original callers address</param>
-    public void Mint(Address to, Address from)
+    public void Mint(Address to)
     {
-        Authorize(); // Todo: This may not need to be authed - preferably not
         var reserves = GetReserves();
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(Token, Address);
-        var amountCrs = SafeMath.Sub(balanceCrs, reserves.ReserveCrs);
-        var amountToken = SafeMath.Sub(balanceToken, reserves.ReserveToken);
+        var amountCrs = checked(balanceCrs - reserves.ReserveCrs);
+        var amountToken = checked(balanceToken - reserves.ReserveToken);
         var totalSupply = TotalSupply;
         ulong liquidity;
         
         if (totalSupply == 0)
         {
-            liquidity = SafeMath.Sub(SafeMath.Sqrt(SafeMath.Mul(amountCrs, TotalSupply)), MinimumLiquidity);
+            liquidity = checked(Sqrt(checked(amountCrs * TotalSupply)) - MinimumLiquidity);
             MintExecute(Address.Zero, MinimumLiquidity);
         }
         else
         {
-            var amountCrsLiquidity = SafeMath.Div(SafeMath.Mul(amountCrs, TotalSupply), ReserveCrs);
-            var amountTokenLiquidity = SafeMath.Div(SafeMath.Mul(amountToken, TotalSupply), ReserveToken);
+            var amountCrsLiquidity = checked(amountCrs * TotalSupply) / ReserveCrs;
+            var amountTokenLiquidity = checked(amountToken * TotalSupply) / ReserveToken;
             liquidity = amountCrsLiquidity > amountTokenLiquidity ? amountTokenLiquidity : amountCrsLiquidity;
         }
         
         Assert(liquidity > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
-        
+        MintFee(reserves.ReserveCrs, reserves.ReserveToken);
         MintExecute(to, liquidity);
-        
-        Update(balanceCrs, balanceToken, ReserveCrs, ReserveToken);
-        
-        Log(new MintEvent { AmountCrs = amountCrs, AmountToken = amountToken, Sender = from });
+        Update(balanceCrs, balanceToken);
+        Log(new MintEvent { AmountCrs = amountCrs, AmountToken = amountToken, Sender = Message.Sender });
     }
 
     /// <summary>
     /// Burns pool tokens when removing liquidity, should be called from the Factory contract only
     /// </summary>
     /// <param name="to">The address to transfer CRS/SRC tokens to</param>
-    public void Burn(Address to, Address from)
+    public void Burn(Address to)
     {
-        Authorize(); // Todo: This may not need to be authed - preferably not
         var reserves = GetReserves();
         var token = Token;
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(token, Address);
         var liquidity = GetBalance(Address);
         var totalSupply = TotalSupply;
-        var amountCrs = SafeMath.Div(SafeMath.Mul(liquidity, balanceCrs), totalSupply);
-        var amountToken = SafeMath.Div(SafeMath.Mul(liquidity, balanceToken), totalSupply);
+        var amountCrs = checked(liquidity * balanceCrs) / totalSupply;
+        var amountToken = checked(liquidity * balanceToken) / totalSupply;
         
         Assert(amountCrs > 0 && amountToken > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY_BURNED");
-        
+        MintFee(reserves.ReserveCrs, reserves.ReserveToken);
         BurnExecute(Address, liquidity);
-        
         SafeTransfer(to, amountCrs);
         SafeTransferTo(token, to, amountToken);
         
         balanceCrs = Balance;
         balanceToken = GetSrcBalance(token, Address);
         
-        Update(balanceCrs, balanceToken, reserves.ReserveCrs, reserves.ReserveToken);
+        Update(balanceCrs, balanceToken);
 
-        KLast = SafeMath.Mul(SafeMath.Sub(reserves.ReserveCrs, balanceCrs), SafeMath.Sub(reserves.ReserveToken, balanceToken));
+        KLast = checked(checked(reserves.ReserveCrs - balanceCrs) * checked(reserves.ReserveToken - balanceToken));
         
-        Log(new BurnEvent { Sender = from,  To = to, AmountCrs = amountCrs, AmountToken = amountToken });
+        Log(new BurnEvent { Sender = Message.Sender, To = to, AmountCrs = amountCrs, AmountToken = amountToken });
     }
 
     /// <summary>
@@ -144,11 +190,8 @@ public class OpdexV1Pair : OpdexV1SRC
     /// <param name="amountCrsOut"></param>
     /// <param name="amountTokenOut"></param>
     /// <param name="to"></param>
-    /// <param name="data"></param>
-    /// <param name="data"></param>
-    public void Swap(ulong amountCrsOut, ulong amountTokenOut, Address to, byte[] data, Address from)
+    public void Swap(ulong amountCrsOut, ulong amountTokenOut, Address to)
     {
-        Authorize(); // Todo: This may not need to be authed - preferably not
         Assert(amountCrsOut > 0 || amountTokenOut > 0, "OpdexV1: INVALID_OUTPUT_AMOUNT");
         
         var reserves = GetReserves();
@@ -160,29 +203,24 @@ public class OpdexV1Pair : OpdexV1SRC
         if (amountCrsOut > 0) SafeTransfer(to, amountCrsOut);
         if (amountTokenOut > 0) SafeTransferTo(token, to, amountTokenOut);
         
-        // if data.length
-        
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(token, Address);
-        var amountCrsIn = balanceCrs > SafeMath.Sub(reserves.ReserveCrs, amountCrsOut) 
-            ? SafeMath.Sub(balanceCrs, SafeMath.Sub(reserves.ReserveCrs,amountCrsOut)) 
+        var amountCrsIn = balanceCrs > checked(reserves.ReserveCrs - amountCrsOut) 
+            ? checked(balanceCrs - checked(reserves.ReserveCrs - amountCrsOut)) 
             : 0;
-        
-        var amountTokenIn = balanceToken > SafeMath.Sub(reserves.ReserveToken, amountTokenOut) 
-            ? SafeMath.Sub(balanceToken, SafeMath.Sub(reserves.ReserveToken, amountTokenOut)) 
+        var amountTokenIn = balanceToken > checked(reserves.ReserveToken - amountTokenOut) 
+            ? checked(balanceToken - checked(reserves.ReserveToken - amountTokenOut)) 
             : 0;
         
         Assert(amountCrsIn > 0 || amountTokenIn > 0, "OpdexV1: INSUFFICIENT_INPUT_AMOUNT");
         
-        var balanceCrsAdjusted = SafeMath.Sub(SafeMath.Mul(balanceCrs, 1000), SafeMath.Mul(amountCrsIn, 3));
-        var balanceTokenAdjusted = SafeMath.Sub(SafeMath.Mul(balanceToken, 1000), SafeMath.Mul(amountTokenIn, 3));
+        var balanceCrsAdjusted = checked(checked(balanceCrs * 1_000) - checked(amountCrsIn * 3));
+        var balanceTokenAdjusted = checked(checked(balanceToken * 1_000) - checked(amountTokenIn * 3));
         
-        Assert(SafeMath.Mul(balanceCrsAdjusted, balanceTokenAdjusted) >= SafeMath.Mul(SafeMath.Mul(reserves.ReserveCrs, reserves.ReserveToken), 1_000_000));
-        
-        Update(balanceCrs, balanceToken, reserves.ReserveCrs, reserves.ReserveToken);
-        
+        Assert(checked(balanceCrsAdjusted * balanceTokenAdjusted) >= checked(checked(reserves.ReserveCrs * reserves.ReserveToken) * 1_000_000));
+        Update(balanceCrs, balanceToken);
         Log(new SwapEvent { AmountCrsIn = amountCrsIn, AmountCrsOut = amountCrsOut, 
-            AmountTokenIn = amountTokenIn, AmountTokenOut = amountTokenOut, Sender = from, To = to });
+            AmountTokenIn = amountTokenIn, AmountTokenOut = amountTokenOut, Sender = Message.Sender, To = to });
     }
     
     /// <summary>
@@ -192,9 +230,8 @@ public class OpdexV1Pair : OpdexV1SRC
     public void Skim(Address to)
     {
         var token = Token;
-        var balanceToken = SafeMath.Sub(GetSrcBalance(token, Address), ReserveToken);
-        var balanceCrs = SafeMath.Sub(Balance, ReserveCrs);
-        
+        var balanceToken = checked(GetSrcBalance(token, Address) - ReserveToken);
+        var balanceCrs = checked(Balance - ReserveCrs);
         SafeTransfer(to, balanceToken);
         SafeTransferTo(token, to, balanceCrs);
     }
@@ -202,54 +239,165 @@ public class OpdexV1Pair : OpdexV1SRC
     /// <summary>
     /// Forces the reserves amounts to match this contracts balances
     /// </summary>
-    public void Sync() => Update(Balance, GetSrcBalance(Token, Address), ReserveCrs, ReserveToken);
+    public void Sync() 
+        => Update(Balance, GetSrcBalance(Token, Address));
     
-    #endregion
-    
-    #region Private Methods
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="spender"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public bool Approve(Address spender, ulong value) 
+        => ApproveExecute(Message.Sender, spender, value);
 
     /// <summary>
-    /// Verify that the caller is the Factory.
+    /// 
     /// </summary>
-    private void Authorize() => Assert(Message.Sender == Factory, "OpdexV1: FORBIDDEN");
+    /// <param name="to"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public bool TransferTo(Address to, ulong value) 
+        => TransferExecute(Message.Sender, to, value);
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="from"></param>
+    /// <param name="to"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public bool TransferFrom(Address from, Address to, ulong value)
+    {
+        var allowance = GetAllowance(from, Message.Sender);
+        if (allowance > 0) SetAllowance(from, Message.Sender, checked(allowance - value));
+        return TransferExecute(from, to, value);
+    }
+    
+    #endregion
+
+    #region Private Methods
 
     /// <summary>
     /// 
     /// </summary>
     /// <param name="balanceCrs"></param>
     /// <param name="balanceToken"></param>
-    /// <param name="reserveCrs"></param>
-    /// <param name="reserveToken"></param>
-    private void Update(ulong balanceCrs, ulong balanceToken, ulong reserveCrs, ulong reserveToken)
+    private void Update(ulong balanceCrs, ulong balanceToken)
     {
         ReserveCrs = balanceCrs;
         ReserveToken = balanceToken;
         LastBlock = Block.Number;
         
-        // Todo: Double check this, should ReserveCrs be set to balanceCrs or reserveCrs?
-        Log(new SyncEvent
-        {
-            ReserveCrs = balanceCrs, 
-            ReserveToken = balanceToken
-        });
+        Log(new SyncEvent { ReserveCrs = balanceCrs, ReserveToken = balanceToken });
     }
     
-    private void MintFee(ulong reserveCrs, ulong reserveToken, Address feeTo)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="reserveCrs"></param>
+    /// <param name="reserveToken"></param>
+    /// <param name="feeTo"></param>
+    private void MintFee(ulong reserveCrs, ulong reserveToken)
     {
         var kLast = KLast;
         
         if (kLast == 0) return;
         
-        var rootK = SafeMath.Mul(SafeMath.Sqrt(reserveCrs), reserveToken);
-        var rootKLast = SafeMath.Sqrt(kLast);
+        var rootK = checked(Sqrt(reserveCrs) * reserveToken);
+        var rootKLast = Sqrt(kLast);
 
         if (rootK <= rootKLast) return;
             
-        var numerator = SafeMath.Mul(TotalSupply, SafeMath.Sub(rootK, rootKLast));
-        var denominator = SafeMath.Add(SafeMath.Mul(rootK, 5), rootKLast);
-        var liquidity = SafeMath.Div(numerator, denominator);
+        var numerator = checked(TotalSupply * checked(rootK - rootKLast));
+        var denominator = checked(checked(rootK * 5) + rootKLast);
+        var liquidity = numerator / denominator;
 
-        if (liquidity > 0) MintExecute(feeTo, liquidity);
+        if (liquidity == 0) return;
+        
+        MintExecute(GetFeeTo(), liquidity);
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="to"></param>
+    /// <param name="value"></param>
+    private void MintExecute(Address to, ulong value)
+    {
+        var balance = GetBalance(to);
+        TotalSupply = checked(TotalSupply + value);
+        SetBalance(to, checked(balance + value));
+        Log(new TransferEvent { From = Address.Zero, To = to, Value = value });
+    }
+
+    /// <summary>
+    /// Gets the token balance of an address and validates the response
+    /// </summary>
+    /// <param name="token">The src token contract address</param>
+    /// <param name="owner">The address to get the balance for</param>
+    /// <returns>ulong balance</returns>
+    private ulong GetSrcBalance(Address token, Address owner)
+    {
+        var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
+        Assert(balanceResponse.Success, "OpdexV1: INVALID_BALANCE");
+        return (ulong)balanceResponse.ReturnValue;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private Address GetFeeTo()
+    {
+        var feeToResponse = Call(Factory, 0, "GetFeeTo");
+        var feeTo = (Address)feeToResponse.ReturnValue;
+        Assert(feeToResponse.Success && feeTo != Address.Zero, "OpdexV1: INVALID_FACTORY_ADDRESS");
+        return feeTo;
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="from"></param>
+    /// <param name="value"></param>
+    private void BurnExecute(Address from, ulong value)
+    {
+        var balance = GetBalance(from);
+        SetBalance(from, checked(balance - value));
+        TotalSupply = checked(TotalSupply - value);
+        Log(new TransferEvent { From = from, To = Address.Zero, Value = value });
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="owner"></param>
+    /// <param name="spender"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    private bool ApproveExecute(Address owner, Address spender, ulong value)
+    {
+        SetAllowance(owner, spender, value);
+        Log(new ApprovalEvent { Owner = owner, Spender = spender, Value = value });
+        return true;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="from"></param>
+    /// <param name="to"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    private bool TransferExecute(Address from, Address to, ulong value)
+    {
+        var fromBalance = GetBalance(from);
+        SetBalance(from, checked(fromBalance - value));
+        var toBalance = GetBalance(to);
+        SetBalance(to, checked(toBalance + value));
+        Log(new TransferEvent {From = from, To = to, Value = value});
+        return true;
     }
     
     /// <summary>
@@ -274,43 +422,57 @@ public class OpdexV1Pair : OpdexV1SRC
         var result = Call(token, 0, "TransferTo", new object[] {to, amount});
         Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
     }
-
+    
     /// <summary>
-    /// Calls SRC TransferFrom method and validates the response.
+    /// 
     /// </summary>
-    /// <param name="token">The src token contract address</param>
-    /// <param name="from">The approvers address</param>
-    /// <param name="to">Address to transfer tokens to</param>
-    /// <param name="amount">The amount to transfer</param>
-    private void SafeTransferFrom(Address token, Address from, Address to, ulong amount)
+    /// <param name="y"></param>
+    /// <returns></returns>
+    public static ulong Sqrt(ulong y)
     {
-        var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
-        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
-    }
-
-    /// <summary>
-    /// Gets the token balance of an address and validates the response
-    /// </summary>
-    /// <param name="token">The src token contract address</param>
-    /// <param name="owner">The address to get the balance for</param>
-    /// <returns>ulong balance</returns>
-    private ulong GetSrcBalance(Address token, Address owner)
-    {
-        var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
-        Assert(balanceResponse.Success, "OpdexV1: INVALID_BALANCE");
-        return (ulong)balanceResponse.ReturnValue;
+        ulong z = 0;
+        if (y > 3) 
+        {
+            z = y;
+            var x = y / 2 + 1;
+            while (x < z) 
+            {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } 
+        else if (y != 0) {
+            z = 1;
+        }
+        return z;
     }
     
     #endregion
 
     #region Models
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public struct Reserves
+    {
+        public ulong ReserveCrs;
+        public ulong ReserveToken;
+        public ulong LastBlock;
+    }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public struct SyncEvent
     {
         public ulong ReserveCrs;
         public ulong ReserveToken;
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public struct MintEvent
     {
         [Index] public Address Sender;
@@ -318,6 +480,9 @@ public class OpdexV1Pair : OpdexV1SRC
         public ulong AmountToken;
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public struct BurnEvent
     {
         [Index] public Address Sender;
@@ -326,6 +491,9 @@ public class OpdexV1Pair : OpdexV1SRC
         public ulong AmountToken;
     }
     
+    /// <summary>
+    /// 
+    /// </summary>
     public struct SwapEvent
     {
         [Index] public Address Sender;
@@ -336,11 +504,24 @@ public class OpdexV1Pair : OpdexV1SRC
         public ulong AmountTokenOut;
     }
     
-    public struct Reserves
+    /// <summary>
+    /// 
+    /// </summary>
+    public struct ApprovalEvent
     {
-        public ulong ReserveCrs;
-        public ulong ReserveToken;
-        public ulong LastBlock;
+        [Index] public Address Owner;
+        [Index] public Address Spender;
+        public ulong Value;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public struct TransferEvent
+    {
+        [Index] public Address From;
+        [Index] public Address To;
+        public ulong Value;
     }
 
     #endregion
