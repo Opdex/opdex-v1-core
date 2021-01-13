@@ -158,5 +158,124 @@ namespace OpdexV1Contracts.Tests
             _mockInternalExecutor.Verify(x => x.Call(_mockContractState.Object, _token, 0ul, "TransferTo", expectedTransferToParams, 0ul), Times.Once);
             _mockInternalExecutor.Verify(x => x.Transfer(_mockContractState.Object, _trader0, 50ul), Times.Once);
         }
+        
+        #region Liquidity Pool Token Tests
+        // Todo: Add expected failure tests
+
+        [Fact]
+        public void TransferTo_Success()
+        {
+            var pair = CreateNewOpdexPair();
+            var from = _trader0;
+            var to = _trader1;
+            const ulong amount = 100;
+            const ulong initialFromBalance = 200;
+            const ulong initialToBalance = 0;
+            const ulong finalFromBalance = 100;
+            const ulong finalToBalance = 100;
+         
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64($"Balance:{from}")).Returns(initialFromBalance);
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64($"Balance:{to}")).Returns(initialToBalance);
+            _mockContractState.Setup(x => x.Message).Returns(new Message(_pair, from, 0));
+
+            var success = pair.TransferTo(to, amount);
+
+            _mockContractState.Verify(x => x.PersistentState.SetUInt64($"Balance:{from}", finalFromBalance), Times.Once);
+            _mockContractState.Verify(x => x.PersistentState.SetUInt64($"Balance:{to}", finalToBalance), Times.Once);
+            _mockContractLogger.Verify(x => x.Log(_mockContractState.Object, new OpdexV1Pair.TransferEvent { From = from, To = to, Amount = amount}), Times.Once);
+
+            success.Should().BeTrue();
+        }
+        
+        [Fact]
+        public void TransferFrom_Success()
+        {
+            
+        }
+
+        [Fact]
+        public void Approve_Success()
+        {
+            
+        }
+        
+        #endregion
+        
+        #region Mint Tests
+
+        [Fact]
+        public void MintInitialLiquidity_Success()
+        {
+            
+        }
+        
+        [Fact]
+        // Todo: Finish this
+        public void MintWithExistingReserves_Success()
+        {
+            const ulong currentReserveCrs = 5_000;
+            const ulong currentReserveToken = 10_000;
+            const ulong currentBalanceCrs = 5_500;
+            const ulong currentBalanceToken = 11_000;
+            const ulong currentTotalSupply = 2500;
+            const ulong expectedLiquidity = 250;
+            const ulong expectedKLast = 50_000_000;
+            const ulong currentFeeToBalance = 100;
+            const ulong currentTraderBalance = 0;
+            const ulong mintedFee = 493; // Todo: Calculate and verify, I think expectedKLast is wrong ^
+
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64("ReserveCrs")).Returns(currentReserveCrs);
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64("ReserveToken")).Returns(currentReserveToken);
+            _mockContractState.Setup(x => x.GetBalance).Returns(() => currentBalanceCrs);
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64("TotalSupply")).Returns(currentTotalSupply);
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64("KLast")).Returns(expectedKLast);
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64($"Balance:{_feeTo}")).Returns(currentFeeToBalance);
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64($"Balance:{_trader0}")).Returns(currentTraderBalance);
+
+            var expectedSrcBalanceParams = new object[] {_pair};
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _token, 0ul, "GetBalance", expectedSrcBalanceParams, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(currentBalanceToken));
+            
+            _mockInternalExecutor
+                .Setup(x => x.Call(_mockContractState.Object, _router, 0ul, "GetFeeTo", null, It.IsAny<ulong>()))
+                .Returns(TransferResult.Transferred(_feeTo));
+            
+            var pair = CreateNewOpdexPair();
+
+            var mintedLiquidity = pair.Mint(_trader0);
+
+            mintedLiquidity.Should().Be(expectedLiquidity);
+        }
+        
+        #endregion
+        
+        #region Burn Tests
+        
+        [Fact]
+        public void Burn_Success()
+        {
+            
+        }
+        
+        #endregion
+        
+        #region Swap Tests
+
+        [Fact]
+        public void SwapCRSForTokenSuccess()
+        {
+            const ulong swapAmountCrs = 500;
+            const ulong currentReserveCrs = 5_500;
+            const ulong currentReserveToken = 10_000;
+            const ulong expectedReceivedToken = 997;
+            
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64("ReserveCrs")).Returns(currentReserveCrs);
+            _mockContractState.Setup(x => x.PersistentState.GetUInt64("ReserveToken")).Returns(currentReserveToken);
+            
+            var pair = CreateNewOpdexPair();
+        }
+        
+        #endregion
     }
 }

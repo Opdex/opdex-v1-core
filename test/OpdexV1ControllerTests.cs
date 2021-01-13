@@ -40,7 +40,7 @@ namespace OpdexV1Contracts.Tests
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(_router, _feeToSetter, 0));
             _mockContractState.Setup(x => x.PersistentState.GetAddress("FeeToSetter")).Returns(_feeToSetter);
-            _mockContractState.Setup(x => x.PersistentState.GetAddress("FeeTo")).Returns(_feeToSetter);
+            _mockContractState.Setup(x => x.PersistentState.GetAddress("FeeTo")).Returns(_feeTo);
 
             return new OpdexV1Controller(_mockContractState.Object, _feeToSetter, _feeTo);
         }
