@@ -250,14 +250,14 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     private const ulong MinimumLiquidity = 10;
     public OpdexV1Pair(ISmartContractState smartContractState, Address token) : base(smartContractState)
     {
-        Factory = Message.Sender;
+        Controller = Message.Sender;
         Token = token;
     }
     
-    public Address Factory
+    public Address Controller
     {
-        get => PersistentState.GetAddress(nameof(Factory));
-        private set => PersistentState.SetAddress(nameof(Factory), value);
+        get => PersistentState.GetAddress(nameof(Controller));
+        private set => PersistentState.SetAddress(nameof(Controller), value);
     }
     
     public Address Token
@@ -429,7 +429,7 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         var denominator = checked(checked(rootK * 5) + rootKLast);
         var liquidity = numerator / denominator;
         if (liquidity == 0) return;
-        var feeToResponse = Call(Factory, 0, "GetFeeTo");
+        var feeToResponse = Call(Controller, 0, "GetFeeTo");
         var feeTo = (Address)feeToResponse.ReturnValue;
         Assert(feeToResponse.Success && feeTo != Address.Zero, "OpdexV1: INVALID_FEE_TO_ADDRESS");
         MintExecute(feeTo, liquidity);
@@ -437,9 +437,8 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     
     private void MintExecute(Address to, ulong amount)
     {
-        var balance = GetBalance(to);
         TotalSupply = checked(TotalSupply + amount);
-        SetBalance(to, checked(balance + amount));
+        SetBalance(to, checked(GetBalance(to) + amount));
         Log(new TransferEvent { From = Address.Zero, To = to, Amount = amount });
     }
     
@@ -452,18 +451,15 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     
     private void BurnExecute(Address from, ulong amount)
     {
-        var balance = GetBalance(from);
-        SetBalance(from, checked(balance - amount));
+        SetBalance(from, checked(GetBalance(from) - amount));
         TotalSupply = checked(TotalSupply - amount);
         Log(new TransferEvent { From = from, To = Address.Zero, Amount = amount });
     }
     
     private bool TransferExecute(Address from, Address to, ulong amount)
     {
-        var fromBalance = GetBalance(from);
-        SetBalance(from, checked(fromBalance - amount));
-        var toBalance = GetBalance(to);
-        SetBalance(to, checked(toBalance + amount));
+        SetBalance(from, checked(GetBalance(from) - amount));
+        SetBalance(to, checked(GetBalance(to) + amount));
         Log(new TransferEvent {From = from, To = to, Amount = amount});
         return true;
     }
