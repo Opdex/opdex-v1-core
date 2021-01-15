@@ -422,7 +422,7 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     {
         var kLast = KLast;
         if (kLast == 0) return;
-        var rootK = checked(Sqrt(reserveCrs) * reserveToken);
+        var rootK = Sqrt(checked(reserveCrs * reserveToken));
         var rootKLast = Sqrt(kLast);
         if (rootK <= rootKLast) return;
         var numerator = checked(TotalSupply * checked(rootK - rootKLast));
