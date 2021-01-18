@@ -47,16 +47,6 @@ namespace OpdexV1Contracts.Tests
         }
 
         [Fact]
-        public void GetFeeTo()
-        {
-            var controller = CreateNewOpdexController();
-
-            SetupMessage(_controller, _feeToSetter);
-            _persistentState.SetAddress("FeeTo", _otherAddress);
-            controller.GetFeeTo().Should().Be(_otherAddress);
-        }
-
-        [Fact]
         public void SetFeeToSetter_Success()
         {
             var newFeeToSetter = _otherAddress;

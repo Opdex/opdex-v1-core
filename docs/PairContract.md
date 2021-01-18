@@ -221,8 +221,8 @@ Includes all possible types of events that are logged from calling various pair 
 ```C#
 public struct SyncEvent
 {
-    public ulong ReserveCrs;
-    public ulong ReserveToken;
+    public ulong ReserveCrs; // Latest CRS reserve amount
+    public ulong ReserveToken; // Latest SRC reserve amount
 }
 ```
 

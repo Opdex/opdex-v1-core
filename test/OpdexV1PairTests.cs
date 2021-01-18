@@ -9,6 +9,16 @@ namespace OpdexV1Contracts.Tests
     public class OpdexV1PairTests : BaseContractTest
     {
         [Fact]
+        public void GetsTokenProperties_Success()
+        {
+            var pair = CreateNewOpdexPair();
+
+            pair.Decimals.Should().Be(8);
+            pair.Name.Should().Be("Opdex Liquidity Pool Token");
+            pair.Symbol.Should().Be("OLPT");
+        }
+        
+        [Fact]
         public void CreatesNewPair_Success()
         {
             var pair = CreateNewOpdexPair();
@@ -274,7 +284,35 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void MintInitialLiquidity_Success()
         {
+            const ulong currentReserveCrs = 0;
+            const ulong currentReserveToken = 0;
+            const ulong currentBalanceCrs = 100_000_000;
+            const ulong currentBalanceToken = 1_900_000_000;
+            const ulong currentTotalSupply = 0;
+            const ulong currentKLast = 0;
+            const ulong currentFeeToBalance = 0;
+            const ulong currentTraderBalance = 0;
+            const ulong expectedLiquidity = 435888894;
+
+            SetupBalance(currentBalanceCrs);
             
+            SetupBalance(currentBalanceCrs);
+            _persistentState.SetUInt64("ReserveCrs",currentReserveCrs);
+            _persistentState.SetUInt64("ReserveToken", currentReserveToken);
+            _persistentState.SetUInt64("TotalSupply", currentTotalSupply);
+            _persistentState.SetUInt64("KLast", currentKLast);
+            _persistentState.SetUInt64($"Balance:{_feeTo}", currentFeeToBalance);
+            _persistentState.SetUInt64($"Balance:{_trader0}", currentTraderBalance);
+            
+            var expectedSrcBalanceParams = new object[] {_pair};
+            SetupCall(_token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
+            SetupCall(_controller, 0ul, "GetFeeTo", null, TransferResult.Transferred(_feeTo));
+            
+            var pair = CreateNewOpdexPair();
+
+            var mintedLiquidity = pair.Mint(_trader0);
+
+            mintedLiquidity.Should().Be(expectedLiquidity);
         }
         
         [Fact]
@@ -290,7 +328,7 @@ namespace OpdexV1Contracts.Tests
             const ulong expectedKLast = 50_000_000;
             const ulong currentFeeToBalance = 100;
             const ulong currentTraderBalance = 0;
-            const ulong mintedFee = 493; // Todo: Calculate and verify, I think expectedKLast is wrong ^
+            const ulong mintedFee = 0; // Todo: Calculate and set
 
             SetupBalance(currentBalanceCrs);
             _persistentState.SetUInt64("ReserveCrs",currentReserveCrs);
@@ -302,7 +340,7 @@ namespace OpdexV1Contracts.Tests
 
             var expectedSrcBalanceParams = new object[] {_pair};
             SetupCall(_token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
-            SetupCall(_controller, 0ul, "GetFeeTo", null, TransferResult.Transferred(_feeTo));
+            SetupCall(_controller, 0ul, "get_FeeTo", null, TransferResult.Transferred(_feeTo));
             
             var pair = CreateNewOpdexPair();
 
