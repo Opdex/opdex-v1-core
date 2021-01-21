@@ -31,6 +31,8 @@ namespace OpdexV1Contracts.Tests
 
         public long GetInt64(string key) => GetValue<long>(key);
 
+        public UInt256 GetUInt256(string key) => GetValue<UInt256>(key);
+
         public string GetString(string key) => GetValue<string>(key);
 
         public T GetStruct<T>(string key) where T : struct => GetValue<T>(key);
@@ -38,6 +40,7 @@ namespace OpdexV1Contracts.Tests
         public uint GetUInt32(string key) => GetValue<uint>(key);
 
         public ulong GetUInt64(string key) => GetValue<ulong>(key);
+        public UInt128 GetUInt128(string key) => GetValue<UInt128>(key);
 
         public bool IsContract(Address address) => IsContractResult;
 
@@ -57,6 +60,8 @@ namespace OpdexV1Contracts.Tests
 
         public void SetInt64(string key, long value) => _storage.AddOrReplace(key, value);
 
+        public void SetUInt256(string key, UInt256 value) => _storage.AddOrReplace(key, value);
+
         public void SetString(string key, string value) => _storage.AddOrReplace(key, value);
 
         public void SetStruct<T>(string key, T value) where T : struct => _storage.AddOrReplace(key, value);
@@ -64,5 +69,6 @@ namespace OpdexV1Contracts.Tests
         public void SetUInt32(string key, uint value) => _storage.AddOrReplace(key, value);
 
         public void SetUInt64(string key, ulong value) => _storage.AddOrReplace(key, value);
+        public void SetUInt128(string key, UInt128 value) => _storage.AddOrReplace(key, value);
     }
 } 

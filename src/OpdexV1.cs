@@ -50,7 +50,7 @@ public class OpdexV1Controller : SmartContract
         return pair;
     }
     
-    public AddLiquidityResponseModel AddLiquidity(Address token, ulong amountTokenDesired, ulong amountCrsMin, ulong amountTokenMin, Address to, ulong deadline)
+    public AddLiquidityResponseModel AddLiquidity(Address token, UInt256 amountTokenDesired, UInt256 amountCrsMin, UInt256 amountTokenMin, Address to, UInt256 deadline)
     { 
         var liquidityDto = CalculateLiquidityAmounts(token, Message.Value, amountTokenDesired, amountCrsMin, amountTokenMin);
         SafeTransferFrom(token, Message.Sender, liquidityDto.Pair, liquidityDto.AmountToken);
@@ -60,15 +60,15 @@ public class OpdexV1Controller : SmartContract
         Assert(liquidityResponse.Success, "OpdexV1: INVALID_MINT");
         SafeTransfer(Message.Sender, change);
         return new AddLiquidityResponseModel { AmountCrs = liquidityDto.AmountCrs, 
-            AmountToken = liquidityDto.AmountToken, Liquidity = (ulong)liquidityResponse.ReturnValue };
+            AmountToken = liquidityDto.AmountToken, Liquidity = (UInt256)liquidityResponse.ReturnValue };
     }
     
-    public RemoveLiquidityResponseModel RemoveLiquidity(Address token, ulong liquidity, ulong amountCrsMin, ulong amountTokenMin, Address to, ulong deadline)
+    public RemoveLiquidityResponseModel RemoveLiquidity(Address token, UInt256 liquidity, UInt256 amountCrsMin, UInt256 amountTokenMin, Address to, UInt256 deadline)
     {
         var pair = GetValidatedPair(token);
         SafeTransferFrom(pair, Message.Sender, pair, liquidity);
         var burnDtoResponse = Call(pair, 0, "Burn", new object[] {to});
-        var burnResponse = (ulong[])burnDtoResponse.ReturnValue;
+        var burnResponse = (UInt256[])burnDtoResponse.ReturnValue;
         var receivedCrs = burnResponse[0];
         var receivedTokens = burnResponse[1];
         Assert(receivedCrs >= amountCrsMin, "OpdexV1: INSUFFICIENT_CRS_AMOUNT");
@@ -76,7 +76,7 @@ public class OpdexV1Controller : SmartContract
         return new RemoveLiquidityResponseModel { AmountCrs = receivedCrs, AmountToken = receivedTokens };
     }
     
-    public void SwapExactCRSForTokens(ulong amountTokenOutMin, Address token, Address to, ulong deadline)
+    public void SwapExactCRSForTokens(UInt256 amountTokenOutMin, Address token, Address to, UInt256 deadline)
     {
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
@@ -86,7 +86,7 @@ public class OpdexV1Controller : SmartContract
         Swap(0, amountOut, pair, to);
     }
     
-    public void SwapTokensForExactCRS(ulong amountCrsOut, ulong amountTokenInMax, Address token, Address to, ulong deadline)
+    public void SwapTokensForExactCRS(UInt256 amountCrsOut, UInt256 amountTokenInMax, Address token, Address to, UInt256 deadline)
     {
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
@@ -96,7 +96,7 @@ public class OpdexV1Controller : SmartContract
         Swap(amountCrsOut, 0, pair, to);
     }
     
-    public void SwapExactTokensForCRS(ulong amountTokenIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
+    public void SwapExactTokensForCRS(UInt256 amountTokenIn, UInt256 amountCrsOutMin, Address token, Address to, UInt256 deadline)
     {
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
@@ -106,7 +106,7 @@ public class OpdexV1Controller : SmartContract
         Swap(amountOut, 0, pair, to);
     }
     
-    public void SwapCRSForExactTokens(ulong amountTokenOut, Address token, Address to, ulong deadline)
+    public void SwapCRSForExactTokens(UInt256 amountTokenOut, Address token, Address to, UInt256 deadline)
     {
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
@@ -118,37 +118,37 @@ public class OpdexV1Controller : SmartContract
         SafeTransfer(Message.Sender, change);
     }
     
-    public ulong GetLiquidityQuote(ulong amountA, ulong reserveA, ulong reserveB)
+    public UInt256 GetLiquidityQuote(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
     {
         Assert(amountA > 0, "OpdexV1: INSUFFICIENT_AMOUNT");
         Assert(reserveA > 0 && reserveB > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
-        return checked(amountA * reserveB) / reserveA;
+        return (amountA * reserveB) / reserveA;
     }
     
-    public ulong GetAmountOut(ulong amountIn, ulong reserveIn, ulong reserveOut)
+    public UInt256 GetAmountOut(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
     {
         Assert(amountIn > 0, "OpdexV1: INSUFFICIENT_INPUT_AMOUNT");
         Assert(reserveIn > 0 && reserveOut > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
-        var amountInWithFee = checked(amountIn * 997);
-        var numerator = checked(amountInWithFee * reserveOut);
-        var denominator = checked(checked(reserveIn * 1000) + amountInWithFee);
+        var amountInWithFee = amountIn * 997;
+        var numerator = amountInWithFee * reserveOut;
+        var denominator = (reserveIn * 1000) + amountInWithFee;
         return numerator / denominator;
     }
 
-    public ulong GetAmountIn(ulong amountOut, ulong reserveIn, ulong reserveOut)
+    public UInt256 GetAmountIn(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
     {
         Assert(amountOut > 0, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
         Assert(reserveIn > 0 && reserveOut > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
-        var numerator = checked(checked(reserveIn * amountOut) * 1000);
-        var denominator = checked(checked(reserveOut - amountOut) * 997);
-        return checked((numerator / denominator) + 1);
+        var numerator = (reserveIn * amountOut) * 1000;
+        var denominator = (reserveOut - amountOut) * 997;
+        return (numerator / denominator) + 1;
     }
     
     // Todo: Preferably split this method to allow for a public method to calculate this for free via local call
-    private CalcLiquidityModel CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, ulong amountTokenDesired, ulong amountCrsMin, ulong amountTokenMin)
+    private CalcLiquidityModel CalculateLiquidityAmounts(Address token, UInt256 amountCrsDesired, UInt256 amountTokenDesired, UInt256 amountCrsMin, UInt256 amountTokenMin)
     {
-        ulong reserveCrs = 0;
-        ulong reserveToken = 0;
+        UInt256 reserveCrs = 0;
+        UInt256 reserveToken = 0;
         var pair = GetPair(token);
         if (pair == Address.Zero) pair = CreatePair(token);
         else
@@ -157,8 +157,8 @@ public class OpdexV1Controller : SmartContract
             reserveCrs = reserves[0];
             reserveToken = reserves[1];
         }
-        ulong amountCrs;
-        ulong amountToken;
+        UInt256 amountCrs;
+        UInt256 amountToken;
         if (reserveCrs == 0 && reserveToken == 0)
         {
             amountCrs = amountCrsDesired;
@@ -184,30 +184,30 @@ public class OpdexV1Controller : SmartContract
         return new CalcLiquidityModel { AmountCrs = amountCrs, AmountToken = amountToken, Pair = pair };
     }
     
-    private void Swap(ulong amountCrsOut, ulong amountTokenOut, Address pair, Address to)
+    private void Swap(UInt256 amountCrsOut, UInt256 amountTokenOut, Address pair, Address to)
     {
         var response = Call(pair, 0, "Swap", new object[] {amountCrsOut, amountTokenOut, to});
         Assert(response.Success, "OpdexV1: INVALID_SWAP_ATTEMPT");
     }
     
-    private void SafeTransfer(Address to, ulong amount)
+    private void SafeTransfer(Address to, UInt256 amount)
     {
         if (amount == 0) return; 
         var result = Transfer(to, amount);
         Assert(result.Success, "OpdexV1: INVALID_TRANSFER");
     }
     
-    private void SafeTransferFrom(Address token, Address from, Address to, ulong amount)
+    private void SafeTransferFrom(Address token, Address from, Address to, UInt256 amount)
     {
         var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
         Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
     }
     
-    private ulong[] GetReserves(Address pair)
+    private UInt256[] GetReserves(Address pair)
     {
         var reservesResponse = Call(pair, 0, "GetReserves");
         Assert(reservesResponse.Success, "OpdexV1: INVALID_PAIR");
-        return (ulong[])reservesResponse.ReturnValue;
+        return (UInt256[])reservesResponse.ReturnValue;
     }
     
     private Address GetValidatedPair(Address token)
@@ -219,21 +219,21 @@ public class OpdexV1Controller : SmartContract
 
     public struct AddLiquidityResponseModel
     {
-        public ulong AmountCrs;
-        public ulong AmountToken;
-        public ulong Liquidity;
+        public UInt256 AmountCrs;
+        public UInt256 AmountToken;
+        public UInt256 Liquidity;
     }
 
     public struct RemoveLiquidityResponseModel
     {
-        public ulong AmountCrs;
-        public ulong AmountToken;
+        public UInt256 AmountCrs;
+        public UInt256 AmountToken;
     }
     
     private struct CalcLiquidityModel
     {
-        public ulong AmountCrs;
-        public ulong AmountToken;
+        public UInt256 AmountCrs;
+        public UInt256 AmountToken;
         public Address Pair;
     }
 
@@ -267,28 +267,28 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         private set => PersistentState.SetAddress(nameof(Token), value);
     }
     
-    public ulong ReserveCrs
+    public UInt256 ReserveCrs
     {
-        get => PersistentState.GetUInt64(nameof(ReserveCrs));
-        private set => PersistentState.SetUInt64(nameof(ReserveCrs), value);
+        get => PersistentState.GetUInt256(nameof(ReserveCrs));
+        private set => PersistentState.SetUInt256(nameof(ReserveCrs), value);
     }
     
-    public ulong ReserveToken
+    public UInt256 ReserveToken
     {
-        get => PersistentState.GetUInt64(nameof(ReserveToken));
-        private set => PersistentState.SetUInt64(nameof(ReserveToken), value);
+        get => PersistentState.GetUInt256(nameof(ReserveToken));
+        private set => PersistentState.SetUInt256(nameof(ReserveToken), value);
     }
     
-    public ulong KLast
+    public UInt256 KLast
     {
-        get => PersistentState.GetUInt64(nameof(KLast));
-        private set => PersistentState.SetUInt64(nameof(KLast), value);
+        get => PersistentState.GetUInt256(nameof(KLast));
+        private set => PersistentState.SetUInt256(nameof(KLast), value);
     }
 
-    public ulong TotalSupply 
+    public UInt256 TotalSupply 
     {
-        get => PersistentState.GetUInt64(nameof(TotalSupply));
-        private set => PersistentState.SetUInt64(nameof(TotalSupply), value);
+        get => PersistentState.GetUInt256(nameof(TotalSupply));
+        private set => PersistentState.SetUInt256(nameof(TotalSupply), value);
     }
 
     public uint Decimals => 8;
@@ -297,54 +297,54 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     
     public string Symbol => "OLPT";
     
-    public ulong GetBalance(Address address) => PersistentState.GetUInt64($"Balance:{address}");
+    public UInt256 GetBalance(Address address) => PersistentState.GetUInt256($"Balance:{address}");
     
-    private void SetBalance(Address address, ulong amount) => PersistentState.SetUInt64($"Balance:{address}", amount);
+    private void SetBalance(Address address, UInt256 amount) => PersistentState.SetUInt256($"Balance:{address}", amount);
 
     // Added for IStandardToken interface compatibility
-    public ulong Allowance(Address owner, Address spender) => GetAllowance(owner, spender);
+    public UInt256 Allowance(Address owner, Address spender) => GetAllowance(owner, spender);
     
-    public ulong GetAllowance(Address owner, Address spender) => PersistentState.GetUInt64($"Allowance:{owner}:{spender}");
+    public UInt256 GetAllowance(Address owner, Address spender) => PersistentState.GetUInt256($"Allowance:{owner}:{spender}");
     
-    private void SetAllowance(Address owner, Address spender, ulong amount) => PersistentState.SetUInt64($"Allowance:{owner}:{spender}", amount);
+    private void SetAllowance(Address owner, Address spender, UInt256 amount) => PersistentState.SetUInt256($"Allowance:{owner}:{spender}", amount);
     
-    public bool TransferTo(Address to, ulong amount) => TransferExecute(Message.Sender, to, amount);
+    public bool TransferTo(Address to, UInt256 amount) => TransferExecute(Message.Sender, to, amount);
     
-    public bool TransferFrom(Address from, Address to, ulong amount)
+    public bool TransferFrom(Address from, Address to, UInt256 amount)
     {
         var allowance = GetAllowance(from, Message.Sender);
-        if (allowance > 0) SetAllowance(from, Message.Sender, checked(allowance - amount));
+        if (allowance > 0) SetAllowance(from, Message.Sender, allowance - amount);
         return TransferExecute(from, to, amount);
     }
 
     // Added for IStandardToken interface compatibility, currentAmount goes unused
-    public bool Approve(Address spender, ulong currentAmount, ulong amount) => Approve(spender, amount);
+    public bool Approve(Address spender, UInt256 currentAmount, UInt256 amount) => Approve(spender, amount);
     
-    public bool Approve(Address spender, ulong amount)
+    public bool Approve(Address spender, UInt256 amount)
     {
         SetAllowance(Message.Sender, spender, amount);
         Log(new ApprovalEvent {Owner = Message.Sender, Spender = spender, Amount = amount, EventType = nameof(ApprovalEvent)});
         return true;
     }
 
-    public ulong Mint(Address to)
+    public UInt256 Mint(Address to)
     {
         var reserves = GetReserves();
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(Token, Address);
-        var amountCrs = checked(balanceCrs - reserves[0]);
-        var amountToken = checked(balanceToken - reserves[1]);
+        var amountCrs = balanceCrs - reserves[0];
+        var amountToken = balanceToken - reserves[1];
         var totalSupply = TotalSupply;
-        ulong liquidity;
+        UInt256 liquidity;
         if (totalSupply == 0)
         {
-            liquidity = checked(Sqrt(checked(amountCrs * amountToken)) - MinimumLiquidity);
+            liquidity = Sqrt(amountCrs * amountToken) - MinimumLiquidity;
             MintExecute(Address.Zero, MinimumLiquidity);
         }
         else
         {
-            var amountCrsLiquidity = checked(amountCrs * totalSupply) / reserves[0];
-            var amountTokenLiquidity = checked(amountToken * totalSupply) / reserves[1];
+            var amountCrsLiquidity = (amountCrs * totalSupply) / reserves[0];
+            var amountTokenLiquidity = (amountToken * totalSupply) / reserves[1];
             liquidity = amountCrsLiquidity > amountTokenLiquidity ? amountTokenLiquidity : amountCrsLiquidity;
         }
         Assert(liquidity > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
@@ -355,7 +355,7 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         return liquidity;
     }
 
-    public ulong[] Burn(Address to)
+    public UInt256[] Burn(Address to)
     {
         var reserves = GetReserves();
         var address = Address;
@@ -364,8 +364,8 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         var balanceToken = GetSrcBalance(token, address);
         var liquidity = GetBalance(address);
         var totalSupply = TotalSupply;
-        var amountCrs = checked(liquidity * balanceCrs) / totalSupply;
-        var amountToken = checked(liquidity * balanceToken) / totalSupply;
+        var amountCrs = (liquidity * balanceCrs) / totalSupply;
+        var amountToken = (liquidity * balanceToken) / totalSupply;
         Assert(amountCrs > 0 && amountToken > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY_BURNED");
         MintFee(reserves[0], reserves[1]);
         BurnExecute(address, liquidity);
@@ -374,12 +374,12 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         balanceCrs = Balance;
         balanceToken = GetSrcBalance(token, address);
         Update(balanceCrs, balanceToken);
-        KLast = checked(checked(reserves[0] - balanceCrs) * checked(reserves[1] - balanceToken));
+        KLast = (reserves[0] - balanceCrs) * (reserves[1] - balanceToken);
         Log(new BurnEvent { Sender = Message.Sender, To = to, AmountCrs = amountCrs, AmountToken = amountToken, EventType = nameof(BurnEvent) });
         return new [] {amountCrs, amountToken};
     }
 
-    public void Swap(ulong amountCrsOut, ulong amountTokenOut, Address to)
+    public void Swap(UInt256 amountCrsOut, UInt256 amountTokenOut, Address to)
     {
         Assert(amountCrsOut > 0 ^ amountTokenOut > 0, "OpdexV1: INVALID_OUTPUT_AMOUNT");
         var reserves = GetReserves();
@@ -390,16 +390,16 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         if (amountTokenOut > 0) SafeTransferTo(token, to, amountTokenOut);
         var balanceCrs = Balance;
         var balanceToken = GetSrcBalance(token, Address);
-        var crsDifference = checked(reserves[0] - amountCrsOut);
-        var amountCrsIn = balanceCrs > crsDifference ? checked(balanceCrs - crsDifference) : 0;
-        var srcDifference = checked(reserves[1] - amountTokenOut);
-        var amountTokenIn = balanceToken > srcDifference ? checked(balanceToken - srcDifference) : 0;
+        var crsDifference = (reserves[0] - amountCrsOut);
+        var amountCrsIn = balanceCrs > crsDifference ? balanceCrs - crsDifference : (UInt256)0;
+        var srcDifference = (reserves[1] - amountTokenOut);
+        var amountTokenIn = balanceToken > srcDifference ? balanceToken - srcDifference : (UInt256)0;
         Assert(amountCrsIn > 0 || amountTokenIn > 0, "OpdexV1: INSUFFICIENT_INPUT_AMOUNT");
-        var balanceCrsAdjusted = checked(checked(balanceCrs * 1_000) - checked(amountCrsIn * 3));
-        var balanceTokenAdjusted = checked(checked(balanceToken * 1_000) - checked(amountTokenIn * 3));
-        Assert(checked(balanceCrsAdjusted * balanceTokenAdjusted) >= checked(checked(reserves[0] * reserves[1]) * 1_000_000)); // 1_000 * 1_000
+        var balanceCrsAdjusted = (balanceCrs * 1_000) - (amountCrsIn * 3);
+        var balanceTokenAdjusted = (balanceToken * 1_000) - (amountTokenIn * 3);
+        Assert(balanceCrsAdjusted * balanceTokenAdjusted >= (reserves[0] * reserves[1]) * 1_000_000); // 1_000 * 1_000
         Update(balanceCrs, balanceToken);
-        KLast = checked(ReserveCrs * ReserveToken);
+        KLast = ReserveCrs * ReserveToken;
         Log(new SwapEvent { AmountCrsIn = amountCrsIn, AmountCrsOut = amountCrsOut, AmountTokenIn = amountTokenIn,
              AmountTokenOut = amountTokenOut, Sender = Message.Sender, To = to, EventType = nameof(SwapEvent) });
     }
@@ -407,8 +407,8 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     public void Skim(Address to)
     {
         var token = Token;
-        var balanceToken = checked(GetSrcBalance(token, Address) - ReserveToken);
-        var balanceCrs = checked(Balance - ReserveCrs);
+        var balanceToken = GetSrcBalance(token, Address) - ReserveToken;
+        var balanceCrs = Balance - ReserveCrs;
         SafeTransfer(to, balanceToken);
         SafeTransferTo(token, to, balanceCrs);
         // Todo: Should this log an event?
@@ -416,24 +416,24 @@ public class OpdexV1Pair : SmartContract, IStandardToken
 
     public void Sync() => Update(Balance, GetSrcBalance(Token, Address));
 
-    public ulong[] GetReserves() => new [] { ReserveCrs, ReserveToken };
+    public UInt256[] GetReserves() => new [] { ReserveCrs, ReserveToken };
     
-    private void Update(ulong balanceCrs, ulong balanceToken)
+    private void Update(UInt256 balanceCrs, UInt256 balanceToken)
     {
         ReserveCrs = balanceCrs;
         ReserveToken = balanceToken;
         Log(new SyncEvent { ReserveCrs = balanceCrs, ReserveToken = balanceToken, EventType = nameof(SyncEvent) });
     }
     
-    private void MintFee(ulong reserveCrs, ulong reserveToken)
+    private void MintFee(UInt256 reserveCrs, UInt256 reserveToken)
     {
         var kLast = KLast;
         if (kLast == 0) return;
-        var rootK = Sqrt(checked(reserveCrs * reserveToken));
+        var rootK = Sqrt(reserveCrs * reserveToken);
         var rootKLast = Sqrt(kLast);
         if (rootK <= rootKLast) return;
-        var numerator = checked(TotalSupply * checked(rootK - rootKLast));
-        var denominator = checked(checked(rootK * 5) + rootKLast);
+        var numerator = TotalSupply * (rootK - rootKLast);
+        var denominator = (rootK * 5) + rootKLast;
         var liquidity = numerator / denominator;
         if (liquidity == 0) return;
         var feeToResponse = Call(Controller, 0, "get_FeeTo");
@@ -442,50 +442,50 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         MintExecute(feeTo, liquidity);
     }
     
-    private void MintExecute(Address to, ulong amount)
+    private void MintExecute(Address to, UInt256 amount)
     {
-        TotalSupply = checked(TotalSupply + amount);
-        SetBalance(to, checked(GetBalance(to) + amount));
+        TotalSupply += amount;
+        SetBalance(to, GetBalance(to) + amount);
         Log(new TransferEvent { From = Address.Zero, To = to, Amount = amount, EventType = nameof(TransferEvent) });
     }
     
-    private ulong GetSrcBalance(Address token, Address owner)
+    private UInt256 GetSrcBalance(Address token, Address owner)
     {
         var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
         Assert(balanceResponse.Success, "OpdexV1: INVALID_BALANCE");
-        return (ulong)balanceResponse.ReturnValue;
+        return (UInt256)balanceResponse.ReturnValue;
     }
     
-    private void BurnExecute(Address from, ulong amount)
+    private void BurnExecute(Address from, UInt256 amount)
     {
-        SetBalance(from, checked(GetBalance(from) - amount));
-        TotalSupply = checked(TotalSupply - amount);
+        SetBalance(from, GetBalance(from) - amount);
+        TotalSupply = TotalSupply - amount;
         Log(new TransferEvent { From = from, To = Address.Zero, Amount = amount, EventType = nameof(TransferEvent) });
     }
     
-    private bool TransferExecute(Address from, Address to, ulong amount)
+    private bool TransferExecute(Address from, Address to, UInt256 amount)
     {
-        SetBalance(from, checked(GetBalance(from) - amount));
-        SetBalance(to, checked(GetBalance(to) + amount));
+        SetBalance(from, GetBalance(from) - amount);
+        SetBalance(to, GetBalance(to) + amount);
         Log(new TransferEvent {From = from, To = to, Amount = amount, EventType = nameof(TransferEvent)});
         return true;
     }
     
-    private void SafeTransfer(Address to, ulong amount)
+    private void SafeTransfer(Address to, UInt256 amount)
     {
         if (amount == 0) return;
         var result = Transfer(to, amount);
         Assert(result.Success, "OpdexV1: INVALID_TRANSFER");
     }
     
-    private void SafeTransferTo(Address token, Address to, ulong amount)
+    private void SafeTransferTo(Address token, Address to, UInt256 amount)
     {
         if (amount == 0) return;
         var result = Call(token, 0, "TransferTo", new object[] {to, amount});
         Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_FROM");
     }
     
-    private static ulong Sqrt(ulong value)
+    private static UInt256 Sqrt(UInt256 value)
     {
         if (value <= 3) return 1;
         var result = value;
@@ -500,16 +500,16 @@ public class OpdexV1Pair : SmartContract, IStandardToken
 
     public struct SyncEvent
     {
-        public ulong ReserveCrs;
-        public ulong ReserveToken;
+        public UInt256 ReserveCrs;
+        public UInt256 ReserveToken;
         public string EventType;
     }
     
     public struct MintEvent
     {
         [Index] public Address Sender;
-        public ulong AmountCrs;
-        public ulong AmountToken;
+        public UInt256 AmountCrs;
+        public UInt256 AmountToken;
         public string EventType;
     }
     
@@ -517,8 +517,8 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     {
         [Index] public Address Sender;
         [Index] public Address To;
-        public ulong AmountCrs;
-        public ulong AmountToken;
+        public UInt256 AmountCrs;
+        public UInt256 AmountToken;
         public string EventType;
     }
     
@@ -526,10 +526,10 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     {
         [Index] public Address Sender;
         [Index] public Address To;
-        public ulong AmountCrsIn;
-        public ulong AmountTokenIn;
-        public ulong AmountCrsOut;
-        public ulong AmountTokenOut;
+        public UInt256 AmountCrsIn;
+        public UInt256 AmountTokenIn;
+        public UInt256 AmountCrsOut;
+        public UInt256 AmountTokenOut;
         public string EventType;
     }
     
@@ -537,7 +537,7 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     {
         [Index] public Address Owner;
         [Index] public Address Spender;
-        public ulong Amount;
+        public UInt256 Amount;
         public string EventType;
     }
 
@@ -545,7 +545,7 @@ public class OpdexV1Pair : SmartContract, IStandardToken
     {
         [Index] public Address From;
         [Index] public Address To;
-        public ulong Amount;        
+        public UInt256 Amount;        
         public string EventType;
     }
 }

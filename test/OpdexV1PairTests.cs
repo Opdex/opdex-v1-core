@@ -1,6 +1,7 @@
 using System;
 using FluentAssertions;
 using Moq;
+using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
@@ -30,8 +31,8 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void GetBalance_Success()
         {
-            const ulong expected = 100;
-            _persistentState.SetUInt64($"Balance:{_trader0}", expected);
+            var expected = new UInt256(100);
+            _persistentState.SetUInt256($"Balance:{_trader0}", expected);
 
             var pair = CreateNewOpdexPair();
             
@@ -41,8 +42,8 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void GetAllowance_Success()
         {
-            const ulong expected = 100;
-            _persistentState.SetUInt64($"Allowance:{_trader0}:{_trader1}", expected);
+            var expected = new UInt256(100);
+            _persistentState.SetUInt256($"Allowance:{_trader0}:{_trader1}", expected);
 
             var pair = CreateNewOpdexPair();
             
@@ -52,11 +53,11 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void GetReserves_Success()
         {
-            const ulong expectedCrs = 100;
-            const ulong expectedToken = 150;
+            var expectedCrs = new UInt256(100);
+            var expectedToken = new UInt256(150);
 
-            _persistentState.SetUInt64("ReserveCrs", expectedCrs);
-            _persistentState.SetUInt64("ReserveToken", expectedToken);
+            _persistentState.SetUInt256("ReserveCrs", expectedCrs);
+            _persistentState.SetUInt256("ReserveToken", expectedToken);
             
             var pair = CreateNewOpdexPair();
 
@@ -69,9 +70,9 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void Sync_Success()
         {
-            const ulong expectedBalanceCrs = 100;
-            const ulong expectedBalanceToken = 150;
-            var expectedLog = new OpdexV1Pair.SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveToken = expectedBalanceToken};
+            var expectedBalanceCrs = new UInt256(100);
+            var expectedBalanceToken = new UInt256(150);
+            var expectedLog = new OpdexV1Pair.SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveToken = expectedBalanceToken, EventType = nameof(OpdexV1Pair.SyncEvent)};
 
             var expectedSrcBalanceParams = new object[] {_pair};
             SetupCall(_token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
@@ -92,18 +93,18 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void Skim_Success()
         {
-            const ulong expectedBalanceCrs = 100;
-            const ulong expectedBalanceToken = 150;
-            const ulong currentReserveCrs = 50;
-            const ulong currentReserveToken = 100;
+            var expectedBalanceCrs = new UInt256(100);
+            var expectedBalanceToken = new UInt256(150);
+            var currentReserveCrs = new UInt256(50);
+            var currentReserveToken = new UInt256(100);
 
-            _persistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            _persistentState.SetUInt64("ReserveToken", currentReserveToken);
+            _persistentState.SetUInt256("ReserveCrs", currentReserveCrs);
+            _persistentState.SetUInt256("ReserveToken", currentReserveToken);
 
             var expectedSrcBalanceParams = new object[] {_pair};
             SetupCall(_token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
 
-            var expectedTransferToParams = new object[] { _trader0, 50ul };
+            var expectedTransferToParams = new object[] { _trader0, new UInt256(50) };
             SetupCall(_token, 0ul, "TransferTo", expectedTransferToParams, TransferResult.Transferred(true));
 
             SetupTransfer(_trader0, 50ul, TransferResult.Transferred(true));
@@ -127,15 +128,15 @@ namespace OpdexV1Contracts.Tests
             var pair = CreateNewOpdexPair();
             var from = _trader0;
             var to = _trader1;
-            const ulong amount = 75;
-            const ulong initialFromBalance = 200;
-            const ulong initialToBalance = 25;
-            const ulong finalFromBalance = 125;
-            const ulong finalToBalance = 100;
-            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount};
+            var amount = new UInt256(75);
+            var initialFromBalance = new UInt256(200);
+            var initialToBalance = new UInt256(25);
+            var finalFromBalance = new UInt256(125);
+            var finalToBalance = new UInt256(100);
+            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount, EventType = nameof(OpdexV1Pair.TransferEvent)};
          
-            _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
-            _persistentState.SetUInt64($"Balance:{to}", initialToBalance);
+            _persistentState.SetUInt256($"Balance:{from}", initialFromBalance);
+            _persistentState.SetUInt256($"Balance:{to}", initialToBalance);
             SetupMessage(_pair, from);
 
             var success = pair.TransferTo(to, amount);
@@ -153,12 +154,12 @@ namespace OpdexV1Contracts.Tests
             var pair = CreateNewOpdexPair();
             var from = _trader0;
             var to = _trader1;
-            const ulong amount = 115;
-            const ulong initialFromBalance = 100;
-            const ulong initialToBalance = 0;
+            var amount = new UInt256(115);
+            var initialFromBalance = new UInt256(100);
+            var initialToBalance = new UInt256(0);
          
-            _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
-            _persistentState.SetUInt64($"Balance:{to}", initialToBalance);
+            _persistentState.SetUInt256($"Balance:{from}", initialFromBalance);
+            _persistentState.SetUInt256($"Balance:{to}", initialToBalance);
             SetupMessage(_pair, from);
             
             pair
@@ -172,12 +173,12 @@ namespace OpdexV1Contracts.Tests
             var pair = CreateNewOpdexPair();
             var from = _trader0;
             var to = _trader1;
-            const ulong amount = 1;
-            const ulong initialFromBalance = 100;
-            const ulong initialToBalance = ulong.MaxValue;
+            var amount = new UInt256(1);
+            var initialFromBalance = new UInt256(100);
+            var initialToBalance = UInt256.MaxValue;
          
-            _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
-            _persistentState.SetUInt64($"Balance:{to}", initialToBalance);
+            _persistentState.SetUInt256($"Balance:{from}", initialFromBalance);
+            _persistentState.SetUInt256($"Balance:{to}", initialToBalance);
             SetupMessage(_pair, from);
             
             pair
@@ -191,18 +192,18 @@ namespace OpdexV1Contracts.Tests
             var pair = CreateNewOpdexPair();
             var from = _trader0;
             var to = _trader1;
-            const ulong amount = 30;
-            const ulong initialFromBalance = 200;
-            const ulong initialToBalance = 50;
-            const ulong initialSpenderAllowance = 100;
-            const ulong finalFromBalance = 170;
-            const ulong finalToBalance = 80;
-            const ulong finalSpenderAllowance = 70;
-            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount};
+            var amount = new UInt256(30);
+            var initialFromBalance = new UInt256(200);
+            var initialToBalance = new UInt256(50);
+            var initialSpenderAllowance = new UInt256(100);
+            var finalFromBalance = new UInt256(170);
+            var finalToBalance = new UInt256(80);
+            var finalSpenderAllowance = new UInt256(70);
+            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount, EventType = nameof(OpdexV1Pair.TransferEvent)};
          
-            _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
-            _persistentState.SetUInt64($"Balance:{to}", initialToBalance);
-            _persistentState.SetUInt64($"Allowance:{from}:{to}", initialSpenderAllowance);
+            _persistentState.SetUInt256($"Balance:{from}", initialFromBalance);
+            _persistentState.SetUInt256($"Balance:{to}", initialToBalance);
+            _persistentState.SetUInt256($"Allowance:{from}:{to}", initialSpenderAllowance);
             SetupMessage(_pair, to);
 
             pair.TransferFrom(from, to, amount).Should().BeTrue();
@@ -219,12 +220,12 @@ namespace OpdexV1Contracts.Tests
             var pair = CreateNewOpdexPair();
             var from = _trader0;
             var to = _trader1;
-            const ulong amount = 150;
-            const ulong initialFromBalance = 100;
-            const ulong spenderAllowance = 150;
+            var amount = new UInt256(150);
+            var initialFromBalance = new UInt256(100);
+            var spenderAllowance = new UInt256(150);
          
-            _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
-            _persistentState.SetUInt64($"Allowance:{from}:{to}", spenderAllowance);
+            _persistentState.SetUInt256($"Balance:{from}", initialFromBalance);
+            _persistentState.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
             SetupMessage(_pair, to);
             
             pair
@@ -238,12 +239,12 @@ namespace OpdexV1Contracts.Tests
             var pair = CreateNewOpdexPair();
             var from = _trader0;
             var to = _trader1;
-            const ulong amount = 200;
-            const ulong initialFromBalance = 1000;
-            const ulong spenderAllowance = 150;
+            var amount = new UInt256(200);
+            var initialFromBalance = new UInt256(1000);
+            var spenderAllowance = new UInt256(150);
          
-            _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
-            _persistentState.SetUInt64($"Allowance:{from}:{to}", spenderAllowance);
+            _persistentState.SetUInt256($"Balance:{from}", initialFromBalance);
+            _persistentState.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
             SetupMessage(_pair, to);
             
             pair
@@ -259,14 +260,14 @@ namespace OpdexV1Contracts.Tests
             var pair = CreateNewOpdexPair();
             var from = _trader0;
             var spender = _trader1;
-            const ulong amount = 100;
-            var expectedTransferEvent = new OpdexV1Pair.ApprovalEvent {Owner = from, Spender = spender, Amount = amount};
+            var amount = new UInt256(100);
+            var expectedApprovalEvent = new OpdexV1Pair.ApprovalEvent {Owner = from, Spender = spender, Amount = amount, EventType = nameof(OpdexV1Pair.ApprovalEvent)};
             
             SetupMessage(_pair, from);
 
             if (isIStandardContractImplementation)
             {
-                var currentAmount = 239872387492834ul; // doesn't matter, unused
+                var currentAmount = new UInt256(239872387492834); // doesn't matter, unused
                 pair.Approve(spender, currentAmount, amount).Should().BeTrue();
             }
             else
@@ -274,7 +275,7 @@ namespace OpdexV1Contracts.Tests
                 pair.Approve(spender, amount).Should().BeTrue();
             }
             
-            VerifyLog(expectedTransferEvent, Times.Once);
+            VerifyLog(expectedApprovalEvent, Times.Once);
         }
         
         #endregion
@@ -284,25 +285,25 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void MintInitialLiquidity_Success()
         {
-            const ulong currentReserveCrs = 0;
-            const ulong currentReserveToken = 0;
-            const ulong currentBalanceCrs = 100_000_000;
-            const ulong currentBalanceToken = 1_900_000_000;
-            const ulong currentTotalSupply = 0;
-            const ulong currentKLast = 0;
-            const ulong currentFeeToBalance = 0;
-            const ulong currentTraderBalance = 0;
-            const ulong expectedLiquidity = 435888894;
+            var currentReserveCrs = new UInt256(0);
+            var currentReserveToken = new UInt256(0);
+            var currentBalanceCrs = new UInt256(100_000_000);
+            var currentBalanceToken = new UInt256(1_900_000_000);
+            var currentTotalSupply = new UInt256(0);
+            var currentKLast = new UInt256(0);
+            var currentFeeToBalance = new UInt256(0);
+            var currentTraderBalance = new UInt256(0);
+            var expectedLiquidity = new UInt256(435888894);
 
             SetupBalance(currentBalanceCrs);
             
             SetupBalance(currentBalanceCrs);
-            _persistentState.SetUInt64("ReserveCrs",currentReserveCrs);
-            _persistentState.SetUInt64("ReserveToken", currentReserveToken);
-            _persistentState.SetUInt64("TotalSupply", currentTotalSupply);
-            _persistentState.SetUInt64("KLast", currentKLast);
-            _persistentState.SetUInt64($"Balance:{_feeTo}", currentFeeToBalance);
-            _persistentState.SetUInt64($"Balance:{_trader0}", currentTraderBalance);
+            _persistentState.SetUInt256("ReserveCrs",currentReserveCrs);
+            _persistentState.SetUInt256("ReserveToken", currentReserveToken);
+            _persistentState.SetUInt256("TotalSupply", currentTotalSupply);
+            _persistentState.SetUInt256("KLast", currentKLast);
+            _persistentState.SetUInt256($"Balance:{_feeTo}", currentFeeToBalance);
+            _persistentState.SetUInt256($"Balance:{_trader0}", currentTraderBalance);
             
             var expectedSrcBalanceParams = new object[] {_pair};
             SetupCall(_token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
@@ -319,24 +320,24 @@ namespace OpdexV1Contracts.Tests
         // Todo: Finish this
         public void MintWithExistingReserves_Success()
         {
-            const ulong currentReserveCrs = 5_000;
-            const ulong currentReserveToken = 10_000;
-            const ulong currentBalanceCrs = 5_500;
-            const ulong currentBalanceToken = 11_000;
-            const ulong currentTotalSupply = 2500;
-            const ulong expectedLiquidity = 250;
-            const ulong expectedKLast = 50_000_000;
-            const ulong currentFeeToBalance = 100;
-            const ulong currentTraderBalance = 0;
-            const ulong mintedFee = 0; // Todo: Calculate and set
+            var currentReserveCrs = new UInt256(5_000);
+            var currentReserveToken = new UInt256(10_000);
+            var currentBalanceCrs = new UInt256(5_500);
+            var currentBalanceToken = new UInt256(11_000);
+            var currentTotalSupply = new UInt256(2500);
+            var expectedLiquidity = new UInt256(250);
+            var expectedKLast = new UInt256(50_000_000);
+            var currentFeeToBalance = new UInt256(100);
+            var currentTraderBalance = new UInt256(0);
+            var mintedFee = new UInt256(0); // Todo: Calculate and set
 
             SetupBalance(currentBalanceCrs);
-            _persistentState.SetUInt64("ReserveCrs",currentReserveCrs);
-            _persistentState.SetUInt64("ReserveToken", currentReserveToken);
-            _persistentState.SetUInt64("TotalSupply", currentTotalSupply);
-            _persistentState.SetUInt64("KLast", expectedKLast);
-            _persistentState.SetUInt64($"Balance:{_feeTo}", currentFeeToBalance);
-            _persistentState.SetUInt64($"Balance:{_trader0}", currentTraderBalance);
+            _persistentState.SetUInt256("ReserveCrs",currentReserveCrs);
+            _persistentState.SetUInt256("ReserveToken", currentReserveToken);
+            _persistentState.SetUInt256("TotalSupply", currentTotalSupply);
+            _persistentState.SetUInt256("KLast", expectedKLast);
+            _persistentState.SetUInt256($"Balance:{_feeTo}", currentFeeToBalance);
+            _persistentState.SetUInt256($"Balance:{_trader0}", currentTraderBalance);
 
             var expectedSrcBalanceParams = new object[] {_pair};
             SetupCall(_token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
@@ -366,13 +367,13 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void SwapCRSForTokenSuccess()
         {
-            const ulong swapAmountCrs = 500;
-            const ulong currentReserveCrs = 5_500;
-            const ulong currentReserveToken = 10_000;
-            const ulong expectedReceivedToken = 997;
+            var swapAmountCrs = new UInt256(500);
+            var currentReserveCrs = new UInt256(5_500);
+            var currentReserveToken = new UInt256(10_000);
+            var expectedReceivedToken = new UInt256(997);
             
-            _persistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            _persistentState.SetUInt64("ReserveToken", currentReserveToken);
+            _persistentState.SetUInt256("ReserveCrs", currentReserveCrs);
+            _persistentState.SetUInt256("ReserveToken", currentReserveToken);
             
             var pair = CreateNewOpdexPair();
         }

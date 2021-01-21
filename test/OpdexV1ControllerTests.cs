@@ -136,13 +136,13 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(1_000, 10_000, 990, 9_900)]
-        public void AddLiquidity_Success_NoReserves(ulong amountCrsDesired, ulong amountTokenDesired, ulong amountCrsMin, ulong amountTokenMin)
+        public void AddLiquidity_Success_NoReserves(UInt256 amountCrsDesired, UInt256 amountTokenDesired, UInt256 amountCrsMin, UInt256 amountTokenMin)
         {
             var to = _otherAddress;
             
             // Tests specific flows where there are no existing reserves
-            const ulong expectedReserveCrs = 0;
-            const ulong expectedReserveToken = 0;
+            var expectedReserveCrs = UInt256.MinValue;
+            var expectedReserveToken = UInt256.MinValue;
             
             var controller = CreateNewOpdexController();
 
@@ -164,14 +164,14 @@ namespace OpdexV1Contracts.Tests
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<ulong>()));
+            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
 
             var addLiquidityResponse = controller.AddLiquidity(_token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
             addLiquidityResponse.AmountCrs.Should().Be(amountCrsDesired);
             addLiquidityResponse.AmountToken.Should().Be(amountTokenDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
-            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<ulong>());
+            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
             
             VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
             VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
@@ -182,8 +182,8 @@ namespace OpdexV1Contracts.Tests
         [Theory]
         [InlineData(1_000, 1_500, 500, 750, 100_000, 150_000)]
         [InlineData(25_000, 75_000, 20_000, 60_000, 2_500_000, 7_500_000)]
-        public void AddLiquidity_Success_ExistingReserves_TokenOptimal(ulong amountCrsDesired, ulong amountTokenDesired, ulong amountCrsMin, 
-            ulong amountTokenMin, ulong reserveCrs, ulong reserveToken)
+        public void AddLiquidity_Success_ExistingReserves_TokenOptimal(UInt256 amountCrsDesired, UInt256 amountTokenDesired, UInt256 amountCrsMin, 
+            UInt256 amountTokenMin, UInt256 reserveCrs, UInt256 reserveToken)
         {
             var to = _otherAddress;
             
@@ -209,14 +209,14 @@ namespace OpdexV1Contracts.Tests
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<ulong>()));
+            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             var addLiquidityResponse = controller.AddLiquidity(_token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
             addLiquidityResponse.AmountCrs.Should().Be(amountCrsDesired);
             addLiquidityResponse.AmountToken.Should().Be(expectedAmountTokenOptimal);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
-            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<ulong>());
+            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
             
             VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
             VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
@@ -227,8 +227,8 @@ namespace OpdexV1Contracts.Tests
         [Theory]
         [InlineData(1_500, 900, 750, 500, 150_000, 100_000)]
         [InlineData(75_000, 24_000, 60_000, 20_000, 7_500_000, 2_500_000)]
-        public void AddLiquidity_Success_ExistingReserves_CrsOptimal(ulong amountCrsDesired, ulong amountTokenDesired, ulong amountCrsMin, 
-            ulong amountTokenMin, ulong reserveCrs, ulong reserveToken)
+        public void AddLiquidity_Success_ExistingReserves_CrsOptimal(UInt256 amountCrsDesired, UInt256 amountTokenDesired, UInt256 amountCrsMin, 
+            UInt256 amountTokenMin, UInt256 reserveCrs, UInt256 reserveToken)
         {
             var to = _otherAddress;
             
@@ -254,7 +254,7 @@ namespace OpdexV1Contracts.Tests
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<ulong>()));
+            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             // Transfer CRS change back to sender
             var change = amountCrsDesired - expectedAmountCrsOptimal;
@@ -265,7 +265,7 @@ namespace OpdexV1Contracts.Tests
             addLiquidityResponse.AmountCrs.Should().Be(expectedAmountCrsOptimal);
             addLiquidityResponse.AmountToken.Should().Be(amountTokenDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
-            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<ulong>());
+            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
             
             VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
             VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
@@ -280,7 +280,7 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(100, 1_000, 1_000)]
-        public void RemoveLiquidity_Success(ulong liquidity, ulong amountCrsMin, ulong amountTokenMin)
+        public void RemoveLiquidity_Success(UInt256 liquidity, UInt256 amountCrsMin, UInt256 amountTokenMin)
         {
             var controller = CreateNewOpdexController();
 
@@ -322,9 +322,9 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void RemoveLiquidity_Throws_InsufficientCrsAmount()
         {
-            const ulong liquidity = 100;
-            const ulong amountCrsMin = 1000;
-            const ulong amountTokenMin = 1000;
+            var liquidity = new UInt256(100);
+            var amountCrsMin = new UInt256(1000);
+            var amountTokenMin = new UInt256(1000);
             var controller = CreateNewOpdexController();
 
             _persistentState.SetAddress($"Pair:{_token}", _pair);
@@ -337,7 +337,7 @@ namespace OpdexV1Contracts.Tests
             
             // Burn liquidity tokens
             var burnParams = new object[] {_otherAddress};
-            const ulong expectedAmountCrsMin = amountCrsMin - 1;
+            var expectedAmountCrsMin = amountCrsMin - 1;
             var expectedBurnResponse = new [] { expectedAmountCrsMin, amountTokenMin };
             SetupCall(_pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
             
@@ -350,9 +350,9 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void RemoveLiquidity_Throws_InsufficientTokenAmount()
         {
-            const ulong liquidity = 100;
-            const ulong amountCrsMin = 1000;
-            const ulong amountTokenMin = 1000;
+            var liquidity = new UInt256(100);
+            var amountCrsMin = new UInt256(1000);
+            var amountTokenMin = new UInt256(1000);
             var controller = CreateNewOpdexController();
 
             _persistentState.SetAddress($"Pair:{_token}", _pair);
@@ -365,7 +365,7 @@ namespace OpdexV1Contracts.Tests
             
             // Burn liquidity tokens
             var burnParams = new object[] {_otherAddress};
-            const ulong expectedAmountTokenMin = amountTokenMin - 1;
+            var expectedAmountTokenMin = amountTokenMin - 1;
             var expectedBurnResponse = new [] { amountCrsMin, expectedAmountTokenMin };
             SetupCall(_pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
             
@@ -381,7 +381,7 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(6500, 17_000, 200_000, 450_000)]
-        public void SwapExactCrsForTokens_Success(ulong amountTokenOutMin, ulong amountCrsIn, ulong reserveToken, ulong reserveCrs)
+        public void SwapExactCrsForTokens_Success(UInt256 amountTokenOutMin, UInt256 amountCrsIn, UInt256 reserveToken, UInt256 reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -401,7 +401,7 @@ namespace OpdexV1Contracts.Tests
             SetupTransfer(_pair, amountCrsIn, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {0ul, amountOut, _otherAddress};
+            var swapParams = new object[] {UInt256.MinValue, amountOut, _otherAddress};
             SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
@@ -426,7 +426,7 @@ namespace OpdexV1Contracts.Tests
         
         [Theory]
         [InlineData(6500, 14625, 200_000, 450_000)]
-        public void SwapExactCrsForTokens_Throws_InsufficientOutputAmount(ulong amountTokenOutMin, ulong amountCrsIn, ulong reserveToken, ulong reserveCrs)
+        public void SwapExactCrsForTokens_Throws_InsufficientOutputAmount(UInt256 amountTokenOutMin, UInt256 amountCrsIn, UInt256 reserveToken, UInt256 reserveCrs)
         {
             var controller = CreateNewOpdexController();
             
@@ -450,7 +450,7 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(6500, 17_000, 200_000, 450_000)]
-        public void SwapTokensForExactCRS_Success(ulong amountCrsOut, ulong amountTokenInMax, ulong reserveToken, ulong reserveCrs)
+        public void SwapTokensForExactCRS_Success(UInt256 amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, UInt256 reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -471,7 +471,7 @@ namespace OpdexV1Contracts.Tests
             SetupCall(_token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {amountCrsOut, 0ul, _otherAddress};
+            var swapParams = new object[] {amountCrsOut, UInt256.MinValue, _otherAddress};
             SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
@@ -496,7 +496,7 @@ namespace OpdexV1Contracts.Tests
         
         [Theory]
         [InlineData(6500, 2000, 200_000, 450_000)]
-        public void SwapTokensForExactCRS_Throws_ExcessiveInputAmount(ulong amountCrsOut, ulong amountTokenInMax, ulong reserveToken, ulong reserveCrs)
+        public void SwapTokensForExactCRS_Throws_ExcessiveInputAmount(UInt256 amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, UInt256 reserveCrs)
         {
             var controller = CreateNewOpdexController();
             
@@ -520,7 +520,7 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(8000, 17_000, 200_000, 450_000)]
-        public void SwapExactTokensForCRS_Success(ulong amountTokenIn, ulong amountCrsOutMin, ulong reserveToken, ulong reserveCrs)
+        public void SwapExactTokensForCRS_Success(UInt256 amountTokenIn, UInt256 amountCrsOutMin, UInt256 reserveToken, UInt256 reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -541,7 +541,7 @@ namespace OpdexV1Contracts.Tests
             SetupCall(_token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {amountOut, 0ul, _otherAddress};
+            var swapParams = new object[] {amountOut, UInt256.MinValue, _otherAddress};
             SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
@@ -566,7 +566,7 @@ namespace OpdexV1Contracts.Tests
         
         [Theory]
         [InlineData(6500, 20000, 200_000, 450_000)]
-        public void SwapExactTokensForCRS_Throws_InsufficientOutputAmount(ulong amountTokenIn, ulong amountCrsOutMin, ulong reserveToken, ulong reserveCrs)
+        public void SwapExactTokensForCRS_Throws_InsufficientOutputAmount(UInt256 amountTokenIn, UInt256 amountCrsOutMin, UInt256 reserveToken, UInt256 reserveCrs)
         {
             var controller = CreateNewOpdexController();
 
@@ -590,7 +590,7 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(24_000, 10_000, 200_000, 450_000)]
-        public void SwapCRSForExactTokens_Success(ulong amountCrsIn, ulong amountTokenOut, ulong reserveToken, ulong reserveCrs)
+        public void SwapCRSForExactTokens_Success(UInt256 amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, UInt256 reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -611,7 +611,7 @@ namespace OpdexV1Contracts.Tests
             SetupTransfer(_pair, amountIn, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {0ul, amountTokenOut, _otherAddress};
+            var swapParams = new object[] {UInt256.MinValue, amountTokenOut, _otherAddress};
             SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
 
             if (change > 0)
@@ -646,7 +646,7 @@ namespace OpdexV1Contracts.Tests
         
         [Theory]
         [InlineData(6500, 2000, 200_000, 450_000)]
-        public void SwapCRSForExactTokens_Throws_ExcessiveInputAmount(ulong amountCrsIn, ulong amountTokenOut, ulong reserveToken, ulong reserveCrs)
+        public void SwapCRSForExactTokens_Throws_ExcessiveInputAmount(UInt256 amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, UInt256 reserveCrs)
         {
             var controller = CreateNewOpdexController();
             
@@ -672,7 +672,7 @@ namespace OpdexV1Contracts.Tests
         [InlineData(243, 345, 847)]
         // Todo: Precalculate expected results
         // Todo: Add more scenarios with precalculated expected results
-        public void GetLiquidityQuote_Success(ulong amountA, ulong reserveA, ulong reserveB)
+        public void GetLiquidityQuote_Success(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
         {
             var controller = CreateNewOpdexController();
             var expected = amountA * reserveB / reserveA;
@@ -695,7 +695,7 @@ namespace OpdexV1Contracts.Tests
         [Theory]
         [InlineData(10, 1000, 0)]
         [InlineData(10, 0, 1000)]
-        public void GetLiquidityQuote_Throws_InsufficientLiquidity(ulong amountA, ulong reserveA, ulong reserveB)
+        public void GetLiquidityQuote_Throws_InsufficientLiquidity(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
         {
             var controller = CreateNewOpdexController();
             
@@ -708,7 +708,7 @@ namespace OpdexV1Contracts.Tests
         [Theory]
         [InlineData(1_000, 10_000, 100_000, 9_066)]
         // Todo: Add more scenarios with precalculated expected results
-        public void GetAmountOut_Success(ulong amountIn, ulong reserveIn, ulong reserveOut, ulong expected)
+        public void GetAmountOut_Success(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected)
         {
             var controller = CreateNewOpdexController();
 
@@ -719,7 +719,7 @@ namespace OpdexV1Contracts.Tests
         
         [Theory]
         [InlineData(0, 10_000, 100_000)]
-        public void GetAmountOut_Throws_InsufficientInputAmount(ulong amountIn, ulong reserveIn, ulong reserveOut)
+        public void GetAmountOut_Throws_InsufficientInputAmount(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
         {
             var controller = CreateNewOpdexController();
 
@@ -732,7 +732,7 @@ namespace OpdexV1Contracts.Tests
         [Theory]
         [InlineData(1_000, 0, 100_000)]
         [InlineData(1_000, 10_000, 0)]
-        public void GetAmountOut_Throws_InsufficientLiquidity(ulong amountIn, ulong reserveIn, ulong reserveOut)
+        public void GetAmountOut_Throws_InsufficientLiquidity(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
         {
             var controller = CreateNewOpdexController();
 
@@ -745,7 +745,7 @@ namespace OpdexV1Contracts.Tests
         [Theory]
         [InlineData(10_000, 10_000, 100_000, 1_115)]
         // Todo: Add more scenarios with precalculated expected results
-        public void GetAmountIn_Success(ulong amountOut, ulong reserveIn, ulong reserveOut, ulong expected)
+        public void GetAmountIn_Success(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected)
         {
             var controller = CreateNewOpdexController();
 
@@ -756,7 +756,7 @@ namespace OpdexV1Contracts.Tests
         
         [Theory]
         [InlineData(0, 10_000, 100_000)]
-        public void GetAmountIn_Throws_InsufficientInputAmount(ulong amountOut, ulong reserveIn, ulong reserveOut)
+        public void GetAmountIn_Throws_InsufficientInputAmount(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
         {
             var controller = CreateNewOpdexController();
 
@@ -769,7 +769,7 @@ namespace OpdexV1Contracts.Tests
         [Theory]
         [InlineData(1_000, 0, 100_000)]
         [InlineData(1_000, 10_000, 0)]
-        public void GetAmountIn_Throws_InsufficientLiquidity(ulong amountOut, ulong reserveIn, ulong reserveOut)
+        public void GetAmountIn_Throws_InsufficientLiquidity(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
         {
             var controller = CreateNewOpdexController();
 
