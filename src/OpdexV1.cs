@@ -46,7 +46,7 @@ public class OpdexV1Controller : SmartContract
         var pairContract = Create<OpdexV1Pair>(0, new object[] {token});
         pair = pairContract.NewContractAddress;
         SetPair(token, pair);
-        Log(new PairCreatedEvent { Token = token, Pair = pair });
+        Log(new PairCreatedEvent { Token = token, Pair = pair, EventType = nameof(PairCreatedEvent) });
         return pair;
     }
     
@@ -57,7 +57,7 @@ public class OpdexV1Controller : SmartContract
         var change = Message.Value - liquidityDto.AmountCrs;
         SafeTransfer(liquidityDto.Pair, liquidityDto.AmountCrs);
         var liquidityResponse = Call(liquidityDto.Pair, 0, "Mint", new object[] {to});
-        Assert(liquidityResponse.Success, "OpdexV1: INVALID_MINT");
+        Assert(liquidityResponse.Success, "OpdexV1: INVALID_MINT_RESPONSE");
         SafeTransfer(Message.Sender, change);
         return new AddLiquidityResponseModel { AmountCrs = liquidityDto.AmountCrs, 
             AmountToken = liquidityDto.AmountToken, Liquidity = (UInt256)liquidityResponse.ReturnValue };
@@ -241,6 +241,7 @@ public class OpdexV1Controller : SmartContract
     {
         public Address Token;
         public Address Pair;
+        public string EventType;
     }
 }
 
@@ -411,7 +412,6 @@ public class OpdexV1Pair : SmartContract, IStandardToken
         var balanceCrs = Balance - ReserveCrs;
         SafeTransfer(to, balanceToken);
         SafeTransferTo(token, to, balanceCrs);
-        // Todo: Should this log an event?
     }  
 
     public void Sync() => Update(Balance, GetSrcBalance(Token, Address));
