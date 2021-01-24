@@ -71,7 +71,7 @@ namespace OpdexV1Contracts.Tests
         {
             const ulong expectedBalanceCrs = 100;
             const ulong expectedBalanceToken = 150;
-            var expectedLog = new OpdexV1Pair.SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveToken = expectedBalanceToken};
+            var expectedLog = new OpdexV1Pair.SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveToken = expectedBalanceToken, EventType = nameof(OpdexV1Pair.SyncEvent)};
 
             var expectedSrcBalanceParams = new object[] {_pair};
             SetupCall(_token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
@@ -132,7 +132,7 @@ namespace OpdexV1Contracts.Tests
             const ulong initialToBalance = 25;
             const ulong finalFromBalance = 125;
             const ulong finalToBalance = 100;
-            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount};
+            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount, EventType = nameof(OpdexV1Pair.TransferEvent)};
          
             _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
             _persistentState.SetUInt64($"Balance:{to}", initialToBalance);
@@ -198,7 +198,7 @@ namespace OpdexV1Contracts.Tests
             const ulong finalFromBalance = 170;
             const ulong finalToBalance = 80;
             const ulong finalSpenderAllowance = 70;
-            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount};
+            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount, EventType = nameof(OpdexV1Pair.TransferEvent)};
          
             _persistentState.SetUInt64($"Balance:{from}", initialFromBalance);
             _persistentState.SetUInt64($"Balance:{to}", initialToBalance);
@@ -260,7 +260,7 @@ namespace OpdexV1Contracts.Tests
             var from = _trader0;
             var spender = _trader1;
             const ulong amount = 100;
-            var expectedTransferEvent = new OpdexV1Pair.ApprovalEvent {Owner = from, Spender = spender, Amount = amount};
+            var expectedTransferEvent = new OpdexV1Pair.ApprovalEvent {Owner = from, Spender = spender, Amount = amount, EventType = nameof(OpdexV1Pair.ApprovalEvent)};
             
             SetupMessage(_pair, from);
 

@@ -101,7 +101,7 @@ namespace OpdexV1Contracts.Tests
                 .Should().Be(pair)
                 .And.Be(_pair);
 
-            var expectedPairCreatedEvent = new OpdexV1Controller.PairCreatedEvent { Token = _token, Pair = _pair };
+            var expectedPairCreatedEvent = new OpdexV1Controller.PairCreatedEvent { Token = _token, Pair = _pair, EventType = nameof(OpdexV1Controller.PairCreatedEvent) };
             VerifyLog(expectedPairCreatedEvent, Times.Once);
         }
 
