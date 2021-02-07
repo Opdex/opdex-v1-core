@@ -4,6 +4,8 @@ using Stratis.SmartContracts;
 using Xunit;
 using Stratis.SmartContracts.CLR;
 
+// Todo: Deadline Tests
+
 namespace OpdexV1Contracts.Tests
 {
     public class OpdexV1ControllerTests : BaseContractTest
@@ -12,8 +14,8 @@ namespace OpdexV1Contracts.Tests
         public void CreatesNewController_Success()
         {
             var controller = CreateNewOpdexController();
-            controller.FeeTo.Should().Be(_feeTo);
-            controller.FeeToSetter.Should().Be(_feeToSetter);
+            controller.FeeTo.Should().Be(FeeTo);
+            controller.FeeToSetter.Should().Be(FeeToSetter);
         }
 
         #region FeeTo and FeeToSetter
@@ -21,10 +23,10 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void SetFeeTo_Success()
         {
-            var newFeeTo = _otherAddress;
+            var newFeeTo = OtherAddress;
             var controller = CreateNewOpdexController();
 
-            SetupMessage(_controller, _feeToSetter);
+            SetupMessage(Controller, FeeToSetter);
 
             controller.SetFeeTo(newFeeTo);
 
@@ -34,11 +36,11 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void SetFeeTo_Throws()
         {
-            var newFeeTo = _otherAddress;
-            var caller = Address.Zero; // or any other address != _feeToSetter 
+            var newFeeTo = OtherAddress;
+            var caller = Address.Zero; // or any other address != FeeToSetter 
             var controller = CreateNewOpdexController();
 
-            SetupMessage(_controller, caller);
+            SetupMessage(Controller, caller);
 
             controller
                 .Invoking(c => c.SetFeeTo(newFeeTo))
@@ -49,10 +51,10 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void SetFeeToSetter_Success()
         {
-            var newFeeToSetter = _otherAddress;
+            var newFeeToSetter = OtherAddress;
             var controller = CreateNewOpdexController();
 
-            SetupMessage(_controller, _feeToSetter);
+            SetupMessage(Controller, FeeToSetter);
 
             controller.SetFeeToSetter(newFeeToSetter);
             controller.FeeToSetter.Should().Be(newFeeToSetter);
@@ -61,11 +63,11 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void SetFeeToSetter_Throws()
         {
-            var caller = Address.Zero; // or any other address != _feeToSetter 
-            var newFeeToSetter = _otherAddress;
+            var caller = Address.Zero; // or any other address != FeeToSetter 
+            var newFeeToSetter = OtherAddress;
             var controller = CreateNewOpdexController();
 
-            SetupMessage(_controller, caller);
+            SetupMessage(Controller, caller);
 
             controller
                 .Invoking(c => c.SetFeeToSetter(newFeeToSetter))
@@ -81,27 +83,27 @@ namespace OpdexV1Contracts.Tests
         public void GetPair_Success()
         {
             var controller = CreateNewOpdexController();
-            _persistentState.IsContractResult = true;
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.IsContractResult = true;
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            controller.GetPair(_token).Should().Be(_pair);
+            controller.GetPair(Token).Should().Be(Pair);
         }
 
         [Fact]
         public void CreatesPair_Success()
         {
             var controller = CreateNewOpdexController();
-            _persistentState.IsContractResult = true;
+            PersistentState.IsContractResult = true;
 
-            SetupCreate<OpdexV1Pair>(CreateResult.Succeeded(_pair), parameters: new object[] {_token});
+            SetupCreate<OpdexV1Pair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token});
 
-            var pair = controller.CreatePair(_token);
+            var pair = controller.CreatePair(Token);
 
-            controller.GetPair(_token)
+            controller.GetPair(Token)
                 .Should().Be(pair)
-                .And.Be(_pair);
+                .And.Be(Pair);
 
-            var expectedPairCreatedEvent = new OpdexV1Controller.PairCreatedEvent { Token = _token, Pair = _pair, EventType = nameof(OpdexV1Controller.PairCreatedEvent) };
+            var expectedPairCreatedEvent = new OpdexV1Controller.PairCreatedEvent { Token = Token, Pair = Pair, EventType = nameof(OpdexV1Controller.PairCreatedEvent) };
             VerifyLog(expectedPairCreatedEvent, Times.Once);
         }
 
@@ -121,11 +123,11 @@ namespace OpdexV1Contracts.Tests
         public void CreatesPair_Throws_PairExists()
         {
             var controller = CreateNewOpdexController();
-            _persistentState.IsContractResult = true;
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.IsContractResult = true;
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
             controller
-                .Invoking(c => c.CreatePair(_token))
+                .Invoking(c => c.CreatePair(Token))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: PAIR_EXISTS");
         }
@@ -136,9 +138,9 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(1_000, 10_000, 990, 9_900)]
-        public void AddLiquidity_Success_NoReserves(UInt256 amountCrsDesired, UInt256 amountTokenDesired, UInt256 amountCrsMin, UInt256 amountTokenMin)
+        public void AddLiquidity_Success_NoReserves(ulong amountCrsDesired, UInt256 amountTokenDesired, ulong amountCrsMin, UInt256 amountTokenMin)
         {
-            var to = _otherAddress;
+            var to = OtherAddress;
             
             // Tests specific flows where there are no existing reserves
             var expectedReserveCrs = UInt256.MinValue;
@@ -146,132 +148,132 @@ namespace OpdexV1Contracts.Tests
             
             var controller = CreateNewOpdexController();
 
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress, amountCrsDesired);
+            SetupMessage(Controller, OtherAddress, amountCrsDesired);
 
             // Call to get reserves from pair
             var expectedReserves = new [] { expectedReserveCrs, expectedReserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pair
-            var transferFromParams = new object[] {_otherAddress, _pair, amountTokenDesired};
-            SetupCall(_token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] {OtherAddress, Pair, amountTokenDesired};
+            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Transfer CRS to Pair
-            SetupTransfer(_pair, amountCrsDesired, TransferResult.Transferred(true));
+            SetupTransfer(Pair, amountCrsDesired, TransferResult.Transferred(true));
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
 
-            var addLiquidityResponse = controller.AddLiquidity(_token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
+            var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
             addLiquidityResponse.AmountCrs.Should().Be(amountCrsDesired);
             addLiquidityResponse.AmountToken.Should().Be(amountTokenDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
-            VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(_pair, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(_pair, amountCrsDesired, Times.Once);
+            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
+            VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
+            VerifyTransfer(Pair, amountCrsDesired, Times.Once);
         }
         
         [Theory]
         [InlineData(1_000, 1_500, 500, 750, 100_000, 150_000)]
         [InlineData(25_000, 75_000, 20_000, 60_000, 2_500_000, 7_500_000)]
-        public void AddLiquidity_Success_ExistingReserves_TokenOptimal(UInt256 amountCrsDesired, UInt256 amountTokenDesired, UInt256 amountCrsMin, 
+        public void AddLiquidity_Success_ExistingReserves_TokenOptimal(ulong amountCrsDesired, UInt256 amountTokenDesired, ulong amountCrsMin, 
             UInt256 amountTokenMin, UInt256 reserveCrs, UInt256 reserveToken)
         {
-            var to = _otherAddress;
+            var to = OtherAddress;
             
             var controller = CreateNewOpdexController();
 
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress, amountCrsDesired);
+            SetupMessage(Controller, OtherAddress, amountCrsDesired);
 
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pair
             var expectedAmountTokenOptimal = controller.GetLiquidityQuote(amountCrsDesired, reserveCrs, reserveToken);
-            var transferFromParams = new object[] {_otherAddress, _pair, expectedAmountTokenOptimal};
-            SetupCall(_token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] {OtherAddress, Pair, expectedAmountTokenOptimal};
+            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Transfer CRS to Pair
             // TokenOptimal route always uses amountCrsDesired
-            SetupTransfer(_pair, amountCrsDesired, TransferResult.Transferred(true));
+            SetupTransfer(Pair, amountCrsDesired, TransferResult.Transferred(true));
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
-            var addLiquidityResponse = controller.AddLiquidity(_token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
+            var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
             addLiquidityResponse.AmountCrs.Should().Be(amountCrsDesired);
             addLiquidityResponse.AmountToken.Should().Be(expectedAmountTokenOptimal);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
-            VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(_pair, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(_pair, amountCrsDesired, Times.Once);
+            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
+            VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
+            VerifyTransfer(Pair, amountCrsDesired, Times.Once);
         }
         
         [Theory]
         [InlineData(1_500, 900, 750, 500, 150_000, 100_000)]
         [InlineData(75_000, 24_000, 60_000, 20_000, 7_500_000, 2_500_000)]
-        public void AddLiquidity_Success_ExistingReserves_CrsOptimal(UInt256 amountCrsDesired, UInt256 amountTokenDesired, UInt256 amountCrsMin, 
+        public void AddLiquidity_Success_ExistingReserves_CrsOptimal(ulong amountCrsDesired, UInt256 amountTokenDesired, ulong amountCrsMin, 
             UInt256 amountTokenMin, UInt256 reserveCrs, UInt256 reserveToken)
         {
-            var to = _otherAddress;
+            var to = OtherAddress;
             
             var controller = CreateNewOpdexController();
 
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress, amountCrsDesired);
+            SetupMessage(Controller, OtherAddress, amountCrsDesired);
 
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pair
             // CrsOptimal route always uses amountTokenDesired
-            var transferFromParams = new object[] {_otherAddress, _pair, amountTokenDesired};
-            SetupCall(_token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] {OtherAddress, Pair, amountTokenDesired};
+            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Transfer CRS to Pair
-            var expectedAmountCrsOptimal = controller.GetLiquidityQuote(amountTokenDesired, reserveToken, reserveCrs);
-            SetupTransfer(_pair, expectedAmountCrsOptimal, TransferResult.Transferred(true));
+            var expectedAmountCrsOptimal = (ulong)controller.GetLiquidityQuote(amountTokenDesired, reserveToken, reserveCrs);
+            SetupTransfer(Pair, expectedAmountCrsOptimal, TransferResult.Transferred(true));
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(_pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             // Transfer CRS change back to sender
             var change = amountCrsDesired - expectedAmountCrsOptimal;
-            SetupTransfer(_otherAddress, change, TransferResult.Transferred(true));
+            SetupTransfer(OtherAddress, change, TransferResult.Transferred(true));
 
-            var addLiquidityResponse = controller.AddLiquidity(_token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
+            var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
             addLiquidityResponse.AmountCrs.Should().Be(expectedAmountCrsOptimal);
             addLiquidityResponse.AmountToken.Should().Be(amountTokenDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
-            VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(_pair, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(_pair, expectedAmountCrsOptimal, Times.Once);
-            VerifyTransfer(_otherAddress, amountCrsDesired - expectedAmountCrsOptimal, Times.Once);
+            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
+            VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
+            VerifyTransfer(Pair, expectedAmountCrsOptimal, Times.Once);
+            VerifyTransfer(OtherAddress, amountCrsDesired - expectedAmountCrsOptimal, Times.Once);
         }
         
         #endregion
@@ -280,30 +282,30 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(100, 1_000, 1_000)]
-        public void RemoveLiquidity_Success(UInt256 liquidity, UInt256 amountCrsMin, UInt256 amountTokenMin)
+        public void RemoveLiquidity_Success(UInt256 liquidity, ulong amountCrsMin, UInt256 amountTokenMin)
         {
             var controller = CreateNewOpdexController();
 
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
 
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             // Transfer Liquidity tokens to pair
-            var transferFromParams = new object[] {_otherAddress, _pair, liquidity};
-            SetupCall(_pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] {OtherAddress, Pair, liquidity};
+            SetupCall(Pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
-            var burnParams = new object[] {_otherAddress};
+            var burnParams = new object[] {OtherAddress};
             var expectedBurnResponse = new [] { amountCrsMin, amountTokenMin };
-            SetupCall(_pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
 
-            var removeLiquidityResponse = controller.RemoveLiquidity(_token, liquidity, amountCrsMin, amountCrsMin, _otherAddress, 0ul);
+            var removeLiquidityResponse = controller.RemoveLiquidity(Token, liquidity, amountCrsMin, amountCrsMin, OtherAddress, 0ul);
 
             removeLiquidityResponse.AmountCrs.Should().Be(amountCrsMin);
             removeLiquidityResponse.AmountToken.Should().Be(amountTokenMin);
             
-            VerifyCall(_pair, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(_pair, 0, "Burn", burnParams, Times.Once);
+            VerifyCall(Pair, 0, "TransferFrom", transferFromParams, Times.Once);
+            VerifyCall(Pair, 0, "Burn", burnParams, Times.Once);
         }
 
         [Fact]
@@ -311,10 +313,10 @@ namespace OpdexV1Contracts.Tests
         {
             var controller = CreateNewOpdexController();
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             controller
-                .Invoking(c => c.RemoveLiquidity(_token, 100, 1000, 1000, _otherAddress, 0))
+                .Invoking(c => c.RemoveLiquidity(Token, 100, 1000, 1000, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INVALID_PAIR");
         }
@@ -322,27 +324,27 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void RemoveLiquidity_Throws_InsufficientCrsAmount()
         {
-            var liquidity = new UInt256(100);
-            var amountCrsMin = new UInt256(1000);
-            var amountTokenMin = new UInt256(1000);
+            UInt256 liquidity = 100;
+            const ulong amountCrsMin = 1000;
+            UInt256 amountTokenMin = 1000;
             var controller = CreateNewOpdexController();
 
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             // Transfer Liquidity tokens to pair
-            var transferFromParams = new object[] {_otherAddress, _pair, liquidity};
-            SetupCall(_pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] {OtherAddress, Pair, liquidity};
+            SetupCall(Pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
-            var burnParams = new object[] {_otherAddress};
+            var burnParams = new object[] {OtherAddress};
             var expectedAmountCrsMin = amountCrsMin - 1;
             var expectedBurnResponse = new [] { expectedAmountCrsMin, amountTokenMin };
-            SetupCall(_pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
             
             controller
-                .Invoking(c => c.RemoveLiquidity(_token, liquidity, amountCrsMin, amountTokenMin, _otherAddress, 0))
+                .Invoking(c => c.RemoveLiquidity(Token, liquidity, amountCrsMin, amountTokenMin, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INSUFFICIENT_CRS_AMOUNT");
         }
@@ -350,27 +352,27 @@ namespace OpdexV1Contracts.Tests
         [Fact]
         public void RemoveLiquidity_Throws_InsufficientTokenAmount()
         {
-            var liquidity = new UInt256(100);
-            var amountCrsMin = new UInt256(1000);
-            var amountTokenMin = new UInt256(1000);
+            UInt256 liquidity = 100;
+            const ulong amountCrsMin = 1000;
+            UInt256 amountTokenMin = 1000;
             var controller = CreateNewOpdexController();
 
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             // Transfer Liquidity tokens to pair
-            var transferFromParams = new object[] {_otherAddress, _pair, liquidity};
-            SetupCall(_pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] {OtherAddress, Pair, liquidity};
+            SetupCall(Pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
-            var burnParams = new object[] {_otherAddress};
+            var burnParams = new object[] {OtherAddress};
             var expectedAmountTokenMin = amountTokenMin - 1;
             var expectedBurnResponse = new [] { amountCrsMin, expectedAmountTokenMin };
-            SetupCall(_pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
             
             controller
-                .Invoking(c => c.RemoveLiquidity(_token, liquidity, amountCrsMin, amountTokenMin, _otherAddress, 0))
+                .Invoking(c => c.RemoveLiquidity(Token, liquidity, amountCrsMin, amountTokenMin, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INSUFFICIENT_TOKEN_AMOUNT");
         }
@@ -381,36 +383,36 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(6500, 17_000, 200_000, 450_000)]
-        public void SwapExactCrsForTokens_Success(UInt256 amountTokenOutMin, UInt256 amountCrsIn, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapExactCrsForTokens_Success(UInt256 amountTokenOutMin, ulong amountCrsIn, UInt256 reserveToken, ulong reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
             
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress, amountCrsIn);
+            SetupMessage(Controller, OtherAddress, amountCrsIn);
             
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountCrsIn, expectedReserves[0], expectedReserves[1]);
 
             // Transfer CRS to Pair
-            SetupTransfer(_pair, amountCrsIn, TransferResult.Transferred(true));
+            SetupTransfer(Pair, amountCrsIn, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {UInt256.MinValue, amountOut, _otherAddress};
-            SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            var swapParams = new object[] {0ul, amountOut, OtherAddress};
+            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapExactCRSForTokens(amountTokenOutMin, _token, _otherAddress, 0);
+            controller.SwapExactCRSForTokens(amountTokenOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
-            VerifyTransfer(_pair, amountCrsIn, Times.Once);
-            VerifyCall(_pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyTransfer(Pair, amountCrsIn, Times.Once);
+            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
         }
 
         [Fact]
@@ -419,27 +421,27 @@ namespace OpdexV1Contracts.Tests
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapExactCRSForTokens(1000, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapExactCRSForTokens(1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INVALID_PAIR");
         }
         
         [Theory]
         [InlineData(6500, 14625, 200_000, 450_000)]
-        public void SwapExactCrsForTokens_Throws_InsufficientOutputAmount(UInt256 amountTokenOutMin, UInt256 amountCrsIn, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapExactCrsForTokens_Throws_InsufficientOutputAmount(UInt256 amountTokenOutMin, ulong amountCrsIn, UInt256 reserveToken, UInt256 reserveCrs)
         {
             var controller = CreateNewOpdexController();
             
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress, amountCrsIn);
+            SetupMessage(Controller, OtherAddress, amountCrsIn);
             
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapExactCRSForTokens(amountTokenOutMin, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapExactCRSForTokens(amountTokenOutMin, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
         }
@@ -450,37 +452,37 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(6500, 17_000, 200_000, 450_000)]
-        public void SwapTokensForExactCRS_Success(UInt256 amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapTokensForExactCRS_Success(ulong amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, ulong reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
             
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountIn = controller.GetAmountIn(amountCrsOut, expectedReserves[1], expectedReserves[0]);
             
             // Call token to Transfer from caller to Pair
-            var transferFromParams = new object[] { _otherAddress, _pair, amountIn };
-            SetupCall(_token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] { OtherAddress, Pair, amountIn };
+            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {amountCrsOut, UInt256.MinValue, _otherAddress};
-            SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            var swapParams = new object[] {amountCrsOut, UInt256.MinValue, OtherAddress};
+            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapTokensForExactCRS(amountCrsOut, amountIn, _token, _otherAddress, 0);
+            controller.SwapTokensForExactCRS(amountCrsOut, amountIn, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
-            VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(_pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
+            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
         }
 
         [Fact]
@@ -489,27 +491,27 @@ namespace OpdexV1Contracts.Tests
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapTokensForExactCRS(1000, 1000, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapTokensForExactCRS(1000, 1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INVALID_PAIR");
         }
         
         [Theory]
         [InlineData(6500, 2000, 200_000, 450_000)]
-        public void SwapTokensForExactCRS_Throws_ExcessiveInputAmount(UInt256 amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapTokensForExactCRS_Throws_ExcessiveInputAmount(ulong amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, ulong reserveCrs)
         {
             var controller = CreateNewOpdexController();
             
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapTokensForExactCRS(amountCrsOut, amountTokenInMax, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapTokensForExactCRS(amountCrsOut, amountTokenInMax, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: EXCESSIVE_INPUT_AMOUNT");
         }
@@ -520,37 +522,37 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(8000, 17_000, 200_000, 450_000)]
-        public void SwapExactTokensForCRS_Success(UInt256 amountTokenIn, UInt256 amountCrsOutMin, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapExactTokensForCRS_Success(UInt256 amountTokenIn, ulong amountCrsOutMin, UInt256 reserveToken, UInt256 reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
             
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountTokenIn, expectedReserves[1], expectedReserves[0]);
             
             // Call token to Transfer from caller to Pair
-            var transferFromParams = new object[] { _otherAddress, _pair, amountTokenIn };
-            SetupCall(_token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            var transferFromParams = new object[] { OtherAddress, Pair, amountTokenIn };
+            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {amountOut, UInt256.MinValue, _otherAddress};
-            SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            var swapParams = new object[] {(ulong)amountOut, UInt256.MinValue, OtherAddress};
+            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, _token, _otherAddress, 0);
+            controller.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
-            VerifyCall(_token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(_pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
+            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
         }
 
         [Fact]
@@ -559,27 +561,27 @@ namespace OpdexV1Contracts.Tests
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapExactTokensForCRS(1000, 1000, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapExactTokensForCRS(1000, 1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INVALID_PAIR");
         }
         
         [Theory]
         [InlineData(6500, 20000, 200_000, 450_000)]
-        public void SwapExactTokensForCRS_Throws_InsufficientOutputAmount(UInt256 amountTokenIn, UInt256 amountCrsOutMin, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapExactTokensForCRS_Throws_InsufficientOutputAmount(UInt256 amountTokenIn, ulong amountCrsOutMin, UInt256 reserveToken, ulong reserveCrs)
         {
             var controller = CreateNewOpdexController();
 
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
         }
@@ -590,46 +592,46 @@ namespace OpdexV1Contracts.Tests
 
         [Theory]
         [InlineData(24_000, 10_000, 200_000, 450_000)]
-        public void SwapCRSForExactTokens_Success(UInt256 amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapCRSForExactTokens_Success(ulong amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, ulong reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
             
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress, amountCrsIn);
+            SetupMessage(Controller, OtherAddress, amountCrsIn);
             
             // Call to get reserves from pair
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
 
-            var amountIn = controller.GetAmountIn(amountTokenOut, expectedReserves[0], expectedReserves[1]);
+            var amountIn = (ulong)controller.GetAmountIn(amountTokenOut, expectedReserves[0], expectedReserves[1]);
 
             var change = amountCrsIn - amountIn;
             
             // Transfer CRS to Pair
-            SetupTransfer(_pair, amountIn, TransferResult.Transferred(true));
+            SetupTransfer(Pair, amountIn, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {UInt256.MinValue, amountTokenOut, _otherAddress};
-            SetupCall(_pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            var swapParams = new object[] {0ul, amountTokenOut, OtherAddress};
+            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
 
             if (change > 0)
             {
-                SetupTransfer(_otherAddress, change, TransferResult.Transferred(true));
+                SetupTransfer(OtherAddress, change, TransferResult.Transferred(true));
             }
             
             // Act
-            controller.SwapCRSForExactTokens(amountTokenOut, _token, _otherAddress, 0);
+            controller.SwapCRSForExactTokens(amountTokenOut, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(_pair, 0, "GetReserves", null, Times.Once);
-            VerifyTransfer(_pair, amountIn, Times.Once);
-            VerifyCall(_pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyTransfer(Pair, amountIn, Times.Once);
+            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
 
             if (change > 0)
             {
-                VerifyTransfer(_otherAddress, change, Times.Once);
+                VerifyTransfer(OtherAddress, change, Times.Once);
             }
         }
 
@@ -639,7 +641,7 @@ namespace OpdexV1Contracts.Tests
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapCRSForExactTokens(1000, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapCRSForExactTokens(1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: INVALID_PAIR");
         }
@@ -650,15 +652,15 @@ namespace OpdexV1Contracts.Tests
         {
             var controller = CreateNewOpdexController();
             
-            _persistentState.SetAddress($"Pair:{_token}", _pair);
+            PersistentState.SetAddress($"Pair:{Token}", Pair);
             
-            SetupMessage(_controller, _otherAddress);
+            SetupMessage(Controller, OtherAddress);
             
             var expectedReserves = new [] { reserveCrs, reserveToken };
-            SetupCall(_pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapCRSForExactTokens(amountTokenOut, _token, _otherAddress, 0))
+                .Invoking(c => c.SwapCRSForExactTokens(amountTokenOut, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OpdexV1: EXCESSIVE_INPUT_AMOUNT");
         }
