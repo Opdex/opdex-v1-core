@@ -6,7 +6,7 @@ using Stratis.SmartContracts.CLR;
 
 // Todo: Deadline Tests
 
-namespace OpdexV1Contracts.Tests
+namespace OpdexV1Contracts.Tests.UnitTests
 {
     public class OpdexV1ControllerTests : BaseContractTest
     {
@@ -103,7 +103,7 @@ namespace OpdexV1Contracts.Tests
                 .Should().Be(pair)
                 .And.Be(Pair);
 
-            var expectedPairCreatedEvent = new OpdexV1Controller.PairCreatedEvent { Token = Token, Pair = Pair, EventType = nameof(OpdexV1Controller.PairCreatedEvent) };
+            var expectedPairCreatedEvent = new PairCreatedEvent { Token = Token, Pair = Pair, EventTypeId = (byte)EventType.PairCreatedEvent };
             VerifyLog(expectedPairCreatedEvent, Times.Once);
         }
 

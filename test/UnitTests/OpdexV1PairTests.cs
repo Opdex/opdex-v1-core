@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
-namespace OpdexV1Contracts.Tests
+namespace OpdexV1Contracts.Tests.UnitTests
 {
     public class OpdexV1PairTests : BaseContractTest
     {
@@ -72,7 +72,7 @@ namespace OpdexV1Contracts.Tests
         {
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
-            var expectedLog = new OpdexV1Pair.SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveToken = expectedBalanceToken, EventType = nameof(OpdexV1Pair.SyncEvent)};
+            var expectedLog = new SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveToken = expectedBalanceToken, EventTypeId = (byte)EventType.SyncEvent};
 
             var pair = CreateNewOpdexPair(expectedBalanceCrs);
             
@@ -129,7 +129,7 @@ namespace OpdexV1Contracts.Tests
             UInt256 initialToBalance = 25;
             UInt256 finalFromBalance = 125;
             UInt256 finalToBalance = 100;
-            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount, EventType = nameof(OpdexV1Pair.TransferEvent)};
+            var expectedTransferEvent = new TransferEvent {From = from, To = to, Amount = amount, EventTypeId = (byte)EventType.TransferEvent};
          
             PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
             PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
@@ -195,7 +195,7 @@ namespace OpdexV1Contracts.Tests
             UInt256 finalFromBalance = 170;
             UInt256 finalToBalance = 80;
             UInt256 finalSpenderAllowance = 70;
-            var expectedTransferEvent = new OpdexV1Pair.TransferEvent {From = from, To = to, Amount = amount, EventType = nameof(OpdexV1Pair.TransferEvent)};
+            var expectedTransferEvent = new TransferEvent {From = from, To = to, Amount = amount, EventTypeId = (byte)EventType.TransferEvent};
          
             PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
             PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
@@ -257,7 +257,7 @@ namespace OpdexV1Contracts.Tests
             var from = Trader0;
             var spender = Trader1;
             UInt256 amount = 100;
-            var expectedApprovalEvent = new OpdexV1Pair.ApprovalEvent {Owner = from, Spender = spender, Amount = amount, EventType = nameof(OpdexV1Pair.ApprovalEvent)};
+            var expectedApprovalEvent = new ApprovalEvent {Owner = from, Spender = spender, Amount = amount, EventTypeId = (byte)EventType.ApprovalEvent};
             
             SetupMessage(Pair, from);
 

@@ -3,7 +3,7 @@ using Stratis.SmartContracts;
 using System;
 using System.Collections.Generic;
 
-namespace OpdexV1Contracts.Tests
+namespace OpdexV1Contracts.Tests.UnitTests
 {
     public class InMemoryState : IPersistentState
     {

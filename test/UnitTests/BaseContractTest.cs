@@ -5,7 +5,7 @@ using Stratis.SmartContracts.CLR;
 using Stratis.SmartContracts.CLR.Serialization;
 using Stratis.SmartContracts.Networks;
 
-namespace OpdexV1Contracts.Tests
+namespace OpdexV1Contracts.Tests.UnitTests
 {
     public class BaseContractTest
     {
