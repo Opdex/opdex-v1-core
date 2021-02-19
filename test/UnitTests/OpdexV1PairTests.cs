@@ -26,6 +26,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
 
             pair.Token.Should().Be(Token);
             pair.Controller.Should().Be(Controller);
+            pair.StakeToken.Should().Be(StakeToken);
         }
 
         [Fact]
@@ -53,18 +54,20 @@ namespace OpdexV1Contracts.Tests.UnitTests
         [Fact]
         public void GetReserves_Success()
         {
-            UInt256 expectedCrs = 100;
+            ulong expectedCrs = 100;
             UInt256 expectedToken = 150;
 
-            PersistentState.SetUInt64("ReserveCrs", (ulong)expectedCrs);
-            PersistentState.SetUInt256("ReserveToken", expectedToken);
+            PersistentState.SetUInt64("ReserveCrs", expectedCrs);
+            PersistentState.SetUInt256("ReserveSrc", expectedToken);
             
             var pair = CreateNewOpdexPair();
 
             var reserves = pair.GetReserves();
+            var reserveCrs = Serializer.ToUInt64(reserves[0]);
+            var reserveToken = Serializer.ToUInt256(reserves[1]);
             
-            reserves[0].Should().Be(expectedCrs);
-            reserves[1].Should().Be(expectedToken);
+            reserveCrs.Should().Be(expectedCrs);
+            reserveToken.Should().Be(expectedToken);
         }
 
         [Fact]
@@ -72,7 +75,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
         {
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
-            var expectedLog = new SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveToken = expectedBalanceToken, EventTypeId = (byte)EventType.SyncEvent};
+            var expectedLog = new SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveSrc = expectedBalanceToken, EventTypeId = (byte)EventType.SyncEvent};
 
             var pair = CreateNewOpdexPair(expectedBalanceCrs);
             
@@ -82,7 +85,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             pair.Sync();
 
             pair.ReserveCrs.Should().Be(expectedBalanceCrs);
-            pair.ReserveToken.Should().Be(expectedBalanceToken);
+            pair.ReserveSrc.Should().Be(expectedBalanceToken);
 
             VerifyCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, Times.Once);
             VerifyLog(expectedLog, Times.Once);
@@ -94,12 +97,12 @@ namespace OpdexV1Contracts.Tests.UnitTests
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
             UInt256 currentReserveCrs = 50;
-            UInt256 currentReserveToken = 100;
+            UInt256 currentReserveSrc = 100;
 
             var pair = CreateNewOpdexPair(expectedBalanceCrs);
             
             PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
-            PersistentState.SetUInt256("ReserveToken", currentReserveToken);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
 
             var expectedSrcBalanceParams = new object[] {Pair};
             SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
@@ -284,7 +287,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             const ulong currentBalanceCrs = 100_000_000;
             UInt256 currentBalanceToken = 1_900_000_000;
             UInt256 currentReserveCrs = 0;
-            UInt256 currentReserveToken = 0;
+            UInt256 currentReserveSrc = 0;
             UInt256 currentTotalSupply = 0;
             UInt256 currentKLast = 0;
             UInt256 currentFeeToBalance = 0;
@@ -294,7 +297,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             var pair = CreateNewOpdexPair(currentBalanceCrs);
             
             PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
-            PersistentState.SetUInt256("ReserveToken", currentReserveToken);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
             PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
             PersistentState.SetUInt256("KLast", currentKLast);
             PersistentState.SetUInt256($"Balance:{FeeTo}", currentFeeToBalance);
@@ -316,7 +319,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             const ulong currentBalanceCrs = 5_500ul;
             UInt256 currentBalanceToken = 11_000;
             UInt256 currentReserveCrs = 5_000;
-            UInt256 currentReserveToken = 10_000;
+            UInt256 currentReserveSrc = 10_000;
             UInt256 currentTotalSupply = 2500;
             UInt256 expectedLiquidity = 250;
             UInt256 expectedKLast = 50_000_000;
@@ -327,7 +330,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             var pair = CreateNewOpdexPair(currentBalanceCrs);
             
             PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
-            PersistentState.SetUInt256("ReserveToken", currentReserveToken);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
             PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
             PersistentState.SetUInt256("KLast", expectedKLast);
             PersistentState.SetUInt256($"Balance:{FeeTo}", currentFeeToBalance);
@@ -361,13 +364,13 @@ namespace OpdexV1Contracts.Tests.UnitTests
         {
             UInt256 swapAmountCrs = 500;
             UInt256 currentReserveCrs = 5_500;
-            UInt256 currentReserveToken = 10_000;
+            UInt256 currentReserveSrc = 10_000;
             UInt256 expectedReceivedToken = 997;
             
             var pair = CreateNewOpdexPair((ulong)currentReserveCrs);
             
             PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
-            PersistentState.SetUInt256("ReserveToken", currentReserveToken);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
         }
         
         #endregion
@@ -496,7 +499,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             pair
                 .Invoking(p => p.Borrow(borrowedCrs, 0ul, callbackAddress, callbackMethod, bytes))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OpdexV1: INSUFFICIENT_DEBT_PAID");
+                .WithMessage("OPDEX: INSUFFICIENT_DEBT_PAID");
         }
         
         [Fact]
@@ -530,7 +533,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             pair
                 .Invoking(p => p.Borrow(0ul, borrowedSrc, callbackAddress, callbackMethod, bytes))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OpdexV1: INSUFFICIENT_DEBT_PAID");
+                .WithMessage("OPDEX: INSUFFICIENT_DEBT_PAID");
 
             // Moq testing callback that simulates the actual, in contract,
             // callback to another contract with borrowed funds that would

@@ -1,12 +1,15 @@
-﻿using Stratis.SmartContracts;
+﻿using OpdexV1Core.Models;
+using Stratis.SmartContracts;
 
 [Deploy]
 public class OpdexV1Controller : ContractBase
 {
-    public OpdexV1Controller(ISmartContractState smartContractState, Address feeToSetter, Address feeTo) : base(smartContractState)
+    public OpdexV1Controller(ISmartContractState smartContractState, Address feeToSetter, Address feeTo, Address stakeToken) : base(smartContractState)
     {
+        Assert(State.IsContract(stakeToken), "OPDEX: INVALID_TOKEN");
         FeeToSetter = feeToSetter;
         FeeTo = feeTo;
+        StakeToken = stakeToken;
     }
 
     public Address FeeToSetter
@@ -20,16 +23,22 @@ public class OpdexV1Controller : ContractBase
         get => State.GetAddress(nameof(FeeTo));
         private set => State.SetAddress(nameof(FeeTo), value);
     }
+    
+    public Address StakeToken
+    {
+        get => State.GetAddress(nameof(StakeToken));
+        private set => State.SetAddress(nameof(StakeToken), value);
+    }
 
     public void SetFeeTo(Address feeTo)
     {
-        Assert(Message.Sender == FeeToSetter, "OpdexV1: FORBIDDEN");
+        Assert(Message.Sender == FeeToSetter, "OPDEX: FORBIDDEN");
         FeeTo = feeTo;
     }
 
     public void SetFeeToSetter(Address feeToSetter)
     {
-        Assert(Message.Sender == FeeToSetter, "OpdexV1: FORBIDDEN");
+        Assert(Message.Sender == FeeToSetter, "OPDEX: FORBIDDEN");
         FeeToSetter = feeToSetter;
     }
 
@@ -45,188 +54,306 @@ public class OpdexV1Controller : ContractBase
     
     public Address CreatePair(Address token)
     {
-        Assert(token != Address.Zero && State.IsContract(token), "OpdexV1: ZERO_ADDRESS");
+        Assert(token != Address.Zero && State.IsContract(token), "OPDEX: ZERO_ADDRESS");
+        
         var pair = GetPair(token);
-        Assert(pair == Address.Zero, "OpdexV1: PAIR_EXISTS");
+        
+        Assert(pair == Address.Zero, "OPDEX: PAIR_EXISTS");
+        
         var pairContract = Create<OpdexV1Pair>(0, new object[] {token});
         pair = pairContract.NewContractAddress;
+        
         SetPair(token, pair);
+        
         Log(new PairCreatedEvent { Token = token, Pair = pair, EventTypeId = (byte)EventType.PairCreatedEvent });
+        
         return pair;
     }
     
-    public AddLiquidityResponseModel AddLiquidity(Address token, UInt256 amountTokenDesired, ulong amountCrsMin, UInt256 amountTokenMin, Address to, ulong deadline)
+    public AddLiquidityResponseModel AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     { 
         ValidateDeadline(deadline);
-        var liquidityDto = CalculateLiquidityAmounts(token, Message.Value, amountTokenDesired, amountCrsMin, amountTokenMin);
-        SafeTransferFrom(token, Message.Sender, liquidityDto.Pair, liquidityDto.AmountToken);
+        
+        var liquidityDto = CalculateLiquidityAmounts(token, Message.Value, amountSrcDesired, amountCrsMin, amountSrcMin);
+        
+        SafeTransferFrom(token, Message.Sender, liquidityDto.Pair, liquidityDto.AmountSrc);
+        
         var change = Message.Value - liquidityDto.AmountCrs;
+        
         SafeTransfer(liquidityDto.Pair, liquidityDto.AmountCrs);
+        
         var liquidityResponse = Call(liquidityDto.Pair, 0, "Mint", new object[] {to});
-        Assert(liquidityResponse.Success, "OpdexV1: INVALID_MINT_RESPONSE");
+        
+        Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
+        
         SafeTransfer(Message.Sender, change);
+        
         return new AddLiquidityResponseModel { AmountCrs = liquidityDto.AmountCrs, 
-            AmountToken = liquidityDto.AmountToken, Liquidity = (UInt256)liquidityResponse.ReturnValue };
+            AmountSrc = liquidityDto.AmountSrc, Liquidity = (UInt256)liquidityResponse.ReturnValue };
     }
     
-    public RemoveLiquidityResponseModel RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountTokenMin, Address to, ulong deadline)
+    public RemoveLiquidityResponseModel RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
+        
         var pair = GetValidatedPair(token);
+        
         SafeTransferFrom(pair, Message.Sender, pair, liquidity);
+        
         var burnDtoResponse = Call(pair, 0, "Burn", new object[] {to});
         var burnResponse = (UInt256[])burnDtoResponse.ReturnValue;
         var receivedCrs = (ulong)burnResponse[0];
         var receivedTokens = burnResponse[1];
-        Assert(receivedCrs >= amountCrsMin, "OpdexV1: INSUFFICIENT_CRS_AMOUNT");
-        Assert(receivedTokens >= amountTokenMin, "OpdexV1: INSUFFICIENT_TOKEN_AMOUNT");
-        return new RemoveLiquidityResponseModel { AmountCrs = receivedCrs, AmountToken = receivedTokens };
+        
+        Assert(receivedCrs >= amountCrsMin, "OPDEX: INSUFFICIENT_CRS_AMOUNT");
+        Assert(receivedTokens >= amountSrcMin, "OPDEX: INSUFFICIENT_TOKEN_AMOUNT");
+        
+        return new RemoveLiquidityResponseModel { AmountCrs = receivedCrs, AmountSrc = receivedTokens };
     }
 
     // public void Stake(Address token, UInt256 amount)
     // {
     //     var OPDT = Address.Zero;
-    //     Assert(token != OPDT, "OpdexV1: Cannot stake OPDT.");
+    //     Assert(token != OPDT, "OPDEX: Cannot stake OPDT.");
     //     var pair = GetValidatedPair(token);
     //     SafeTransferFrom(OPDT, Message.Sender, pair, amount);
     //     var response = Call(pair, 0, "Stake", new object[] {Message.Sender});
     //     Assert(response.Success);
     // }
+    //
+    // public void StopStaking(Address to)
+    // {
+    //     // Todo: Need ECRecover
+    //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
+    //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
+    //     // Or Create a new contract altogether for each pairs staking management
+    //     // Or Don't have withdraws go through controller at all, direct only
+    // }
+    //
+    // public void WithdrawStakingRewards(Address to)
+    // {
+    //     // Todo: Need ECRecover
+    //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
+    //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
+    //     // Or Create a new contract altogether for each pairs staking management
+    //     // Or Don't have withdraws go through controller at all, direct only
+    // }
+    //
+    // public void WithdrawStakingRewardsAndLiquidity(Address to)
+    // {
+    //     // Todo: Need ECRecover
+    //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
+    //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
+    //     // Or Create a new contract altogether for each pairs staking management
+    //     // Or Don't have withdraws go through controller at all, direct only
+    // }
     
-    public void SwapExactCRSForTokens(UInt256 amountTokenOutMin, Address token, Address to, ulong deadline)
+    public void SwapExactCRSForTokens(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
+        
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
-        var amountOut = GetAmountOut(Message.Value, reserves[0], reserves[1]);
-        Assert(amountOut >= amountTokenOutMin, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
+        var amountOut = GetAmountOut(Message.Value, reserves.ReserveCrs, reserves.ReserveSrc);
+        
+        Assert(amountOut >= amountSrcOutMin, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
+        
         SafeTransfer(pair, Message.Value);
         Swap(0, amountOut, pair, to);
     }
     
-    public void SwapTokensForExactCRS(ulong amountCrsOut, UInt256 amountTokenInMax, Address token, Address to, ulong deadline)
+    public void SwapTokensForExactCRS(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
+        
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
-        var amountIn = GetAmountIn(amountCrsOut, reserves[1], reserves[0]);
-        Assert(amountIn <= amountTokenInMax, "OpdexV1: EXCESSIVE_INPUT_AMOUNT");
+        var amountIn = GetAmountIn(amountCrsOut, reserves.ReserveSrc, reserves.ReserveCrs);
+        
+        Assert(amountIn <= amountSrcInMax, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
+        
         SafeTransferFrom(token, Message.Sender, pair, amountIn);
         Swap(amountCrsOut, 0, pair, to);
     }
     
-    public void SwapExactTokensForCRS(UInt256 amountTokenIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
+    public void SwapExactTokensForCRS(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
+        
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
-        var amountOut = GetAmountOut(amountTokenIn, reserves[1], reserves[0]);
-        Assert(amountOut >= amountCrsOutMin, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");  
-        SafeTransferFrom(token, Message.Sender, pair, amountTokenIn);
+        var amountOut = GetAmountOut(amountSrcIn, reserves.ReserveSrc, reserves.ReserveCrs);
+        
+        Assert(amountOut >= amountCrsOutMin, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
+        
+        SafeTransferFrom(token, Message.Sender, pair, amountSrcIn);
         Swap((ulong)amountOut, 0, pair, to);
     }
     
-    public void SwapCRSForExactTokens(UInt256 amountTokenOut, Address token, Address to, ulong deadline)
+    public void SwapCRSForExactTokens(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
+        
         var pair = GetValidatedPair(token);
         var reserves = GetReserves(pair);
-        var amountIn = (ulong)GetAmountIn(amountTokenOut, reserves[0], reserves[1]);
-        Assert(amountIn <= Message.Value, "OpdexV1: EXCESSIVE_INPUT_AMOUNT");
+        var amountIn = (ulong)GetAmountIn(amountSrcOut, reserves.ReserveCrs, reserves.ReserveSrc);
+        
+        Assert(amountIn <= Message.Value, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
+        
         var change = Message.Value - amountIn;
+        
         SafeTransfer(pair, amountIn);
-        Swap(0, amountTokenOut, pair, to);
+        Swap(0, amountSrcOut, pair, to);
         SafeTransfer(Message.Sender, change);
+    }
+
+    public void SwapSRCForExactSRCTokens(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
+    {
+        ValidateDeadline(deadline);
+        
+        var tokenInPair = GetValidatedPair(tokenIn);
+        var tokenOutPair = GetValidatedPair(tokenOut);
+        var tokenInReserves = GetReserves(tokenInPair);
+        var tokenOutReserves = GetReserves(tokenOutPair);
+
+        var amountCrsIn = (ulong)GetAmountIn(amountSrcOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
+        var amountSrc = GetAmountOut(amountCrsIn, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
+
+        Assert(amountSrcOut <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+
+        // Swap Tokens for Exact CRS
+        SafeTransferFrom(tokenIn, Message.Sender, tokenInPair, amountSrc);
+        Swap(amountCrsIn, 0, tokenInPair, Address); // Transfers tokens back to this contracts custody
+        
+        // Swap CRS for Exact Tokens
+        SafeTransfer(tokenOutPair, amountCrsIn);
+        Swap(0, amountSrcOut, tokenOutPair, to);
+    }
+    
+    public void SwapExactSRCForSRCTokens(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
+    {
+        ValidateDeadline(deadline);
+        
+        var tokenInPair = GetValidatedPair(tokenIn);
+        var tokenOutPair = GetValidatedPair(tokenOut);
+        var tokenInReserves = GetReserves(tokenInPair);
+        var tokenOutReserves = GetReserves(tokenOutPair);
+
+        var amountCrsOut = (ulong)GetAmountOut(amountSrcIn, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
+        var amountSrcOut = GetAmountOut(amountCrsOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
+        
+        Assert(amountSrcOutMin <= amountSrcOut, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
+        
+        // Swap Exact SRC for CRS
+        SafeTransferFrom(tokenIn, Message.Sender, tokenInPair, amountSrcIn);
+        Swap(amountCrsOut, 0, tokenInPair, Address); // Transfers tokens back to this contracts custody
+        
+        // Swap Exact CRS to SRC
+        SafeTransfer(tokenOutPair, amountCrsOut);
+        Swap(0, amountSrcOut, tokenOutPair, to);
     }
     
     public UInt256 GetLiquidityQuote(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
     {
-        Assert(amountA > 0, "OpdexV1: INSUFFICIENT_AMOUNT");
-        Assert(reserveA > 0 && reserveB > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        Assert(amountA > 0, "OPDEX: INSUFFICIENT_AMOUNT");
+        Assert(reserveA > 0 && reserveB > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
+        
         return amountA * reserveB / reserveA;
     }
     
     public UInt256 GetAmountOut(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
     {
-        Assert(amountIn > 0, "OpdexV1: INSUFFICIENT_INPUT_AMOUNT");
-        Assert(reserveIn > 0 && reserveOut > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        Assert(amountIn > 0, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+        Assert(reserveIn > 0 && reserveOut > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
+        
         var amountInWithFee = amountIn * 997;
         var numerator = amountInWithFee * reserveOut;
         var denominator = reserveIn * 1000 + amountInWithFee;
+        
         return numerator / denominator;
     }
 
     public UInt256 GetAmountIn(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
     {
-        Assert(amountOut > 0, "OpdexV1: INSUFFICIENT_OUTPUT_AMOUNT");
-        Assert(reserveIn > 0 && reserveOut > 0, "OpdexV1: INSUFFICIENT_LIQUIDITY");
+        Assert(amountOut > 0, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
+        Assert(reserveIn > 0 && reserveOut > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
+        
         var numerator = reserveIn * amountOut * 1000;
         var denominator = (reserveOut - amountOut) * 997;
+        
         return numerator / denominator + 1;
     }
     
     // Todo: Preferably split this method to allow for a public method to calculate this for free via local call
-    private CalcLiquidityModel CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountTokenDesired, ulong amountCrsMin, UInt256 amountTokenMin)
+    private CalcLiquidityModel CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
     {
-        UInt256 reserveCrs = 0;
-        UInt256 reserveToken = 0;
+        var reserves = new Reserves();
         var pair = GetPair(token);
+        
         if (pair == Address.Zero) pair = CreatePair(token);
-        else
-        {
-            var reserves = GetReserves(pair);
-            reserveCrs = reserves[0];
-            reserveToken = reserves[1];
-        }
+        else reserves = GetReserves(pair);
+        
         UInt256 amountCrs;
-        UInt256 amountToken;
-        if (reserveCrs == 0 && reserveToken == 0)
+        UInt256 amountSrc;
+        if (reserves.ReserveCrs == 0 && reserves.ReserveSrc == 0)
         {
             amountCrs = amountCrsDesired;
-            amountToken = amountTokenDesired;
+            amountSrc = amountSrcDesired;
         }
         else
         {
-            var amountTokenOptimal = GetLiquidityQuote(amountCrsDesired, reserveCrs, reserveToken);
-            if (amountTokenOptimal <= amountTokenDesired)
+            var amountSrcOptimal = GetLiquidityQuote(amountCrsDesired, reserves.ReserveCrs, reserves.ReserveSrc);
+            if (amountSrcOptimal <= amountSrcDesired)
             {
-                Assert(amountTokenOptimal >= amountTokenMin, "OpdexV1: INSUFFICIENT_B_AMOUNT");
+                Assert(amountSrcOptimal >= amountSrcMin, "OPDEX: INSUFFICIENT_B_AMOUNT");
                 amountCrs = amountCrsDesired;
-                amountToken = amountTokenOptimal;
+                amountSrc = amountSrcOptimal;
             }
             else
             {
-                var amountCrsOptimal = GetLiquidityQuote(amountTokenDesired, reserveToken, reserveCrs);
-                Assert(amountCrsOptimal <= amountCrsDesired && amountCrsOptimal >= amountCrsMin, "OpdexV1: INSUFFICIENT_A_AMOUNT");
+                var amountCrsOptimal = GetLiquidityQuote(amountSrcDesired, reserves.ReserveSrc, reserves.ReserveCrs);
+                Assert(amountCrsOptimal <= amountCrsDesired && amountCrsOptimal >= amountCrsMin, "OPDEX: INSUFFICIENT_A_AMOUNT");
                 amountCrs = amountCrsOptimal;
-                amountToken = amountTokenDesired;
+                amountSrc = amountSrcDesired;
             }
         }
-        return new CalcLiquidityModel { AmountCrs = (ulong)amountCrs, AmountToken = amountToken, Pair = pair };
+        
+        return new CalcLiquidityModel { AmountCrs = (ulong)amountCrs, AmountSrc = amountSrc, Pair = pair };
     }
     
-    private void Swap(ulong amountCrsOut, UInt256 amountTokenOut, Address pair, Address to)
+    private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pair, Address to)
     {
-        var response = Call(pair, 0, "Swap", new object[] {amountCrsOut, amountTokenOut, to});
-        Assert(response.Success, "OpdexV1: INVALID_SWAP_ATTEMPT");
+        var response = Call(pair, 0, "Swap", new object[] {amountCrsOut, amountSrcOut, to});
+        
+        Assert(response.Success, "OPDEX: INVALID_SWAP_ATTEMPT");
     }
 
-    private UInt256[] GetReserves(Address pair)
+    private Reserves GetReserves(Address pair)
     {
         var reservesResponse = Call(pair, 0, "GetReserves");
-        Assert(reservesResponse.Success, "OpdexV1: INVALID_PAIR");
-        return (UInt256[])reservesResponse.ReturnValue;
+        
+        Assert(reservesResponse.Success, "OPDEX: INVALID_PAIR");
+        
+        var reserves = (byte[][])reservesResponse.ReturnValue;
+        
+        return new Reserves
+        {
+            ReserveCrs = Serializer.ToUInt64(reserves[0]),
+            ReserveSrc = Serializer.ToUInt256(reserves[1])
+        };
     }
     
     private Address GetValidatedPair(Address token)
     {
         var pair = GetPair(token);
-        Assert(pair != Address.Zero, "OpdexV1: INVALID_PAIR");
+        
+        Assert(pair != Address.Zero, "OPDEX: INVALID_PAIR");
+        
         return pair;
     }
 
     private void ValidateDeadline(ulong deadline)
     {
-        Assert(deadline == 0 || Block.Number <= deadline, "OpdexV1: EXPIRED_DEADLINE");
+        Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
     }
 }

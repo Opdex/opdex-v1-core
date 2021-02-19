@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public class ContractBase : SmartContract
+public abstract class ContractBase : SmartContract
 {
     protected ContractBase(ISmartContractState contractState) : base(contractState)
     {
@@ -17,7 +17,7 @@ public class ContractBase : SmartContract
     {
         if (amount == 0) return;
         var result = Call(token, 0, "TransferTo", new object[] {to, amount});
-        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_To");
+        Assert(result.Success && (bool)result.ReturnValue, "OpdexV1: INVALID_TRANSFER_TO");
     }
     
     protected void SafeTransferFrom(Address token, Address from, Address to, UInt256 amount)

@@ -21,6 +21,9 @@ namespace OpdexV1Contracts.Tests.UnitTests
         protected readonly Address Trader0;
         protected readonly Address Trader1;
         protected readonly Address OtherAddress;
+        protected readonly Address StakeToken;
+        protected readonly Address PairTwo;
+        protected readonly Address TokenTwo;
         protected readonly InMemoryState PersistentState;
         
         protected BaseContractTest()
@@ -42,20 +45,25 @@ namespace OpdexV1Contracts.Tests.UnitTests
             Trader0 = "0x0000000000000000000000000000000000000006".HexToAddress();
             Trader1 = "0x0000000000000000000000000000000000000007".HexToAddress();
             OtherAddress = "0x0000000000000000000000000000000000000008".HexToAddress();
+            StakeToken = "0x0000000000000000000000000000000000000009".HexToAddress();
+            PairTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
+            TokenTwo = "0x0000000000000000000000000000000000000011".HexToAddress();
         }
         
         protected OpdexV1Controller CreateNewOpdexController(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, FeeToSetter, 0));
+            PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexV1Controller(_mockContractState.Object, FeeToSetter, FeeTo);
+            return new OpdexV1Controller(_mockContractState.Object, FeeToSetter, FeeTo, StakeToken);
         }
         
         protected OpdexV1Pair CreateNewOpdexPair(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pair, Controller, 0));
+            PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexV1Pair(_mockContractState.Object, Token);
+            return new OpdexV1Pair(_mockContractState.Object, Token, StakeToken);
         }
 
         protected void SetupMessage(Address contractAddress, Address sender, ulong value = 0)

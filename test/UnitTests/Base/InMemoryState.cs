@@ -9,7 +9,11 @@ namespace OpdexV1Contracts.Tests.UnitTests
     {
         private readonly Dictionary<string, object> _storage = new Dictionary<string, object>();
 
-        public bool IsContractResult { get; set; }
+        private readonly Dictionary<Address, bool> _contracts = new Dictionary<Address, bool>();
+
+        private bool IsContractExecute(Address address) =>_contracts.TryGetValue(address, out var isContract) && isContract;
+
+        public void SetContract(Address address, bool value) => _contracts.AddOrReplace(address, value);
 
         public void Clear(string key) => _storage.Remove(key);
 
@@ -42,7 +46,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
         public ulong GetUInt64(string key) => GetValue<ulong>(key);
         public UInt128 GetUInt128(string key) => GetValue<UInt128>(key);
 
-        public bool IsContract(Address address) => IsContractResult;
+        public bool IsContract(Address address) => IsContractExecute(address);
 
         public void SetAddress(string key, Address value) => _storage.AddOrReplace(key, value);
 

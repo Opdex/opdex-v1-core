@@ -1,3 +1,4 @@
+using FluentAssertions;
 using Xunit;
 
 namespace OpdexV1Contracts.Tests.IntegrationTests
@@ -10,5 +11,14 @@ namespace OpdexV1Contracts.Tests.IntegrationTests
         {
             _fixture = fixture;
         }
+
+        // [Fact]
+        // public void CreatesControllerContract()
+        // {
+        //     using (var chain = _fixture.Chain)
+        //     {
+        //         chain.Should().NotBeNull();
+        //     }
+        // }
     }
 }
