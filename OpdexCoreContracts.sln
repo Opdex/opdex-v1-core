@@ -1,8 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpdexV1Contracts", "src\OpdexV1Contracts.csproj", "{E6F55B0F-20D0-4873-9C36-7A9DB8D4EF3F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpdexCoreContracts", "src\OpdexCoreContracts.csproj", "{E6F55B0F-20D0-4873-9C36-7A9DB8D4EF3F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpdexV1Contracts.Tests", "test\OpdexV1Contracts.Tests.csproj", "{C92DCF8D-5980-4DC0-B7A9-F0E8EC4293D0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpdexCoreContracts.Tests", "test\OpdexCoreContracts.Tests.csproj", "{C92DCF8D-5980-4DC0-B7A9-F0E8EC4293D0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stratis.SmartContracts.TestChain", "..\Stratis.SmartContracts.TestChain\Stratis.SmartContracts.TestChain\Stratis.SmartContracts.TestChain.csproj", "{B6E7FA10-847E-43DA-A6FE-0CE1B2B8F516}"
 EndProject

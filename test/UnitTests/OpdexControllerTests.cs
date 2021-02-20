@@ -6,9 +6,9 @@ using Stratis.SmartContracts.CLR;
 
 // Todo: Deadline Tests
 
-namespace OpdexV1Contracts.Tests.UnitTests
+namespace OpdexCoreContracts.Tests.UnitTests
 {
-    public class OpdexV1ControllerTests : BaseContractTest
+    public class OpdexControllerTests : BaseContractTest
     {
         [Fact]
         public void CreatesNewController_Success()
@@ -96,7 +96,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             var controller = CreateNewOpdexController();
             PersistentState.SetContract(Token, true);
 
-            SetupCreate<OpdexV1Pair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token});
+            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token});
 
             var pair = controller.CreatePair(Token);
 

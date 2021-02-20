@@ -1,13 +1,13 @@
 using FluentAssertions;
 using Xunit;
 
-namespace OpdexV1Contracts.Tests.IntegrationTests
+namespace OpdexCoreContracts.Tests.IntegrationTests
 {
-    public class OpdexV1ControllerIntegrationTests : IClassFixture<BaseIntegrationTest>
+    public class OpdexControllerIntegrationTests : IClassFixture<BaseIntegrationTest>
     {
         private readonly BaseIntegrationTest _fixture;
         
-        public OpdexV1ControllerIntegrationTests(BaseIntegrationTest fixture)
+        public OpdexControllerIntegrationTests(BaseIntegrationTest fixture)
         {
             _fixture = fixture;
         }

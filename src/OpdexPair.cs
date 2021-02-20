@@ -1,14 +1,14 @@
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.Standards;
 
-public class OpdexV1Pair : ContractBase, IStandardToken256
+public class OpdexPair : ContractBase, IStandardToken256
 {
     private const ulong MinimumLiquidity = 1000;
     private const string TokenSymbol = "OLPT";
     private const string TokenName = "Opdex Liquidity Pool Token";
     private const byte TokenDecimals = 8;
     
-    public OpdexV1Pair(ISmartContractState smartContractState, Address token, Address stakeToken) : base(smartContractState)
+    public OpdexPair(ISmartContractState smartContractState, Address token, Address stakeToken) : base(smartContractState)
     {
         Controller = Message.Sender;
         Token = token;
@@ -69,25 +69,25 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
         private set => State.SetUInt256(nameof(TotalWeight), value);
     }
 
-    public UInt256 GetWeight(Address address)
-    {
-        return State.GetUInt256($"Weight:{address}");
-    }
-    
-    public void SetWeight(Address address, UInt256 weight)
-    {
-        State.SetUInt256($"Weight:{address}", weight);
-    }
-    
-    public UInt256 GetWeightK(Address address)
-    {
-        return State.GetUInt256($"WeightK:{address}");
-    }
-    
-    public void SetWeightK(Address address, UInt256 weightK)
-    {
-        State.SetUInt256($"WeightK:{address}", weightK);
-    }
+    // public UInt256 GetWeight(Address address)
+    // {
+    //     return State.GetUInt256($"Weight:{address}");
+    // }
+    //
+    // public void SetWeight(Address address, UInt256 weight)
+    // {
+    //     State.SetUInt256($"Weight:{address}", weight);
+    // }
+    //
+    // public UInt256 GetWeightK(Address address)
+    // {
+    //     return State.GetUInt256($"WeightK:{address}");
+    // }
+    //
+    // public void SetWeightK(Address address, UInt256 weightK)
+    // {
+    //     State.SetUInt256($"WeightK:{address}", weightK);
+    // }
 
     public UInt256 GetBalance(Address address)
     {
@@ -207,6 +207,8 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
         
         Update(balanceCrs, balanceSrc);
         
+        KLast = ReserveCrs * ReserveSrc;
+
         Log(new BurnEvent { Sender = Message.Sender, To = to, AmountCrs = amountCrs, AmountSrc = amountSrc, EventTypeId = (byte)EventType.BurnEvent });
         
         return new [] {amountCrs, amountSrc};
@@ -241,8 +243,6 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
         
         Update(balanceCrs, balanceSrc);
         
-        KLast = ReserveCrs * ReserveSrc;
-        
         Log(new SwapEvent { AmountCrsIn = amountCrsIn, AmountCrsOut = amountCrsOut, AmountSrcIn = amountSrcIn,
              AmountSrcOut = amountSrcOut, Sender = Message.Sender, To = to, EventTypeId = (byte)EventType.SwapEvent });
     }
@@ -265,10 +265,10 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
         Assert(balanceCrs == Balance && balanceSrc == GetSrcBalance(token, Address), "OPDEX: INSUFFICIENT_DEBT_PAID");
     }
 
-    // // Todo: Handle Address Balance = 0 Issues
-    // //   - Either stakers can't stake until MintFee is called and this Address has an LP balance
-    // //   - Or, part of the initial burned fee of add liquidity is sent to here to allow staking immediately
-    // //   - Todo: test scenarios and calculations with initializing immediately with burned fee
+    // Todo: Handle Address Balance = 0 Issues
+    //   - Either stakers can't stake until MintFee is called and this Address has an LP balance
+    //   - Or, part of the initial burned fee of add liquidity is sent to here to allow staking immediately
+    //   - Todo: test scenarios and calculations with initializing immediately with burned fee
     // public void Stake(Address to, UInt256 weight)
     // {
     //     // Todo: How to handle adding on with extra weight
@@ -281,10 +281,10 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
     //     // Verify this 99% sure TotalWeight gets updated **after** finding weightK
     //     TotalWeight += weight;
     // }
-    //
-    // // Todo: Add shared methods, this does some things twice in combination with WithdrawStakingRewards
-    // // Todo: Asserts and validations
-    // // Todo: Coming in from Controller
+    
+    // Todo: Add shared methods, this does some things twice in combination with WithdrawStakingRewards
+    // Todo: Asserts and validations
+    // Todo: Coming in from Controller
     // public void StopStaking(Address to)
     // {
     //     var weight = GetWeight(Message.Sender);
@@ -294,10 +294,10 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
     //     SetWeightK(Message.Sender, 0);
     //     TotalWeight -= weight;
     // }
-    //
-    // // Todo: Add another method, one for withdrawing LP tokens, one for total withdraw from reserves
-    // // Todo: In order to not use Message.Sender, we have to expect something sent in the same transaction
-    // // - similar to how liquidity pool tokens are expected to be sent back first, in order to burn.
+    
+    // Todo: Add another method, one for withdrawing LP tokens, one for total withdraw from reserves
+    // Todo: In order to not use Message.Sender, we have to expect something sent in the same transaction
+    // - similar to how liquidity pool tokens are expected to be sent back first, in order to burn.
     // public void WithdrawStakingRewards(Address to)
     // {
     //     // Keep staking, withdraw rewards
@@ -311,7 +311,7 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
     //     var updateWeightK = weight * GetBalance(Address) / totalWeight;
     //     SetWeight(Message.Sender, updateWeightK); // Should this recalc? The Address balance would be different
     // }
-    //
+    
     // public void WithdrawStakingRewardsAndBurn(Address to)
     // {
     //     WithdrawStakingRewards(Address);

@@ -6,7 +6,7 @@ using Stratis.SmartContracts.CLR.Local;
 using Stratis.SmartContracts.TestChain;
 using Xunit;
 
-namespace OpdexV1Contracts.Tests.IntegrationTests
+namespace OpdexCoreContracts.Tests.IntegrationTests
 {
     public class BaseIntegrationTest : IDisposable
     {

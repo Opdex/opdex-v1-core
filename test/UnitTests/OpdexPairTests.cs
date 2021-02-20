@@ -5,9 +5,9 @@ using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
-namespace OpdexV1Contracts.Tests.UnitTests
+namespace OpdexCoreContracts.Tests.UnitTests
 {
-    public class OpdexV1PairTests : BaseContractTest
+    public class OpdexPairTests : BaseContractTest
     {
         [Fact]
         public void GetsTokenProperties_Success()
@@ -473,7 +473,6 @@ namespace OpdexV1Contracts.Tests.UnitTests
             
             var expectedSrcBalanceParams = new object[] {Pair};
             SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
-            SetupCall(Controller, 0ul, "GetFeeTo", null, TransferResult.Transferred(FeeTo));
             
             pair
                 .Invoking(p => p.Mint(trader))
@@ -491,9 +490,63 @@ namespace OpdexV1Contracts.Tests.UnitTests
             const ulong currentReserveCrs = 100_000;
             UInt256 currentReserveSrc = 1_000_000;
             UInt256 currentTotalSupply = 15_000;
-            UInt256 burnAmount = 15_000;
-            UInt256 expectedReceivedCrs = 0;
-            UInt256 expectedReceivedSrc = 0;
+            UInt256 currentKLast = 90_000_000_000;
+            UInt256 burnAmount = 1_200;
+            const ulong expectedReceivedCrs = 8_000;
+            UInt256 expectedReceivedSrc = 80_000;
+            UInt256 expectedMintedFee = 129;
+            var to = Trader0;
+
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+            SetupMessage(Pair, Controller);
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
+            PersistentState.SetUInt256($"Balance:{Pair}", burnAmount);
+            PersistentState.SetUInt256("KLast", currentKLast);
+            
+            SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc));
+            SetupCall(Controller, 0ul, "get_FeeTo", null, TransferResult.Transferred(FeeTo));
+            SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
+            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
+            {
+                SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
+            });
+
+            var results = pair.Burn(to);
+            results[0].Should().Be((UInt256)expectedReceivedCrs);
+            results[1].Should().Be(expectedReceivedSrc);
+            pair.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
+            pair.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
+            pair.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
+
+            // Mint Fee
+            VerifyLog(new TransferEvent
+            {
+                From = Address.Zero,
+                To = FeeTo,
+                Amount = expectedMintedFee,
+                EventTypeId = (byte)EventType.TransferEvent
+            }, Times.Once);
+            
+            // Burn Tokens
+            VerifyLog(new TransferEvent
+            {
+                From = Pair,
+                To = Address.Zero,
+                Amount = burnAmount,
+                EventTypeId = (byte)EventType.TransferEvent
+            }, Times.Once);
+            
+            // Burn Event Summary
+            VerifyLog(new BurnEvent
+            {
+                Sender = Controller,
+                To = to,
+                AmountCrs = expectedReceivedCrs,
+                AmountSrc = expectedReceivedSrc,
+                EventTypeId = (byte)EventType.BurnEvent
+            }, Times.Once);
         }
         
         #endregion
@@ -523,7 +576,6 @@ namespace OpdexV1Contracts.Tests.UnitTests
 
             pair.ReserveCrs.Should().Be(currentReserveCrs + swapAmountCrs);
             pair.ReserveSrc.Should().Be(currentReserveSrc - expectedReceivedToken);
-            pair.KLast.Should().Be((currentReserveSrc - expectedReceivedToken) * pair.Balance);
             pair.Balance.Should().Be(467_000);
             
             VerifyCall(Token, 0, "TransferTo", new object[] {to, expectedReceivedToken}, Times.Once);
@@ -571,7 +623,6 @@ namespace OpdexV1Contracts.Tests.UnitTests
             
             pair.ReserveCrs.Should().Be(currentReserveCrs - expectedCrsReceived);
             pair.ReserveSrc.Should().Be(currentReserveSrc + swapAmountSrc);
-            pair.KLast.Should().Be((currentReserveSrc + swapAmountSrc) * pair.Balance);
             pair.Balance.Should().Be(443_500);
 
             VerifyLog(new SyncEvent

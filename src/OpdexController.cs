@@ -1,10 +1,9 @@
-﻿using OpdexV1Core.Models;
-using Stratis.SmartContracts;
+﻿using Stratis.SmartContracts;
 
 [Deploy]
-public class OpdexV1Controller : ContractBase
+public class OpdexController : ContractBase
 {
-    public OpdexV1Controller(ISmartContractState smartContractState, Address feeToSetter, Address feeTo, Address stakeToken) : base(smartContractState)
+    public OpdexController(ISmartContractState smartContractState, Address feeToSetter, Address feeTo, Address stakeToken) : base(smartContractState)
     {
         Assert(State.IsContract(stakeToken), "OPDEX: INVALID_TOKEN");
         FeeToSetter = feeToSetter;
@@ -60,7 +59,7 @@ public class OpdexV1Controller : ContractBase
         
         Assert(pair == Address.Zero, "OPDEX: PAIR_EXISTS");
         
-        var pairContract = Create<OpdexV1Pair>(0, new object[] {token});
+        var pairContract = Create<OpdexPair>(0, new object[] {token});
         pair = pairContract.NewContractAddress;
         
         SetPair(token, pair);

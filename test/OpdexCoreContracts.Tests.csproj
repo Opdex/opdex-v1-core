@@ -27,7 +27,12 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\Stratis.SmartContracts.TestChain\Stratis.SmartContracts.TestChain\Stratis.SmartContracts.TestChain.csproj" />
-      <ProjectReference Include="..\src\OpdexV1Contracts.csproj" />
+      <ProjectReference Include="..\src\OpdexCoreContracts.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="UnitTests\Samples\Controller" />
+      <Folder Include="UnitTests\Samples\Pair" />
     </ItemGroup>
 
 </Project>

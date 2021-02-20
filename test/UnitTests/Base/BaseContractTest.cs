@@ -5,7 +5,7 @@ using Stratis.SmartContracts.CLR;
 using Stratis.SmartContracts.CLR.Serialization;
 using Stratis.SmartContracts.Networks;
 
-namespace OpdexV1Contracts.Tests.UnitTests
+namespace OpdexCoreContracts.Tests.UnitTests
 {
     public class BaseContractTest
     {
@@ -50,20 +50,20 @@ namespace OpdexV1Contracts.Tests.UnitTests
             TokenTwo = "0x0000000000000000000000000000000000000011".HexToAddress();
         }
         
-        protected OpdexV1Controller CreateNewOpdexController(ulong balance = 0)
+        protected OpdexController CreateNewOpdexController(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, FeeToSetter, 0));
             PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexV1Controller(_mockContractState.Object, FeeToSetter, FeeTo, StakeToken);
+            return new OpdexController(_mockContractState.Object, FeeToSetter, FeeTo, StakeToken);
         }
         
-        protected OpdexV1Pair CreateNewOpdexPair(ulong balance = 0)
+        protected OpdexPair CreateNewOpdexPair(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pair, Controller, 0));
             PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexV1Pair(_mockContractState.Object, Token, StakeToken);
+            return new OpdexPair(_mockContractState.Object, Token, StakeToken);
         }
 
         protected void SetupMessage(Address contractAddress, Address sender, ulong value = 0)
