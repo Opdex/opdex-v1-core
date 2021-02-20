@@ -147,14 +147,14 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
     public UInt256 Mint(Address to)
     {
         var reserveCrs = ReserveCrs;
-        var reserveToken = ReserveSrc;
+        var reserveSrc = ReserveSrc;
         var balanceCrs = Balance;
-        var balanceToken = GetSrcBalance(Token, Address);
+        var balanceSrc = GetSrcBalance(Token, Address);
         var amountCrs = balanceCrs - reserveCrs;
-        var amountSrc = balanceToken - reserveToken;
+        var amountSrc = balanceSrc - reserveSrc;
         var totalSupply = TotalSupply;
         
-        MintFee(reserveCrs, reserveToken);
+        MintFee(reserveCrs, reserveSrc);
         
         UInt256 liquidity;
         if (totalSupply == 0)
@@ -165,14 +165,14 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
         else
         {
             var amountCrsLiquidity = amountCrs * totalSupply / reserveCrs;
-            var amountSrcLiquidity = amountSrc * totalSupply / reserveToken;
+            var amountSrcLiquidity = amountSrc * totalSupply / reserveSrc;
             liquidity = amountCrsLiquidity > amountSrcLiquidity ? amountSrcLiquidity : amountCrsLiquidity;
         }
         
         Assert(liquidity > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
         
         MintExecute(to, liquidity);
-        Update(balanceCrs, balanceToken);
+        Update(balanceCrs, balanceSrc);
         
         KLast = ReserveCrs * ReserveSrc;
         
@@ -184,27 +184,28 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
     public UInt256[] Burn(Address to)
     {
         var reserveCrs = ReserveCrs;
-        var reserveToken = ReserveSrc;
+        var reserveSrc = ReserveSrc;
         var address = Address;
         var token = Token;
         var balanceCrs = Balance;
-        var balanceToken = GetSrcBalance(token, address);
+        var balanceSrc = GetSrcBalance(token, address);
+        // Todo: If staking rewards are assigned to this contracts address, subtract it from the liquidity to burn
         var liquidity = GetBalance(address);
         var totalSupply = TotalSupply;
         var amountCrs = (ulong)(liquidity * balanceCrs / totalSupply);
-        var amountSrc = liquidity * balanceToken / totalSupply;
+        var amountSrc = liquidity * balanceSrc / totalSupply;
         
         Assert(amountCrs > 0 && amountSrc > 0, "OPDEX: INSUFFICIENT_LIQUIDITY_BURNED");
         
-        MintFee(reserveCrs, reserveToken);
+        MintFee(reserveCrs, reserveSrc);
         BurnExecute(address, liquidity);
         SafeTransfer(to, amountCrs);
         SafeTransferTo(token, to, amountSrc);
         
         balanceCrs = Balance;
-        balanceToken = GetSrcBalance(token, address);
+        balanceSrc = GetSrcBalance(token, address);
         
-        Update(balanceCrs, balanceToken);
+        Update(balanceCrs, balanceSrc);
         
         Log(new BurnEvent { Sender = Message.Sender, To = to, AmountCrs = amountCrs, AmountSrc = amountSrc, EventTypeId = (byte)EventType.BurnEvent });
         
@@ -214,31 +215,31 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
     public void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to)
     {
         var reserveCrs = ReserveCrs;
-        var reserveToken = ReserveSrc;
+        var reserveSrc = ReserveSrc;
         var token = Token;
         
         Assert(amountCrsOut > 0 ^ amountSrcOut > 0, "OPDEX: INVALID_OUTPUT_AMOUNT");
-        Assert(amountCrsOut < reserveCrs && amountSrcOut < reserveToken, "OPDEX: INSUFFICIENT_LIQUIDITY");
-        Assert(to != token, "OPDEX: INVALID_TO");
+        Assert(amountCrsOut < reserveCrs && amountSrcOut < reserveSrc, "OPDEX: INSUFFICIENT_LIQUIDITY");
+        Assert(to != token && to != Address, "OPDEX: INVALID_TO");
         
         SafeTransfer(to, amountCrsOut);
         SafeTransferTo(token, to, amountSrcOut);
         
         var balanceCrs = Balance;
-        var balanceToken = GetSrcBalance(token, Address);
+        var balanceSrc = GetSrcBalance(token, Address);
         var crsDifference = reserveCrs - amountCrsOut;
         var amountCrsIn = balanceCrs > crsDifference ? balanceCrs - crsDifference : 0;
-        var srcDifference = reserveToken - amountSrcOut;
-        var amountSrcIn = balanceToken > srcDifference ? balanceToken - srcDifference : 0;
+        var srcDifference = reserveSrc - amountSrcOut;
+        var amountSrcIn = balanceSrc > srcDifference ? balanceSrc - srcDifference : 0;
         
-        Assert(amountCrsIn > 0 || amountSrcIn > 0, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+        Assert(amountCrsIn > 0 || amountSrcIn > 0, "OPDEX: ZERO_INPUT_AMOUNT");
         
         var balanceCrsAdjusted = (balanceCrs * 1_000) - (amountCrsIn * 3);
-        var balanceTokenAdjusted = (balanceToken * 1_000) - (amountSrcIn * 3);
+        var balanceSrcAdjusted = (balanceSrc * 1_000) - (amountSrcIn * 3);
         
-        Assert(balanceCrsAdjusted * balanceTokenAdjusted >= reserveCrs * reserveToken * 1_000_000);
+        Assert(balanceCrsAdjusted * balanceSrcAdjusted >= reserveCrs * reserveSrc * 1_000_000, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
         
-        Update(balanceCrs, balanceToken);
+        Update(balanceCrs, balanceSrc);
         
         KLast = ReserveCrs * ReserveSrc;
         
@@ -246,6 +247,7 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
              AmountSrcOut = amountSrcOut, Sender = Message.Sender, To = to, EventTypeId = (byte)EventType.SwapEvent });
     }
 
+    // Todo: Lock contract from re-entry from within Callback
     public void Borrow(ulong amountCrs, UInt256 amountSrc, Address to, string callbackMethod, byte[] data)
     {
         var token = Token;
@@ -253,14 +255,14 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
         Assert(to != Address.Zero && to != Address && to != token);
         
         var balanceCrs = Balance;
-        var balanceToken = GetSrcBalance(token, Address);
+        var balanceSrc = GetSrcBalance(token, Address);
         
         SafeTransferTo(token, to, amountSrc);
         
         var result = Call(to, amountCrs, callbackMethod, new object[] {data});
         
         Assert(result.Success);
-        Assert(balanceCrs == Balance && balanceToken == GetSrcBalance(token, Address), "OPDEX: INSUFFICIENT_DEBT_PAID");
+        Assert(balanceCrs == Balance && balanceSrc == GetSrcBalance(token, Address), "OPDEX: INSUFFICIENT_DEBT_PAID");
     }
 
     // // Todo: Handle Address Balance = 0 Issues
@@ -319,11 +321,11 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
     public void Skim(Address to)
     {
         var token = Token;
-        var balanceToken = GetSrcBalance(token, Address) - ReserveSrc;
+        var balanceSrc = GetSrcBalance(token, Address) - ReserveSrc;
         var balanceCrs = Balance - ReserveCrs;
         
         SafeTransfer(to, balanceCrs);
-        SafeTransferTo(token, to, balanceToken);
+        SafeTransferTo(token, to, balanceSrc);
     }
 
     public void Sync()
@@ -336,22 +338,22 @@ public class OpdexV1Pair : ContractBase, IStandardToken256
         return new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
     }
     
-    private void Update(ulong balanceCrs, UInt256 balanceToken)
+    private void Update(ulong balanceCrs, UInt256 balanceSrc)
     {
         ReserveCrs = balanceCrs;
         
-        ReserveSrc = balanceToken;
+        ReserveSrc = balanceSrc;
         
-        Log(new SyncEvent { ReserveCrs = balanceCrs, ReserveSrc = balanceToken, EventTypeId = (byte)EventType.SyncEvent });
+        Log(new SyncEvent { ReserveCrs = balanceCrs, ReserveSrc = balanceSrc, EventTypeId = (byte)EventType.SyncEvent });
     }
     
-    private void MintFee(ulong reserveCrs, UInt256 reserveToken)
+    private void MintFee(ulong reserveCrs, UInt256 reserveSrc)
     {
         var kLast = KLast;
         
         if (kLast == 0) return;
         
-        var rootK = Sqrt(reserveCrs * reserveToken);
+        var rootK = Sqrt(reserveCrs * reserveSrc);
         var rootKLast = Sqrt(kLast);
         
         if (rootK <= rootKLast) return;

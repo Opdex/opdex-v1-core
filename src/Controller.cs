@@ -103,12 +103,12 @@ public class OpdexV1Controller : ContractBase
         var burnDtoResponse = Call(pair, 0, "Burn", new object[] {to});
         var burnResponse = (UInt256[])burnDtoResponse.ReturnValue;
         var receivedCrs = (ulong)burnResponse[0];
-        var receivedTokens = burnResponse[1];
+        var receivedSrc = burnResponse[1];
         
         Assert(receivedCrs >= amountCrsMin, "OPDEX: INSUFFICIENT_CRS_AMOUNT");
-        Assert(receivedTokens >= amountSrcMin, "OPDEX: INSUFFICIENT_TOKEN_AMOUNT");
+        Assert(receivedSrc >= amountSrcMin, "OPDEX: INSUFFICIENT_TOKEN_AMOUNT");
         
-        return new RemoveLiquidityResponseModel { AmountCrs = receivedCrs, AmountSrc = receivedTokens };
+        return new RemoveLiquidityResponseModel { AmountCrs = receivedCrs, AmountSrc = receivedSrc };
     }
 
     // public void Stake(Address token, UInt256 amount)
@@ -148,7 +148,7 @@ public class OpdexV1Controller : ContractBase
     //     // Or Don't have withdraws go through controller at all, direct only
     // }
     
-    public void SwapExactCRSForTokens(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
+    public void SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -162,7 +162,7 @@ public class OpdexV1Controller : ContractBase
         Swap(0, amountOut, pair, to);
     }
     
-    public void SwapTokensForExactCRS(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
+    public void SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -176,7 +176,7 @@ public class OpdexV1Controller : ContractBase
         Swap(amountCrsOut, 0, pair, to);
     }
     
-    public void SwapExactTokensForCRS(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
+    public void SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -190,7 +190,7 @@ public class OpdexV1Controller : ContractBase
         Swap((ulong)amountOut, 0, pair, to);
     }
     
-    public void SwapCRSForExactTokens(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
+    public void SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -207,7 +207,7 @@ public class OpdexV1Controller : ContractBase
         SafeTransfer(Message.Sender, change);
     }
 
-    public void SwapSRCForExactSRCTokens(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
+    public void SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -230,7 +230,7 @@ public class OpdexV1Controller : ContractBase
         Swap(0, amountSrcOut, tokenOutPair, to);
     }
     
-    public void SwapExactSRCForSRCTokens(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
+    public void SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         

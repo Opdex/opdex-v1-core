@@ -408,7 +408,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapExactCRSForTokens(amountTokenOutMin, Token, OtherAddress, 0);
+            controller.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0);
             
             // Assert
             VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
@@ -422,7 +422,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapExactCRSForTokens(1000, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapExactCrsForSrc(1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_PAIR");
         }
@@ -442,7 +442,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapExactCRSForTokens(amountTokenOutMin, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         }
@@ -453,7 +453,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
 
         [Theory]
         [InlineData(6500, 17_000, 200_000, 450_000)]
-        public void SwapTokensForExactCRS_Success(ulong amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, ulong reserveCrs)
+        public void SwapSrcForExactCrs_Success(ulong amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, ulong reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -478,7 +478,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapTokensForExactCRS(amountCrsOut, amountIn, Token, OtherAddress, 0);
+            controller.SwapSrcForExactCrs(amountCrsOut, amountIn, Token, OtherAddress, 0);
             
             // Assert
             VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
@@ -487,19 +487,19 @@ namespace OpdexV1Contracts.Tests.UnitTests
         }
 
         [Fact]
-        public void SwapTokensForExactCRS_Throws_InvalidPair()
+        public void SwapSrcForExactCrs_Throws_InvalidPair()
         {
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapTokensForExactCRS(1000, 1000, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapSrcForExactCrs(1000, 1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_PAIR");
         }
         
         [Theory]
         [InlineData(6500, 2000, 200_000, 450_000)]
-        public void SwapTokensForExactCRS_Throws_ExcessiveInputAmount(ulong amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, ulong reserveCrs)
+        public void SwapSrcForExactCrs_Throws_ExcessiveInputAmount(ulong amountCrsOut, UInt256 amountTokenInMax, UInt256 reserveToken, ulong reserveCrs)
         {
             var controller = CreateNewOpdexController();
             
@@ -512,7 +512,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapTokensForExactCRS(amountCrsOut, amountTokenInMax, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapSrcForExactCrs(amountCrsOut, amountTokenInMax, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXCESSIVE_INPUT_AMOUNT");
         }
@@ -523,7 +523,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
 
         [Theory]
         [InlineData(8000, 17_000, 200_000, 450_000)]
-        public void SwapExactTokensForCRS_Success(UInt256 amountTokenIn, ulong amountCrsOutMin, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapExactSrcForCrs_Success(UInt256 amountTokenIn, ulong amountCrsOutMin, UInt256 reserveToken, UInt256 reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -548,7 +548,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0);
+            controller.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0);
             
             // Assert
             VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
@@ -557,19 +557,19 @@ namespace OpdexV1Contracts.Tests.UnitTests
         }
 
         [Fact]
-        public void SwapExactTokensForCRS_Throws_InvalidPair()
+        public void SwapExactSrcForCrs_Throws_InvalidPair()
         {
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapExactTokensForCRS(1000, 1000, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapExactSrcForCrs(1000, 1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_PAIR");
         }
         
         [Theory]
         [InlineData(6500, 20000, 200_000, 450_000)]
-        public void SwapExactTokensForCRS_Throws_InsufficientOutputAmount(UInt256 amountTokenIn, ulong amountCrsOutMin, UInt256 reserveToken, ulong reserveCrs)
+        public void SwapExactSrcForCrs_Throws_InsufficientOutputAmount(UInt256 amountTokenIn, ulong amountCrsOutMin, UInt256 reserveToken, ulong reserveCrs)
         {
             var controller = CreateNewOpdexController();
 
@@ -582,7 +582,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapExactTokensForCRS(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         }
@@ -593,7 +593,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
 
         [Theory]
         [InlineData(24_000, 10_000, 200_000, 450_000)]
-        public void SwapCRSForExactTokens_Success(ulong amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, ulong reserveCrs)
+        public void SwapCrsForExactSrc_Success(ulong amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, ulong reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -623,7 +623,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             }
             
             // Act
-            controller.SwapCRSForExactTokens(amountTokenOut, Token, OtherAddress, 0);
+            controller.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0);
             
             // Assert
             VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
@@ -637,19 +637,19 @@ namespace OpdexV1Contracts.Tests.UnitTests
         }
 
         [Fact]
-        public void SwapCRSForExactTokens_Throws_InvalidPair()
+        public void SwapCrsForExactSrc_Throws_InvalidPair()
         {
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.SwapCRSForExactTokens(1000, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapCrsForExactSrc(1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_PAIR");
         }
         
         [Theory]
         [InlineData(6500, 2000, 200_000, 450_000)]
-        public void SwapCRSForExactTokens_Throws_ExcessiveInputAmount(UInt256 amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, UInt256 reserveCrs)
+        public void SwapCrsForExactSrc_Throws_ExcessiveInputAmount(UInt256 amountCrsIn, UInt256 amountTokenOut, UInt256 reserveToken, UInt256 reserveCrs)
         {
             var controller = CreateNewOpdexController();
             
@@ -661,7 +661,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
-                .Invoking(c => c.SwapCRSForExactTokens(amountTokenOut, Token, OtherAddress, 0))
+                .Invoking(c => c.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXCESSIVE_INPUT_AMOUNT");
         }
@@ -672,7 +672,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
         
         [Theory]
         [InlineData(24_000, 107_000, 200_000, 450_000, 200_000, 450_000)]
-        public void SwapSRCForExactTokens_Success(UInt256 amountSrcOut, UInt256 amountSrcInMax, 
+        public void SwapSrcForExactSrc_Success(UInt256 amountSrcOut, UInt256 amountSrcInMax, 
             UInt256 reserveSrcIn, ulong reserveCrsIn, UInt256 reserveSrcOut, ulong reserveCrsOut)
         {
             var tokenIn = Token;
@@ -715,7 +715,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapSRCForExactSRCTokens(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0);
+            controller.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0);
             
             // Assert
             VerifyCall(tokenInPair, 0, "GetReserves", null, Times.Once);
@@ -727,7 +727,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
 
         [Theory]
         [InlineData(24_000, 10_000, 200_000, 450_000, 200_000, 450_000)]
-        public void SwapSRCForExactTokens_Throws_InsufficientInputAmount(UInt256 amountSrcOut, UInt256 amountSrcInMax,
+        public void SwapSrcForExactSrc_Throws_InsufficientInputAmount(UInt256 amountSrcOut, UInt256 amountSrcInMax,
             UInt256 reserveSrcIn, ulong reserveCrsIn, UInt256 reserveSrcOut, ulong reserveCrsOut)
         {
             var tokenIn = Token;
@@ -752,7 +752,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(tokenOutPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
-                .Invoking(c => c.SwapSRCForExactSRCTokens(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0))
+                .Invoking(c => c.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INSUFFICIENT_INPUT_AMOUNT");
         }
@@ -763,7 +763,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
         
         [Theory]
         [InlineData(24_000, 19_000, 200_000, 450_000, 200_000, 450_000)]
-        public void SwapExactSRCForSRC_Success(UInt256 amountSrcIn, UInt256 amountSrcOutMin, 
+        public void SwapExactSrcForSrc_Success(UInt256 amountSrcIn, UInt256 amountSrcOutMin, 
             UInt256 reserveSrcIn, ulong reserveCrsIn, UInt256 reserveSrcOut, ulong reserveCrsOut)
         {
             var tokenIn = Token;
@@ -806,7 +806,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
-            controller.SwapExactSRCForSRCTokens(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0);
+            controller.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0);
             
             // Assert
             VerifyCall(tokenInPair, 0, "GetReserves", null, Times.Once);
@@ -818,7 +818,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
 
         [Theory]
         [InlineData(24_000, 20_000, 200_000, 450_000, 200_000, 450_000)]
-        public void SwapExactSRCForSRC_Throws_InsufficientInputAmount(UInt256 amountSrcIn, UInt256 amountSrcOutMin,
+        public void SwapExactSrcForSrc_Throws_InsufficientInputAmount(UInt256 amountSrcIn, UInt256 amountSrcOutMin,
             UInt256 reserveSrcIn, ulong reserveCrsIn, UInt256 reserveSrcOut, ulong reserveCrsOut)
         {
             var tokenIn = Token;
@@ -843,7 +843,7 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(tokenOutPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
-                .Invoking(c => c.SwapExactSRCForSRCTokens(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0))
+                .Invoking(c => c.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         }

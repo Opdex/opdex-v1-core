@@ -75,7 +75,6 @@ namespace OpdexV1Contracts.Tests.UnitTests
         {
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
-            var expectedLog = new SyncEvent {ReserveCrs = expectedBalanceCrs, ReserveSrc = expectedBalanceToken, EventTypeId = (byte)EventType.SyncEvent};
 
             var pair = CreateNewOpdexPair(expectedBalanceCrs);
             
@@ -88,7 +87,12 @@ namespace OpdexV1Contracts.Tests.UnitTests
             pair.ReserveSrc.Should().Be(expectedBalanceToken);
 
             VerifyCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, Times.Once);
-            VerifyLog(expectedLog, Times.Once);
+            VerifyLog(new SyncEvent
+            {
+                ReserveCrs = expectedBalanceCrs, 
+                ReserveSrc = expectedBalanceToken, 
+                EventTypeId = (byte)EventType.SyncEvent
+            }, Times.Once);
         }
 
         [Fact]
@@ -96,12 +100,12 @@ namespace OpdexV1Contracts.Tests.UnitTests
         {
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
-            UInt256 currentReserveCrs = 50;
+            const ulong currentReserveCrs = 50;
             UInt256 currentReserveSrc = 100;
 
             var pair = CreateNewOpdexPair(expectedBalanceCrs);
             
-            PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
 
             var expectedSrcBalanceParams = new object[] {Pair};
@@ -132,7 +136,6 @@ namespace OpdexV1Contracts.Tests.UnitTests
             UInt256 initialToBalance = 25;
             UInt256 finalFromBalance = 125;
             UInt256 finalToBalance = 100;
-            var expectedTransferEvent = new TransferEvent {From = from, To = to, Amount = amount, EventTypeId = (byte)EventType.TransferEvent};
          
             PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
             PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
@@ -144,7 +147,13 @@ namespace OpdexV1Contracts.Tests.UnitTests
             pair.GetBalance(from).Should().Be(finalFromBalance);
             pair.GetBalance(to).Should().Be(finalToBalance);
             
-            VerifyLog(expectedTransferEvent, Times.Once);
+            VerifyLog(new TransferEvent
+            {
+                From = from, 
+                To = to, 
+                Amount = amount, 
+                EventTypeId = (byte)EventType.TransferEvent
+            }, Times.Once);
         }
 
         [Fact]
@@ -198,7 +207,6 @@ namespace OpdexV1Contracts.Tests.UnitTests
             UInt256 finalFromBalance = 170;
             UInt256 finalToBalance = 80;
             UInt256 finalSpenderAllowance = 70;
-            var expectedTransferEvent = new TransferEvent {From = from, To = to, Amount = amount, EventTypeId = (byte)EventType.TransferEvent};
          
             PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
             PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
@@ -210,7 +218,13 @@ namespace OpdexV1Contracts.Tests.UnitTests
             pair.GetBalance(to).Should().Be(finalToBalance);
             pair.GetAllowance(from, to).Should().Be(finalSpenderAllowance);
             
-            VerifyLog(expectedTransferEvent, Times.Once);
+            VerifyLog(new TransferEvent
+            {
+                From = from, 
+                To = to, 
+                Amount = amount, 
+                EventTypeId = (byte)EventType.TransferEvent
+            }, Times.Once);
         }
 
         [Fact]
@@ -260,7 +274,6 @@ namespace OpdexV1Contracts.Tests.UnitTests
             var from = Trader0;
             var spender = Trader1;
             UInt256 amount = 100;
-            var expectedApprovalEvent = new ApprovalEvent {Owner = from, Spender = spender, Amount = amount, EventTypeId = (byte)EventType.ApprovalEvent};
             
             SetupMessage(Pair, from);
 
@@ -274,7 +287,13 @@ namespace OpdexV1Contracts.Tests.UnitTests
                 pair.Approve(spender, amount).Should().BeTrue();
             }
             
-            VerifyLog(expectedApprovalEvent, Times.Once);
+            VerifyLog(new ApprovalEvent
+            {
+                Owner = from, 
+                Spender = spender, 
+                Amount = amount, 
+                EventTypeId = (byte)EventType.ApprovalEvent
+            }, Times.Once);
         }
         
         #endregion
@@ -286,50 +305,95 @@ namespace OpdexV1Contracts.Tests.UnitTests
         {
             const ulong currentBalanceCrs = 100_000_000;
             UInt256 currentBalanceToken = 1_900_000_000;
-            UInt256 currentReserveCrs = 0;
+            const ulong currentReserveCrs = 0;
             UInt256 currentReserveSrc = 0;
             UInt256 currentTotalSupply = 0;
             UInt256 currentKLast = 0;
             UInt256 currentFeeToBalance = 0;
             UInt256 currentTraderBalance = 0;
             UInt256 expectedLiquidity = 435888894;
+            UInt256 expectedKLast = 190_000_000_000_000_000;
+            UInt256 expectedBurnAmount = 1_000;
+            var trader = Trader0;
 
             var pair = CreateNewOpdexPair(currentBalanceCrs);
             
-            PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
+            SetupMessage(Pair, Trader0);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
             PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
             PersistentState.SetUInt256("KLast", currentKLast);
             PersistentState.SetUInt256($"Balance:{FeeTo}", currentFeeToBalance);
-            PersistentState.SetUInt256($"Balance:{Trader0}", currentTraderBalance);
+            PersistentState.SetUInt256($"Balance:{trader}", currentTraderBalance);
             
             var expectedSrcBalanceParams = new object[] {Pair};
             SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
             SetupCall(Controller, 0ul, "GetFeeTo", null, TransferResult.Transferred(FeeTo));
 
-            var mintedLiquidity = pair.Mint(Trader0);
-
+            var mintedLiquidity = pair.Mint(trader);
             mintedLiquidity.Should().Be(expectedLiquidity);
+            
+            pair.KLast.Should().Be(expectedKLast);
+            pair.TotalSupply.Should().Be(expectedLiquidity + expectedBurnAmount); // burned
+            pair.ReserveCrs.Should().Be(currentBalanceCrs);
+            pair.ReserveSrc.Should().Be(currentBalanceToken);
+
+            var traderBalance = pair.GetBalance(trader);
+            traderBalance.Should().Be(expectedLiquidity);
+
+            VerifyLog(new SyncEvent
+            {
+                ReserveCrs = currentBalanceCrs,
+                ReserveSrc = currentBalanceToken,
+                EventTypeId = (byte)EventType.SyncEvent
+            }, Times.Once);
+            
+            VerifyLog(new MintEvent
+            {
+                AmountCrs = currentBalanceCrs,
+                AmountSrc = currentBalanceToken,
+                Sender = trader,
+                EventTypeId = (byte) EventType.MintEvent
+            }, Times.Once);
+            
+            VerifyLog(new TransferEvent
+            {
+                From = Address.Zero,
+                To = Address.Zero,
+                Amount = expectedBurnAmount,
+                EventTypeId = (byte) EventType.TransferEvent
+            }, Times.Once);
+
+            VerifyLog(new TransferEvent
+            {
+                From = Address.Zero,
+                To = trader,
+                Amount = expectedLiquidity,
+                EventTypeId = (byte) EventType.TransferEvent
+            }, Times.Once);
         }
         
         [Fact]
-        // Todo: Finish this
         public void MintWithExistingReserves_Success()
         {
             const ulong currentBalanceCrs = 5_500ul;
             UInt256 currentBalanceToken = 11_000;
-            UInt256 currentReserveCrs = 5_000;
+            const ulong currentReserveCrs = 5_000;
             UInt256 currentReserveSrc = 10_000;
             UInt256 currentTotalSupply = 2500;
             UInt256 expectedLiquidity = 250;
-            UInt256 expectedKLast = 50_000_000;
+            UInt256 expectedKLast = 45_000_000;
+            UInt256 expectedK = currentBalanceCrs * currentBalanceToken;
             UInt256 currentFeeToBalance = 100;
             UInt256 currentTraderBalance = 0;
-            UInt256 mintedFee = 0; // Todo: Calculate and set
+            UInt256 mintedFee = 21;
+            var trader = Trader0;
 
             var pair = CreateNewOpdexPair(currentBalanceCrs);
+            SetupMessage(Pair, trader);
             
-            PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
             PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
             PersistentState.SetUInt256("KLast", expectedKLast);
@@ -341,8 +405,80 @@ namespace OpdexV1Contracts.Tests.UnitTests
             SetupCall(Controller, 0ul, "get_FeeTo", null, TransferResult.Transferred(FeeTo));
             
             var mintedLiquidity = pair.Mint(Trader0);
-
             mintedLiquidity.Should().Be(expectedLiquidity);
+            
+            pair.KLast.Should().Be(expectedK);
+            pair.TotalSupply.Should().Be(currentTotalSupply + expectedLiquidity + mintedFee); // burned
+            pair.ReserveCrs.Should().Be(currentBalanceCrs);
+            pair.ReserveSrc.Should().Be(currentBalanceToken);
+
+            var traderBalance = pair.GetBalance(trader);
+            traderBalance.Should().Be(expectedLiquidity);
+            
+            VerifyLog(new SyncEvent
+            {
+                ReserveCrs = currentBalanceCrs,
+                ReserveSrc = currentBalanceToken,
+                EventTypeId = (byte)EventType.SyncEvent
+            }, Times.Once);
+            
+            VerifyLog(new MintEvent
+            {
+                AmountCrs = 500,
+                AmountSrc = 1000,
+                Sender = trader,
+                EventTypeId = (byte)EventType.MintEvent
+            }, Times.Once);
+            
+            VerifyLog(new TransferEvent
+            {
+                From = Address.Zero,
+                To = FeeTo,
+                Amount = mintedFee,
+                EventTypeId = (byte)EventType.TransferEvent
+            }, Times.Once);
+
+            VerifyLog(new TransferEvent
+            {
+                From = Address.Zero,
+                To = trader,
+                Amount = expectedLiquidity,
+                EventTypeId = (byte)EventType.TransferEvent
+            }, Times.Once);
+        }
+
+        [Fact]
+        public void Mint_Throws_InsufficientLiquidity()
+        {
+            const ulong currentBalanceCrs = 1000;
+            UInt256 currentBalanceToken = 1000;
+            const ulong currentReserveCrs = 0;
+            UInt256 currentReserveSrc = 0;
+            UInt256 currentTotalSupply = 0;
+            UInt256 currentKLast = 0;
+            UInt256 currentFeeToBalance = 0;
+            UInt256 currentTraderBalance = 0;
+            var trader = Trader0;
+
+            var pair = CreateNewOpdexPair(currentBalanceCrs);
+            
+            SetupMessage(Pair, Trader0);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
+            PersistentState.SetUInt256("KLast", currentKLast);
+            PersistentState.SetUInt256($"Balance:{FeeTo}", currentFeeToBalance);
+            PersistentState.SetUInt256($"Balance:{trader}", currentTraderBalance);
+            
+            var expectedSrcBalanceParams = new object[] {Pair};
+            SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
+            SetupCall(Controller, 0ul, "GetFeeTo", null, TransferResult.Transferred(FeeTo));
+            
+            pair
+                .Invoking(p => p.Mint(trader))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INSUFFICIENT_LIQUIDITY");
         }
         
         #endregion
@@ -352,7 +488,12 @@ namespace OpdexV1Contracts.Tests.UnitTests
         [Fact]
         public void Burn_Success()
         {
-            
+            const ulong currentReserveCrs = 100_000;
+            UInt256 currentReserveSrc = 1_000_000;
+            UInt256 currentTotalSupply = 15_000;
+            UInt256 burnAmount = 15_000;
+            UInt256 expectedReceivedCrs = 0;
+            UInt256 expectedReceivedSrc = 0;
         }
         
         #endregion
@@ -360,17 +501,254 @@ namespace OpdexV1Contracts.Tests.UnitTests
         #region Swap Tests
 
         [Fact]
-        public void SwapCRSForTokenSuccess()
+        public void SwapCrsForSrcSuccess()
         {
-            UInt256 swapAmountCrs = 500;
-            UInt256 currentReserveCrs = 5_500;
-            UInt256 currentReserveSrc = 10_000;
-            UInt256 expectedReceivedToken = 997;
+            const ulong swapAmountCrs = 17_000;
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            UInt256 expectedReceivedToken = 7_259;
+            var to = Trader0;
             
-            var pair = CreateNewOpdexPair((ulong)currentReserveCrs);
-            
-            PersistentState.SetUInt64("ReserveCrs", (ulong)currentReserveCrs);
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+
+            SetupMessage(Pair, Controller, swapAmountCrs);
+
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+
+            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
+
+            pair.Swap(0, expectedReceivedToken, to);
+
+            pair.ReserveCrs.Should().Be(currentReserveCrs + swapAmountCrs);
+            pair.ReserveSrc.Should().Be(currentReserveSrc - expectedReceivedToken);
+            pair.KLast.Should().Be((currentReserveSrc - expectedReceivedToken) * pair.Balance);
+            pair.Balance.Should().Be(467_000);
+            
+            VerifyCall(Token, 0, "TransferTo", new object[] {to, expectedReceivedToken}, Times.Once);
+            VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
+            
+            VerifyLog(new SyncEvent
+            {
+                ReserveCrs = currentReserveCrs + swapAmountCrs,
+                ReserveSrc = currentReserveSrc - expectedReceivedToken,
+                EventTypeId = (byte)EventType.SyncEvent
+            }, Times.Once);
+
+            VerifyLog(new SwapEvent
+            {
+                AmountCrsIn = swapAmountCrs,
+                AmountCrsOut = 0,
+                AmountSrcIn = 0,
+                AmountSrcOut = expectedReceivedToken,
+                Sender = Controller,
+                To = to,
+                EventTypeId = (byte) EventType.SwapEvent
+            }, Times.Once);
+        }
+
+        [Fact]
+        public void SwapSrcForCrsSuccess()
+        {
+            UInt256 swapAmountSrc = 2_941;
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            const ulong expectedCrsReceived = 6_500;
+            var to = Trader0;
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+
+            SetupMessage(Pair, Controller);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            
+            SetupTransfer(to, expectedCrsReceived, TransferResult.Transferred(true));
+            SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc + swapAmountSrc));
+
+            pair.Swap(expectedCrsReceived, 0, to);
+            
+            pair.ReserveCrs.Should().Be(currentReserveCrs - expectedCrsReceived);
+            pair.ReserveSrc.Should().Be(currentReserveSrc + swapAmountSrc);
+            pair.KLast.Should().Be((currentReserveSrc + swapAmountSrc) * pair.Balance);
+            pair.Balance.Should().Be(443_500);
+
+            VerifyLog(new SyncEvent
+            {
+                ReserveCrs = currentReserveCrs - expectedCrsReceived,
+                ReserveSrc = currentReserveSrc + swapAmountSrc,
+                EventTypeId = (byte)EventType.SyncEvent
+            }, Times.Once);
+
+            VerifyLog(new SwapEvent
+            {
+                AmountCrsIn = 0,
+                AmountCrsOut = expectedCrsReceived,
+                AmountSrcIn = swapAmountSrc,
+                AmountSrcOut = 0,
+                Sender = Controller,
+                To = to,
+                EventTypeId = (byte)EventType.SwapEvent
+            }, Times.Once);
+        }
+
+        [Theory]
+        [InlineData(0, 0)]
+        [InlineData(1, 1)]
+        public void Swap_Throws_InvalidOutputAmount(ulong amountCrsOut, UInt256 amountSrcOut)
+        {
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+            SetupMessage(Pair, Controller);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            
+            pair
+                .Invoking(p => p.Swap(amountCrsOut, amountSrcOut, Trader0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_OUTPUT_AMOUNT");
+        }
+        
+        [Theory]
+        [InlineData(450_001, 0)]
+        [InlineData(0, 200_001)]
+        public void Swap_Throws_InsufficientLiquidity(ulong amountCrsOut, UInt256 amountSrcOut)
+        {
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+            SetupMessage(Pair, Controller);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            
+            pair
+                .Invoking(p => p.Swap(amountCrsOut, amountSrcOut, Trader0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INSUFFICIENT_LIQUIDITY");
+        }
+        
+        [Fact]
+        public void Swap_Throws_InvalidTo()
+        {
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            var addresses = new[] {Pair, Token};
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+            SetupMessage(Pair, Controller);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            
+            foreach(var address in addresses)
+            {
+                pair
+                    .Invoking(p => p.Swap(1000, 0, address))
+                    .Should().Throw<SmartContractAssertException>()
+                    .WithMessage("OPDEX: INVALID_TO");
+            }
+        }
+
+        [Fact]
+        public void Swap_Throws_ZeroCrsInputAmount()
+        {
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            UInt256 expectedReceivedToken = 7_259;
+            var to = Trader0;
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+
+            SetupMessage(Pair, Controller);
+
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+
+            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
+
+            pair
+                .Invoking(p => p.Swap(0, expectedReceivedToken, to))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: ZERO_INPUT_AMOUNT");
+        }
+
+        [Fact]
+        public void Swap_Throws_ZeroSrcInputAmount()
+        {
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            const ulong expectedCrsReceived = 6_500;
+            var to = Trader0;
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+
+            SetupMessage(Pair, Controller);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            
+            SetupTransfer(to, expectedCrsReceived, TransferResult.Transferred(true));
+            SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc));
+
+            pair
+                .Invoking(p => p.Swap(expectedCrsReceived, 0, to))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: ZERO_INPUT_AMOUNT");
+        }
+        
+        [Fact]
+        public void Swap_Throws_InsufficientCrsInputAmount()
+        {
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            UInt256 expectedReceivedToken = 7_259;
+            var to = Trader0;
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+
+            SetupMessage(Pair, Controller, 1);
+
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+
+            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
+
+            pair
+                .Invoking(p => p.Swap(0, expectedReceivedToken, to))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+        }
+
+        [Fact]
+        public void Swap_Throws_InsufficientSrcInputAmount()
+        {
+            const ulong currentReserveCrs = 450_000;
+            UInt256 currentReserveSrc = 200_000;
+            const ulong expectedCrsReceived = 6_500;
+            var to = Trader0;
+            
+            var pair = CreateNewOpdexPair(currentReserveCrs);
+
+            SetupMessage(Pair, Controller);
+            
+            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
+            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            
+            SetupTransfer(to, expectedCrsReceived, TransferResult.Transferred(true));
+            SetupCall(Token, 0, "GetBalance", new object[] {Pair}, TransferResult.Transferred(currentReserveSrc + 1));
+
+            pair
+                .Invoking(p => p.Swap(expectedCrsReceived, 0, to))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INSUFFICIENT_INPUT_AMOUNT");
         }
         
         #endregion
