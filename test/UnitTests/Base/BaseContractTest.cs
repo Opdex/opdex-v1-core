@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Moq;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
@@ -77,11 +78,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             _mockContractState.Setup(x => x.GetBalance).Returns(() => balance);
         }
-
+        
         protected void SetupCall(Address to, ulong amountToTransfer, string methodName, object[] parameters, TransferResult result, Action callback = null)
         {
             _mockInternalExecutor
-                .Setup(x => x.Call(_mockContractState.Object, to, amountToTransfer, methodName, parameters, It.IsAny<ulong>()))
+                .Setup(x => x.Call(_mockContractState.Object, to, amountToTransfer, methodName, It.Is<object[]>(p => ValidateParameters(parameters, p)), It.IsAny<ulong>()))
                 .Returns(result)
                 .Callback(() =>
                 {
@@ -115,12 +116,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
         protected void VerifyCall(Address addressTo, ulong amountToTransfer, string methodName, object[] parameters, Func<Times> times)
         {
-            _mockInternalExecutor.Verify(x => x.Call(_mockContractState.Object, addressTo, amountToTransfer, methodName, parameters, 0ul), times);
-        }
-        
-        protected void VerifyCall(Address addressTo, ulong amountToTransfer, string methodName, object[] parameters, Times times)
-        {
-            _mockInternalExecutor.Verify(x => x.Call(_mockContractState.Object, addressTo, amountToTransfer, methodName, parameters, 0ul), times);
+            _mockInternalExecutor.Verify(x => x.Call(_mockContractState.Object, addressTo, amountToTransfer, methodName, It.Is<object[]>(p => ValidateParameters(parameters, p)), 0ul), times);
         }
 
         protected void VerifyTransfer(Address to, ulong value, Func<Times> times)
@@ -131,6 +127,45 @@ namespace OpdexCoreContracts.Tests.UnitTests
         protected void VerifyLog<T>(T expectedLog, Func<Times> times) where T : struct
         {
             _mockContractLogger.Verify(x => x.Log(_mockContractState.Object, expectedLog), times);
+        }
+
+        private static bool ValidateParameters(object[] expected, object[] actual)
+        {
+            if (expected == null && actual == null)
+            {
+                return true;
+            }
+
+            if (actual == null ^ expected == null)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < expected.Length; i++)
+            {
+                var expectedParam = expected[i];
+                var actualParam = actual[i];
+                    
+                if (expected.GetType().IsArray)
+                {
+                    var expectedArray = expectedParam as byte[] ?? new byte[0];
+                    var actualArray = actualParam as byte[] ?? new byte[0];
+                        
+                    if (expectedArray.Where((t, b) => !t.Equals(actualArray[b])).Any())
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (!expectedParam.Equals(actualParam))
+                    {
+                        return false;
+                    }
+                }
+            }
+                
+            return true;
         }
     }
 }

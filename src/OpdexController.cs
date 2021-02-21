@@ -60,11 +60,12 @@ public class OpdexController : ContractBase
         Assert(pair == Address.Zero, "OPDEX: PAIR_EXISTS");
         
         var pairContract = Create<OpdexPair>(0, new object[] {token});
+        
         pair = pairContract.NewContractAddress;
         
         SetPair(token, pair);
-        
-        Log(new PairCreatedEvent { Token = token, Pair = pair, EventTypeId = (byte)EventType.PairCreatedEvent });
+
+        LogPairCreatedEvent(token, pair, EventType.PairCreatedEvent);
         
         return pair;
     }
@@ -214,18 +215,16 @@ public class OpdexController : ContractBase
         var tokenOutPair = GetValidatedPair(tokenOut);
         var tokenInReserves = GetReserves(tokenInPair);
         var tokenOutReserves = GetReserves(tokenOutPair);
-
-        var amountCrsIn = (ulong)GetAmountIn(amountSrcOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
-        var amountSrc = GetAmountOut(amountCrsIn, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
+        var amounts = GetAmountIn(amountSrcOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
+        var amountCrs = (ulong)amounts[0];
+        var amountSrc = amounts[1];
 
         Assert(amountSrcOut <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
 
-        // Swap Tokens for Exact CRS
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPair, amountSrc);
-        Swap(amountCrsIn, 0, tokenInPair, Address); // Transfers tokens back to this contracts custody
+        Swap(amountCrs, 0, tokenInPair, Address);
         
-        // Swap CRS for Exact Tokens
-        SafeTransfer(tokenOutPair, amountCrsIn);
+        SafeTransfer(tokenOutPair, amountCrs);
         Swap(0, amountSrcOut, tokenOutPair, to);
     }
     
@@ -237,17 +236,15 @@ public class OpdexController : ContractBase
         var tokenOutPair = GetValidatedPair(tokenOut);
         var tokenInReserves = GetReserves(tokenInPair);
         var tokenOutReserves = GetReserves(tokenOutPair);
-
-        var amountCrsOut = (ulong)GetAmountOut(amountSrcIn, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
-        var amountSrcOut = GetAmountOut(amountCrsOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
+        var amounts = GetAmountOut(amountSrcIn, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
+        var amountCrsOut = (ulong)amounts[0];
+        var amountSrcOut = amounts[1];
         
         Assert(amountSrcOutMin <= amountSrcOut, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
-        // Swap Exact SRC for CRS
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPair, amountSrcIn);
-        Swap(amountCrsOut, 0, tokenInPair, Address); // Transfers tokens back to this contracts custody
+        Swap(amountCrsOut, 0, tokenInPair, Address);
         
-        // Swap Exact CRS to SRC
         SafeTransfer(tokenOutPair, amountCrsOut);
         Swap(0, amountSrcOut, tokenOutPair, to);
     }
@@ -282,6 +279,26 @@ public class OpdexController : ContractBase
         
         return numerator / denominator + 1;
     }
+
+    // Todo: Tests
+    public UInt256[] GetAmountIn(UInt256 amountSrcOut, UInt256 srcOutReserveCrs, UInt256 srcOutReserveSrc, 
+        UInt256 crsInReserveSrc, UInt256 crsInReserveCrs)
+    {
+        var amountCrs = GetAmountIn(amountSrcOut, srcOutReserveCrs, srcOutReserveSrc);
+        var amountSrc = GetAmountOut(amountCrs, crsInReserveCrs, crsInReserveSrc);
+
+        return new[] {amountCrs, amountSrc};
+    }
+    
+    // Todo: Tests
+    public UInt256[] GetAmountOut(UInt256 amountSrcIn, UInt256 srcInReserveSrc, UInt256 srcInReserveCrs,  
+        UInt256 crsOutReserveCrs, UInt256 crsOutReserveSrc)
+    {
+        var amountCrs = GetAmountOut(amountSrcIn, srcInReserveSrc, srcInReserveCrs);
+        var amountSrc = GetAmountOut(amountCrs, crsOutReserveCrs, crsOutReserveSrc);
+
+        return new[] {amountCrs, amountSrc};
+    } 
     
     // Todo: Preferably split this method to allow for a public method to calculate this for free via local call
     private CalcLiquidityModel CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
@@ -322,7 +339,7 @@ public class OpdexController : ContractBase
     
     private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pair, Address to)
     {
-        var response = Call(pair, 0, "Swap", new object[] {amountCrsOut, amountSrcOut, to});
+        var response = Call(pair, 0, "Swap", new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
         
         Assert(response.Success, "OPDEX: INVALID_SWAP_ATTEMPT");
     }
@@ -354,5 +371,15 @@ public class OpdexController : ContractBase
     private void ValidateDeadline(ulong deadline)
     {
         Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
+    }
+
+    private void LogPairCreatedEvent(Address token, Address pair, EventType eventType)
+    {
+        Log(new PairCreatedEvent
+        {
+            Token = token, 
+            Pair = pair, 
+            EventTypeId = (byte)eventType
+        });
     }
 }

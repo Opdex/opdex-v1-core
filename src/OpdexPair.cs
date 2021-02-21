@@ -89,6 +89,12 @@ public class OpdexPair : ContractBase, IStandardToken256
     //     State.SetUInt256($"WeightK:{address}", weightK);
     // }
 
+    public bool Locked
+    {
+        get => State.GetBool(nameof(Locked));
+        private set => State.SetBool(nameof(Locked), value);
+    }
+
     public UInt256 GetBalance(Address address)
     {
         return State.GetUInt256($"Balance:{address}");
@@ -138,14 +144,16 @@ public class OpdexPair : ContractBase, IStandardToken256
     public bool Approve(Address spender, UInt256 amount)
     {
         SetAllowance(Message.Sender, spender, amount);
-        
-        Log(new ApprovalEvent {Owner = Message.Sender, Spender = spender, Amount = amount, EventTypeId = (byte)EventType.ApprovalEvent});
+
+        LogApprovalEvent(Message.Sender, spender, amount, EventType.ApprovalEvent);
         
         return true;
     }
 
     public UInt256 Mint(Address to)
     {
+        EnsureUnlocked();
+        
         var reserveCrs = ReserveCrs;
         var reserveSrc = ReserveSrc;
         var balanceCrs = Balance;
@@ -175,14 +183,16 @@ public class OpdexPair : ContractBase, IStandardToken256
         Update(balanceCrs, balanceSrc);
         
         KLast = ReserveCrs * ReserveSrc;
-        
-        Log(new MintEvent { AmountCrs = amountCrs, AmountSrc = amountSrc, Sender = Message.Sender, EventTypeId = (byte)EventType.MintEvent });
-        
+
+        LogMintEvent(amountCrs, amountSrc, Message.Sender, EventType.MintEvent);
+            
         return liquidity;
     }
 
     public UInt256[] Burn(Address to)
     {
+        EnsureUnlocked();
+        
         var reserveCrs = ReserveCrs;
         var reserveSrc = ReserveSrc;
         var address = Address;
@@ -209,13 +219,15 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         KLast = ReserveCrs * ReserveSrc;
 
-        Log(new BurnEvent { Sender = Message.Sender, To = to, AmountCrs = amountCrs, AmountSrc = amountSrc, EventTypeId = (byte)EventType.BurnEvent });
+        LogBurnEvent(amountCrs, amountSrc, Message.Sender, to, EventType.BurnEvent);
         
         return new [] {amountCrs, amountSrc};
     }
 
-    public void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to)
+    public void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
     {
+        EnsureUnlocked();
+        
         var reserveCrs = ReserveCrs;
         var reserveSrc = ReserveSrc;
         var token = Token;
@@ -226,6 +238,13 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         SafeTransfer(to, amountCrsOut);
         SafeTransferTo(token, to, amountSrcOut);
+
+        if (data.Length > 0)
+        {
+            var callbackData = Serializer.ToStruct<CallbackData>(data);
+            var parameters = callbackData.Data.Length > 0 ? new object[] {callbackData.Data} : null;
+            Call(to, 0, callbackData.Method, parameters);
+        }
         
         var balanceCrs = Balance;
         var balanceSrc = GetSrcBalance(token, Address);
@@ -243,26 +262,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         Update(balanceCrs, balanceSrc);
         
-        Log(new SwapEvent { AmountCrsIn = amountCrsIn, AmountCrsOut = amountCrsOut, AmountSrcIn = amountSrcIn,
-             AmountSrcOut = amountSrcOut, Sender = Message.Sender, To = to, EventTypeId = (byte)EventType.SwapEvent });
-    }
-
-    // Todo: Lock contract from re-entry from within Callback
-    public void Borrow(ulong amountCrs, UInt256 amountSrc, Address to, string callbackMethod, byte[] data)
-    {
-        var token = Token;
-        
-        Assert(to != Address.Zero && to != Address && to != token);
-        
-        var balanceCrs = Balance;
-        var balanceSrc = GetSrcBalance(token, Address);
-        
-        SafeTransferTo(token, to, amountSrc);
-        
-        var result = Call(to, amountCrs, callbackMethod, new object[] {data});
-        
-        Assert(result.Success);
-        Assert(balanceCrs == Balance && balanceSrc == GetSrcBalance(token, Address), "OPDEX: INSUFFICIENT_DEBT_PAID");
+        LogSwapEvent(amountCrsIn, amountCrsOut, amountSrcIn, amountSrcOut, Message.Sender, to, EventType.SwapEvent);
     }
 
     // Todo: Handle Address Balance = 0 Issues
@@ -320,6 +320,8 @@ public class OpdexPair : ContractBase, IStandardToken256
 
     public void Skim(Address to)
     {
+        EnsureUnlocked();
+        
         var token = Token;
         var balanceSrc = GetSrcBalance(token, Address) - ReserveSrc;
         var balanceCrs = Balance - ReserveCrs;
@@ -330,6 +332,8 @@ public class OpdexPair : ContractBase, IStandardToken256
 
     public void Sync()
     {
+        EnsureUnlocked();
+        
         Update(Balance, GetSrcBalance(Token, Address));
     }
 
@@ -343,8 +347,8 @@ public class OpdexPair : ContractBase, IStandardToken256
         ReserveCrs = balanceCrs;
         
         ReserveSrc = balanceSrc;
-        
-        Log(new SyncEvent { ReserveCrs = balanceCrs, ReserveSrc = balanceSrc, EventTypeId = (byte)EventType.SyncEvent });
+
+        LogSyncEvent(balanceCrs, balanceSrc, EventType.SyncEvent);
     }
     
     private void MintFee(ulong reserveCrs, UInt256 reserveSrc)
@@ -384,7 +388,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         SetBalance(to, GetBalance(to) + amount);
         
-        Log(new TransferEvent { From = Address.Zero, To = to, Amount = amount, EventTypeId = (byte)EventType.TransferEvent });
+        LogTransferEvent(Address.Zero, to, amount, EventType.TransferEvent);
     }
     
     private UInt256 GetSrcBalance(Address token, Address owner)
@@ -401,8 +405,8 @@ public class OpdexPair : ContractBase, IStandardToken256
         SetBalance(from, GetBalance(from) - amount);
         
         TotalSupply -= amount;
-        
-        Log(new TransferEvent { From = from, To = Address.Zero, Amount = amount, EventTypeId = (byte)EventType.TransferEvent });
+
+        LogTransferEvent(from, Address.Zero, amount, EventType.TransferEvent);
     }
     
     private bool TransferExecute(Address from, Address to, UInt256 amount)
@@ -410,9 +414,14 @@ public class OpdexPair : ContractBase, IStandardToken256
         SetBalance(from, GetBalance(from) - amount);
         SetBalance(to, GetBalance(to) + amount);
         
-        Log(new TransferEvent {From = from, To = to, Amount = amount, EventTypeId = (byte)EventType.TransferEvent});
+        LogTransferEvent(from, to, amount, EventType.TransferEvent);
         
         return true;
+    }
+    
+    private void EnsureUnlocked()
+    {
+        Assert(!Locked, "OPDEX: PAIR_LOCKED");
     }
     
     private static UInt256 Sqrt(UInt256 value)
@@ -429,5 +438,75 @@ public class OpdexPair : ContractBase, IStandardToken256
         }
         
         return result;
+    }
+
+    private void LogApprovalEvent(Address owner, Address spender, UInt256 amount, EventType eventType)
+    {
+        Log(new ApprovalEvent
+        {
+            Owner = owner, 
+            Spender = spender, 
+            Amount = amount, 
+            EventTypeId = (byte)eventType
+        });
+    }
+
+    private void LogMintEvent(ulong amountCrs, UInt256 amountSrc, Address sender, EventType eventType)
+    {
+        Log(new MintEvent
+        {
+            AmountCrs = amountCrs, 
+            AmountSrc = amountSrc, 
+            Sender = sender, 
+            EventTypeId = (byte)eventType
+        });
+    }
+
+    private void LogBurnEvent(ulong amountCrs, UInt256 amountSrc, Address sender, Address to, EventType eventType)
+    {
+        Log(new BurnEvent
+        {
+            AmountCrs = amountCrs, 
+            AmountSrc = amountSrc, 
+            Sender = sender, 
+            To = to,
+            EventTypeId = (byte)eventType
+        });
+    }
+
+    private void LogSwapEvent(ulong amountCrsIn, ulong amountCrsOut, UInt256 amountSrcIn, UInt256 amountSrcOut, 
+        Address from, Address to, EventType eventType)
+    {
+        Log(new SwapEvent 
+        { 
+            AmountCrsIn = amountCrsIn, 
+            AmountCrsOut = amountCrsOut, 
+            AmountSrcIn = amountSrcIn,
+            AmountSrcOut = amountSrcOut, 
+            Sender = from, 
+            To = to, 
+            EventTypeId = (byte)eventType
+        });
+    }
+
+    private void LogSyncEvent(ulong reserveCrs, UInt256 reserveSrc, EventType eventType)
+    {
+        Log(new SyncEvent
+        {
+            ReserveCrs = reserveCrs, 
+            ReserveSrc = reserveSrc, 
+            EventTypeId = (byte)eventType
+        });
+    }
+
+    private void LogTransferEvent(Address from, Address to, UInt256 amount, EventType eventType)
+    {
+        Log(new TransferEvent
+        {
+            From = from, 
+            To = to, 
+            Amount = amount, 
+            EventTypeId = (byte)eventType
+        });
     }
 }

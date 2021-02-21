@@ -384,7 +384,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
         [Theory]
         [InlineData(6500, 17_000, 200_000, 450_000)]
-        public void SwapExactCrsForTokens_Success(UInt256 amountTokenOutMin, ulong amountCrsIn, UInt256 reserveToken, ulong reserveCrs)
+        public void SwapExactCrsForSrc_Success(UInt256 amountTokenOutMin, ulong amountCrsIn, UInt256 reserveToken, ulong reserveCrs)
         {
             // Arrange
             var controller = CreateNewOpdexController();
@@ -404,7 +404,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             SetupTransfer(Pair, amountCrsIn, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {0ul, amountOut, OtherAddress};
+            var swapParams = new object[] {0ul, amountOut, OtherAddress, new byte[0]};
             SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
@@ -417,7 +417,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         }
 
         [Fact]
-        public void SwapExactCrsForTokens_Throws_InvalidPair()
+        public void SwapExactCrsForSrc_Throws_InvalidPair()
         {
             var controller = CreateNewOpdexController();
             
@@ -474,7 +474,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {amountCrsOut, UInt256.MinValue, OtherAddress};
+            var swapParams = new object[] {amountCrsOut, UInt256.MinValue, OtherAddress, new byte[0]};
             SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
@@ -544,7 +544,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {(ulong)amountOut, UInt256.MinValue, OtherAddress};
+            var swapParams = new object[] {(ulong)amountOut, UInt256.MinValue, OtherAddress, new byte[0]};
             SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
@@ -614,7 +614,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             SetupTransfer(Pair, amountIn, TransferResult.Transferred(true));
             
             // Call pair to swap
-            var swapParams = new object[] {0ul, amountTokenOut, OtherAddress};
+            var swapParams = new object[] {0ul, amountTokenOut, OtherAddress, new byte[0]};
             SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
 
             if (change > 0)
@@ -707,11 +707,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             SetupTransfer(tokenOutPair, amountCrsIn, TransferResult.Transferred(true));
         
             // Call pair to swap src to crs
-            var swapSrcToCrsParams = new object[] {amountCrsIn, UInt256.MinValue, Controller};
+            var swapSrcToCrsParams = new object[] {amountCrsIn, UInt256.MinValue, Controller, new byte[0]};
             SetupCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsIn));
             
             // Call pair to swap crs to src
-            var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress};
+            var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress, new byte[0]};
             SetupCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
@@ -798,11 +798,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             SetupTransfer(tokenOutPair, amountCrsOut, TransferResult.Transferred(true));
         
             // Call pair to swap src to crs
-            var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, Controller};
+            var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, Controller, new byte[0]};
             SetupCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
             
             // Call pair to swap crs to src
-            var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress};
+            var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress, new byte[0]};
             SetupCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
