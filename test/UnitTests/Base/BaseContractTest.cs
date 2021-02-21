@@ -54,6 +54,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         protected OpdexController CreateNewOpdexController(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, FeeToSetter, 0));
+            _mockContractState.Setup(x => x.Block.Number).Returns(() => 10);
             PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
             return new OpdexController(_mockContractState.Object, FeeToSetter, FeeTo, StakeToken);

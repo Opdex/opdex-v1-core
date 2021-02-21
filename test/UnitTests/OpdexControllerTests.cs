@@ -4,8 +4,6 @@ using Stratis.SmartContracts;
 using Xunit;
 using Stratis.SmartContracts.CLR;
 
-// Todo: Deadline Tests
-
 namespace OpdexCoreContracts.Tests.UnitTests
 {
     public class OpdexControllerTests : BaseContractTest
@@ -276,6 +274,18 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyTransfer(Pair, expectedAmountCrsOptimal, Times.Once);
             VerifyTransfer(OtherAddress, amountCrsDesired - expectedAmountCrsOptimal, Times.Once);
         }
+
+        [Fact]
+        public void AddLiquidity_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
         
         #endregion
 
@@ -375,7 +385,19 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller
                 .Invoking(c => c.RemoveLiquidity(Token, liquidity, amountCrsMin, amountTokenMin, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: INSUFFICIENT_TOKEN_AMOUNT");
+                .WithMessage("OPDEX: INSUFFICIENT_SRC_AMOUNT");
+        }
+        
+        [Fact]
+        public void RemoveLiquidity_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.RemoveLiquidity(Token, UInt256.MaxValue, ulong.MaxValue, UInt256.MaxValue, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
         }
         
         #endregion
@@ -445,6 +467,18 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .Invoking(c => c.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
+        }
+        
+        [Fact]
+        public void SwapExactCrsForSrc_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.SwapExactCrsForSrc(10ul, Token, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
         }
         
         #endregion
@@ -517,6 +551,18 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .WithMessage("OPDEX: EXCESSIVE_INPUT_AMOUNT");
         }
         
+        [Fact]
+        public void SwapSrcForExactCrs_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.SwapSrcForExactCrs(10ul, UInt256.MaxValue, Token, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
         #endregion
 
         #region Swap Exact Tokens for CRS
@@ -585,6 +631,18 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .Invoking(c => c.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
+        }
+        
+        [Fact]
+        public void SwapExactSrcForCrs_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.SwapExactSrcForCrs(10ul, 10ul, Token, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
         }
         
         #endregion
@@ -664,6 +722,18 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .Invoking(c => c.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXCESSIVE_INPUT_AMOUNT");
+        }
+        
+        [Fact]
+        public void SwapCrsForExactSrc_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.SwapCrsForExactSrc(UInt256.MaxValue, Token, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
         }
 
         #endregion
@@ -757,6 +827,18 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .WithMessage("OPDEX: INSUFFICIENT_INPUT_AMOUNT");
         }
         
+        [Fact]
+        public void SwapSrcForExactSrc_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.SwapSrcForExactSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
         #endregion
         
         #region Swap Exact SRC for SRC Tokens
@@ -846,6 +928,18 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .Invoking(c => c.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
+        }
+        
+        [Fact]
+        public void SwapExactSrcForSrc_Throws_ExpiredDeadline()
+        {
+            const ulong deadline = 1;
+            var controller = CreateNewOpdexController();
+
+            controller
+                .Invoking(c => c.SwapExactSrcForSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, deadline))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: EXPIRED_DEADLINE");
         }
         
         #endregion

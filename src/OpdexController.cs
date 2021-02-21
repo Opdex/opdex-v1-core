@@ -106,7 +106,7 @@ public class OpdexController : ContractBase
         var receivedSrc = burnResponse[1];
         
         Assert(receivedCrs >= amountCrsMin, "OPDEX: INSUFFICIENT_CRS_AMOUNT");
-        Assert(receivedSrc >= amountSrcMin, "OPDEX: INSUFFICIENT_TOKEN_AMOUNT");
+        Assert(receivedSrc >= amountSrcMin, "OPDEX: INSUFFICIENT_SRC_AMOUNT");
         
         return new RemoveLiquidityResponseModel { AmountCrs = receivedCrs, AmountSrc = receivedSrc };
     }
@@ -123,7 +123,7 @@ public class OpdexController : ContractBase
     //
     // public void StopStaking(Address to)
     // {
-    //     // Todo: Need ECRecover
+    //     // Need ECRecover
     //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
     //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
     //     // Or Create a new contract altogether for each pairs staking management
@@ -132,7 +132,7 @@ public class OpdexController : ContractBase
     //
     // public void WithdrawStakingRewards(Address to)
     // {
-    //     // Todo: Need ECRecover
+    //     // Need ECRecover
     //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
     //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
     //     // Or Create a new contract altogether for each pairs staking management
@@ -141,7 +141,7 @@ public class OpdexController : ContractBase
     //
     // public void WithdrawStakingRewardsAndLiquidity(Address to)
     // {
-    //     // Todo: Need ECRecover
+    //     // Need ECRecover
     //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
     //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
     //     // Or Create a new contract altogether for each pairs staking management

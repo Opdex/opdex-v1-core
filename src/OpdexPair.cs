@@ -199,7 +199,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         var token = Token;
         var balanceCrs = Balance;
         var balanceSrc = GetSrcBalance(token, address);
-        // Todo: If staking rewards are assigned to this contracts address, subtract it from the liquidity to burn
+        // If staking rewards are assigned to this contracts address, subtract it from the liquidity to burn
         var liquidity = GetBalance(address);
         var totalSupply = TotalSupply;
         var amountCrs = (ulong)(liquidity * balanceCrs / totalSupply);
@@ -265,26 +265,26 @@ public class OpdexPair : ContractBase, IStandardToken256
         LogSwapEvent(amountCrsIn, amountCrsOut, amountSrcIn, amountSrcOut, Message.Sender, to, EventType.SwapEvent);
     }
 
-    // Todo: Handle Address Balance = 0 Issues
+    // - Handle Address Balance = 0 Issues
     //   - Either stakers can't stake until MintFee is called and this Address has an LP balance
     //   - Or, part of the initial burned fee of add liquidity is sent to here to allow staking immediately
-    //   - Todo: test scenarios and calculations with initializing immediately with burned fee
+    //   - - test scenarios and calculations with initializing immediately with burned fee
     // public void Stake(Address to, UInt256 weight)
     // {
-    //     // Todo: How to handle adding on with extra weight
+    //     // - How to handle adding on with extra weight
     //     // TransferFrom only if this is to be called directly, else TransferTo - probably should be TransferTo going through controller
     //     // Would mean we check the difference between balance and totalWeight
     //     SafeTransferFrom(StakeToken, Message.Sender, Address, weight);
     //     SetWeight(to, weight);
-    //     var weightK = weight * GetBalance(Address) / TotalWeight; // Todo: This will return a floating point number, adjust for sats
+    //     var weightK = weight * GetBalance(Address) / TotalWeight; // - This will return a floating point number, adjust for sats
     //     SetWeightK(Address, weightK);
     //     // Verify this 99% sure TotalWeight gets updated **after** finding weightK
     //     TotalWeight += weight;
     // }
     
-    // Todo: Add shared methods, this does some things twice in combination with WithdrawStakingRewards
-    // Todo: Asserts and validations
-    // Todo: Coming in from Controller
+    // - Add shared methods, this does some things twice in combination with WithdrawStakingRewards
+    // - Asserts and validations
+    // - Coming in from Controller
     // public void StopStaking(Address to)
     // {
     //     var weight = GetWeight(Message.Sender);
@@ -295,8 +295,8 @@ public class OpdexPair : ContractBase, IStandardToken256
     //     TotalWeight -= weight;
     // }
     
-    // Todo: Add another method, one for withdrawing LP tokens, one for total withdraw from reserves
-    // Todo: In order to not use Message.Sender, we have to expect something sent in the same transaction
+    // - Add another method, one for withdrawing LP tokens, one for total withdraw from reserves
+    // - In order to not use Message.Sender, we have to expect something sent in the same transaction
     // - similar to how liquidity pool tokens are expected to be sent back first, in order to burn.
     // public void WithdrawStakingRewards(Address to)
     // {
@@ -373,7 +373,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         Assert(feeToResponse.Success && feeTo != Address.Zero, "OPDEX: INVALID_FEE_TO_ADDRESS");
         
-        // Todo: Adjust feeTo
+        // Adjust feeTo for staking
         // Staking theoretically would mint to this pairs address
         // That will be problematic for removing liquidity as users transfer LP to this contract
         // then the balance is checked to find out how much to burn etc.

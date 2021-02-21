@@ -1271,9 +1271,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: ZERO_INPUT_AMOUNT");
         }
-
-        // Todo: Borrow Src repay with both
-
+        
         [Fact]
         public void Swap_BorrowCrsReturnCrsAndSrc_Success()
         {
