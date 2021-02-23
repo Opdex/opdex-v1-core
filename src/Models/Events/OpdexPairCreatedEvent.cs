@@ -1,8 +1,7 @@
 using Stratis.SmartContracts;
 
-public struct PairCreatedEvent
+public struct OpdexPairCreatedEvent
 {
     public Address Token;
     public Address Pair;
-    public byte EventTypeId;
 }

@@ -59,40 +59,42 @@ public class OpdexController : ContractBase
         
         Assert(pair == Address.Zero, "OPDEX: PAIR_EXISTS");
         
-        var pairContract = Create<OpdexPair>(0, new object[] {token});
+        var pairContract = Create<OpdexPair>(0, new object[] {token, StakeToken});
         
         pair = pairContract.NewContractAddress;
         
         SetPair(token, pair);
 
-        LogPairCreatedEvent(token, pair, EventType.PairCreatedEvent);
+        LogPairCreatedEvent(token, pair);
         
         return pair;
     }
     
-    public AddLiquidityResponseModel AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    public object[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     { 
         ValidateDeadline(deadline);
         
-        var liquidityDto = CalculateLiquidityAmounts(token, Message.Value, amountSrcDesired, amountCrsMin, amountSrcMin);
+        var liquidityAmounts = CalculateLiquidityAmounts(token, Message.Value, amountSrcDesired, amountCrsMin, amountSrcMin);
+        var amountCrs = (ulong)liquidityAmounts[0];
+        var amountSrc = (UInt256)liquidityAmounts[1];
+        var pair = (Address)liquidityAmounts[2];
         
-        SafeTransferFrom(token, Message.Sender, liquidityDto.Pair, liquidityDto.AmountSrc);
+        SafeTransferFrom(token, Message.Sender, pair, amountSrc);
         
-        var change = Message.Value - liquidityDto.AmountCrs;
+        var change = Message.Value - amountCrs;
         
-        SafeTransfer(liquidityDto.Pair, liquidityDto.AmountCrs);
+        SafeTransfer(pair, amountCrs);
         
-        var liquidityResponse = Call(liquidityDto.Pair, 0, "Mint", new object[] {to});
+        var liquidityResponse = Call(pair, 0, "Mint", new object[] {to});
         
         Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
         
         SafeTransfer(Message.Sender, change);
         
-        return new AddLiquidityResponseModel { AmountCrs = liquidityDto.AmountCrs, 
-            AmountSrc = liquidityDto.AmountSrc, Liquidity = (UInt256)liquidityResponse.ReturnValue };
+        return new [] { amountCrs, amountSrc, liquidityResponse.ReturnValue };
     }
     
-    public RemoveLiquidityResponseModel RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    public object[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -108,7 +110,7 @@ public class OpdexController : ContractBase
         Assert(receivedCrs >= amountCrsMin, "OPDEX: INSUFFICIENT_CRS_AMOUNT");
         Assert(receivedSrc >= amountSrcMin, "OPDEX: INSUFFICIENT_SRC_AMOUNT");
         
-        return new RemoveLiquidityResponseModel { AmountCrs = receivedCrs, AmountSrc = receivedSrc };
+        return new object[] { receivedCrs, receivedSrc };
     }
 
     // public void Stake(Address token, UInt256 amount)
@@ -300,17 +302,23 @@ public class OpdexController : ContractBase
         return new[] {amountCrs, amountSrc};
     } 
     
-    // Todo: Preferably split this method to allow for a public method to calculate this for free via local call
-    private CalcLiquidityModel CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
+    private object[] CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
     {
         var reserves = new Reserves();
         var pair = GetPair(token);
+
+        if (pair == Address.Zero)
+        {
+            pair = CreatePair(token);
+        }
+        else
+        {
+            reserves = GetReserves(pair);
+        }
         
-        if (pair == Address.Zero) pair = CreatePair(token);
-        else reserves = GetReserves(pair);
-        
-        UInt256 amountCrs;
+        ulong amountCrs;
         UInt256 amountSrc;
+        
         if (reserves.ReserveCrs == 0 && reserves.ReserveSrc == 0)
         {
             amountCrs = amountCrsDesired;
@@ -327,14 +335,14 @@ public class OpdexController : ContractBase
             }
             else
             {
-                var amountCrsOptimal = GetLiquidityQuote(amountSrcDesired, reserves.ReserveSrc, reserves.ReserveCrs);
+                var amountCrsOptimal = (ulong)GetLiquidityQuote(amountSrcDesired, reserves.ReserveSrc, reserves.ReserveCrs);
                 Assert(amountCrsOptimal <= amountCrsDesired && amountCrsOptimal >= amountCrsMin, "OPDEX: INSUFFICIENT_A_AMOUNT");
                 amountCrs = amountCrsOptimal;
                 amountSrc = amountSrcDesired;
             }
         }
         
-        return new CalcLiquidityModel { AmountCrs = (ulong)amountCrs, AmountSrc = amountSrc, Pair = pair };
+        return new object[] { amountCrs, amountSrc, pair };
     }
     
     private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pair, Address to)
@@ -373,13 +381,12 @@ public class OpdexController : ContractBase
         Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
     }
 
-    private void LogPairCreatedEvent(Address token, Address pair, EventType eventType)
+    private void LogPairCreatedEvent(Address token, Address pair)
     {
-        Log(new PairCreatedEvent
+        Log(new OpdexPairCreatedEvent
         {
             Token = token, 
-            Pair = pair, 
-            EventTypeId = (byte)eventType
+            Pair = pair,
         });
     }
 }

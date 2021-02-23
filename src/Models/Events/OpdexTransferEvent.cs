@@ -1,9 +1,8 @@
 using Stratis.SmartContracts;
 
-public struct TransferEvent
+public struct OpdexTransferEvent
 {
     [Index] public Address From;
     [Index] public Address To;
-    public UInt256 Amount;        
-    public byte EventTypeId;
+    public UInt256 Amount;
 }

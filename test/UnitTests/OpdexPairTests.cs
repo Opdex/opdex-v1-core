@@ -87,11 +87,10 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair.ReserveSrc.Should().Be(expectedBalanceToken);
 
             VerifyCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, Times.Once);
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = expectedBalanceCrs, 
-                ReserveSrc = expectedBalanceToken, 
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = expectedBalanceToken
             }, Times.Once);
         }
 
@@ -147,12 +146,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair.GetBalance(from).Should().Be(finalFromBalance);
             pair.GetBalance(to).Should().Be(finalToBalance);
             
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = from, 
                 To = to, 
-                Amount = amount, 
-                EventTypeId = (byte)EventType.TransferEvent
+                Amount = amount
             }, Times.Once);
         }
 
@@ -218,12 +216,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair.GetBalance(to).Should().Be(finalToBalance);
             pair.GetAllowance(from, to).Should().Be(finalSpenderAllowance);
             
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = from, 
                 To = to, 
-                Amount = amount, 
-                EventTypeId = (byte)EventType.TransferEvent
+                Amount = amount
             }, Times.Once);
         }
 
@@ -287,12 +284,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 pair.Approve(spender, amount).Should().BeTrue();
             }
             
-            VerifyLog(new ApprovalEvent
+            VerifyLog(new OpdexApprovalEvent
             {
                 Owner = from, 
                 Spender = spender, 
-                Amount = amount, 
-                EventTypeId = (byte)EventType.ApprovalEvent
+                Amount = amount
             }, Times.Once);
         }
         
@@ -341,35 +337,31 @@ namespace OpdexCoreContracts.Tests.UnitTests
             var traderBalance = pair.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
 
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentBalanceToken
             }, Times.Once);
             
-            VerifyLog(new MintEvent
+            VerifyLog(new OpdexMintEvent
             {
                 AmountCrs = currentBalanceCrs,
                 AmountSrc = currentBalanceToken,
-                Sender = trader,
-                EventTypeId = (byte) EventType.MintEvent
+                Sender = trader
             }, Times.Once);
             
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = Address.Zero,
-                Amount = expectedBurnAmount,
-                EventTypeId = (byte) EventType.TransferEvent
+                Amount = expectedBurnAmount
             }, Times.Once);
 
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = trader,
-                Amount = expectedLiquidity,
-                EventTypeId = (byte) EventType.TransferEvent
+                Amount = expectedLiquidity
             }, Times.Once);
         }
         
@@ -414,35 +406,31 @@ namespace OpdexCoreContracts.Tests.UnitTests
             var traderBalance = pair.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentBalanceToken
             }, Times.Once);
             
-            VerifyLog(new MintEvent
+            VerifyLog(new OpdexMintEvent
             {
                 AmountCrs = 500,
                 AmountSrc = 1000,
-                Sender = trader,
-                EventTypeId = (byte)EventType.MintEvent
+                Sender = trader
             }, Times.Once);
             
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = FeeTo,
-                Amount = mintedFee,
-                EventTypeId = (byte)EventType.TransferEvent
+                Amount = mintedFee
             }, Times.Once);
 
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = trader,
-                Amount = expectedLiquidity,
-                EventTypeId = (byte)EventType.TransferEvent
+                Amount = expectedLiquidity
             }, Times.Once);
         }
 
@@ -535,31 +523,28 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
 
             // Mint Fee
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = FeeTo,
-                Amount = expectedMintedFee,
-                EventTypeId = (byte)EventType.TransferEvent
+                Amount = expectedMintedFee
             }, Times.Once);
             
             // Burn Tokens
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = Pair,
                 To = Address.Zero,
-                Amount = burnAmount,
-                EventTypeId = (byte)EventType.TransferEvent
+                Amount = burnAmount
             }, Times.Once);
             
             // Burn Event Summary
-            VerifyLog(new BurnEvent
+            VerifyLog(new OpdexBurnEvent
             {
                 Sender = Controller,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc,
-                EventTypeId = (byte)EventType.BurnEvent
+                AmountSrc = expectedReceivedSrc
             }, Times.Once);
         }
         
@@ -600,22 +585,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
 
             // Burn Tokens
-            VerifyLog(new TransferEvent
+            VerifyLog(new OpdexTransferEvent
             {
                 From = Pair,
                 To = Address.Zero,
-                Amount = burnAmount,
-                EventTypeId = (byte)EventType.TransferEvent
+                Amount = burnAmount
             }, Times.Once);
             
             // Burn Event Summary
-            VerifyLog(new BurnEvent
+            VerifyLog(new OpdexBurnEvent
             {
                 Sender = Controller,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc,
-                EventTypeId = (byte)EventType.BurnEvent
+                AmountSrc = expectedReceivedSrc
             }, Times.Once);
         }
 
@@ -692,22 +675,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyCall(Token, 0, "TransferTo", new object[] {to, expectedReceivedToken}, Times.Once);
             VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + swapAmountCrs,
-                ReserveSrc = currentReserveSrc - expectedReceivedToken,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc - expectedReceivedToken
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = swapAmountCrs,
                 AmountCrsOut = 0,
                 AmountSrcIn = 0,
                 AmountSrcOut = expectedReceivedToken,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte) EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
 
@@ -736,22 +717,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair.ReserveSrc.Should().Be(currentReserveSrc + swapAmountSrc);
             pair.Balance.Should().Be(443_500);
 
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs - expectedCrsReceived,
-                ReserveSrc = currentReserveSrc + swapAmountSrc,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc + swapAmountSrc
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = expectedCrsReceived,
                 AmountSrcIn = swapAmountSrc,
                 AmountSrcOut = 0,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte)EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
 
@@ -966,22 +945,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs,
-                ReserveSrc = currentReserveSrc + expectedFee,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc + expectedFee
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = 0,
                 AmountSrcIn = 17_052,
                 AmountSrcOut = 17_000,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte)EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
 
@@ -1020,22 +997,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
-                ReserveSrc = currentReserveSrc - borrowedSrc,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc - borrowedSrc
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = 0,
                 AmountSrcIn = 0,
                 AmountSrcOut = borrowedSrc,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte)EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
 
@@ -1074,22 +1049,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + expectedCrsFee,
-                ReserveSrc = currentReserveSrc,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = borrowedCrs + expectedCrsFee,
                 AmountCrsOut = borrowedCrs,
                 AmountSrcIn = 0,
                 AmountSrcOut = 0,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte)EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
 
@@ -1127,22 +1100,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs,
-                ReserveSrc = currentReserveSrc + expectedSrcReceived,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc + expectedSrcReceived
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = borrowedCrs,
                 AmountSrcIn = expectedSrcReceived,
                 AmountSrcOut = 0,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte)EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
         
@@ -1308,22 +1279,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs + expectedCrsReceived,
-                ReserveSrc = currentReserveSrc + expectedSrcReceived,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc + expectedSrcReceived
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = borrowedCrs,
                 AmountSrcIn = expectedSrcReceived,
                 AmountSrcOut = 0,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte)EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
 
@@ -1363,22 +1332,20 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyCall(Token, 0, "GetBalance", new object[] {Pair}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new SyncEvent
+            VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
-                ReserveSrc = currentReserveSrc - borrowedSrc + expectedSrcReceived,
-                EventTypeId = (byte)EventType.SyncEvent
+                ReserveSrc = currentReserveSrc - borrowedSrc + expectedSrcReceived
             }, Times.Once);
 
-            VerifyLog(new SwapEvent
+            VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = 0,
                 AmountSrcIn = expectedSrcReceived,
                 AmountSrcOut = borrowedSrc,
                 Sender = Controller,
-                To = to,
-                EventTypeId = (byte)EventType.SwapEvent
+                To = to
             }, Times.Once);
         }
 

@@ -1,8 +1,7 @@
 using Stratis.SmartContracts;
 
-public struct SyncEvent
+public struct OpdexSyncEvent
 {
     public ulong ReserveCrs;
     public UInt256 ReserveSrc;
-    public byte EventTypeId;
 }

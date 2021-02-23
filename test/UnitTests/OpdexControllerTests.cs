@@ -1,5 +1,8 @@
+using System;
+using DBreeze.Utils;
 using FluentAssertions;
 using Moq;
+using Nethereum.Hex.HexConvertors.Extensions;
 using Stratis.SmartContracts;
 using Xunit;
 using Stratis.SmartContracts.CLR;
@@ -94,7 +97,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             var controller = CreateNewOpdexController();
             PersistentState.SetContract(Token, true);
 
-            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token});
+            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, StakeToken});
 
             var pair = controller.CreatePair(Token);
 
@@ -102,7 +105,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
                 .Should().Be(pair)
                 .And.Be(Pair);
 
-            var expectedPairCreatedEvent = new PairCreatedEvent { Token = Token, Pair = Pair, EventTypeId = (byte)EventType.PairCreatedEvent };
+            var expectedPairCreatedEvent = new OpdexPairCreatedEvent { Token = Token, Pair = Pair };
             VerifyLog(expectedPairCreatedEvent, Times.Once);
         }
 
@@ -169,10 +172,10 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
-            addLiquidityResponse.AmountCrs.Should().Be(amountCrsDesired);
-            addLiquidityResponse.AmountSrc.Should().Be(amountTokenDesired);
+            addLiquidityResponse[0].Should().Be(amountCrsDesired);
+            addLiquidityResponse[1].Should().Be(amountTokenDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
-            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
+            addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
             VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
@@ -214,10 +217,10 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
-            addLiquidityResponse.AmountCrs.Should().Be(amountCrsDesired);
-            addLiquidityResponse.AmountSrc.Should().Be(expectedAmountSrcOptimal);
+            addLiquidityResponse[0].Should().Be(amountCrsDesired);
+            addLiquidityResponse[1].Should().Be(expectedAmountSrcOptimal);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
-            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
+            addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
             VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
@@ -263,10 +266,10 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
-            addLiquidityResponse.AmountCrs.Should().Be(expectedAmountCrsOptimal);
-            addLiquidityResponse.AmountSrc.Should().Be(amountTokenDesired);
+            addLiquidityResponse[0].Should().Be(expectedAmountCrsOptimal);
+            addLiquidityResponse[1].Should().Be(amountTokenDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
-            addLiquidityResponse.Liquidity.Should().Be(It.IsAny<UInt256>());
+            addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
             VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
@@ -312,8 +315,8 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
             var removeLiquidityResponse = controller.RemoveLiquidity(Token, liquidity, amountCrsMin, amountCrsMin, OtherAddress, 0ul);
 
-            removeLiquidityResponse.AmountCrs.Should().Be(amountCrsMin);
-            removeLiquidityResponse.AmountSrc.Should().Be(amountTokenMin);
+            removeLiquidityResponse[0].Should().Be(amountCrsMin);
+            removeLiquidityResponse[1].Should().Be(amountTokenMin);
             
             VerifyCall(Pair, 0, "TransferFrom", transferFromParams, Times.Once);
             VerifyCall(Pair, 0, "Burn", burnParams, Times.Once);

@@ -145,7 +145,7 @@ public class OpdexPair : ContractBase, IStandardToken256
     {
         SetAllowance(Message.Sender, spender, amount);
 
-        LogApprovalEvent(Message.Sender, spender, amount, EventType.ApprovalEvent);
+        LogApprovalEvent(Message.Sender, spender, amount);
         
         return true;
     }
@@ -184,7 +184,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         KLast = ReserveCrs * ReserveSrc;
 
-        LogMintEvent(amountCrs, amountSrc, Message.Sender, EventType.MintEvent);
+        LogMintEvent(amountCrs, amountSrc, Message.Sender);
             
         return liquidity;
     }
@@ -219,7 +219,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         KLast = ReserveCrs * ReserveSrc;
 
-        LogBurnEvent(amountCrs, amountSrc, Message.Sender, to, EventType.BurnEvent);
+        LogBurnEvent(amountCrs, amountSrc, Message.Sender, to);
         
         return new [] {amountCrs, amountSrc};
     }
@@ -262,7 +262,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         Update(balanceCrs, balanceSrc);
         
-        LogSwapEvent(amountCrsIn, amountCrsOut, amountSrcIn, amountSrcOut, Message.Sender, to, EventType.SwapEvent);
+        LogSwapEvent(amountCrsIn, amountCrsOut, amountSrcIn, amountSrcOut, Message.Sender, to);
     }
 
     // - Handle Address Balance = 0 Issues
@@ -348,7 +348,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         ReserveSrc = balanceSrc;
 
-        LogSyncEvent(balanceCrs, balanceSrc, EventType.SyncEvent);
+        LogSyncEvent(balanceCrs, balanceSrc);
     }
     
     private void MintFee(ulong reserveCrs, UInt256 reserveSrc)
@@ -388,7 +388,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         SetBalance(to, GetBalance(to) + amount);
         
-        LogTransferEvent(Address.Zero, to, amount, EventType.TransferEvent);
+        LogTransferEvent(Address.Zero, to, amount);
     }
     
     private UInt256 GetSrcBalance(Address token, Address owner)
@@ -406,7 +406,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         TotalSupply -= amount;
 
-        LogTransferEvent(from, Address.Zero, amount, EventType.TransferEvent);
+        LogTransferEvent(from, Address.Zero, amount);
     }
     
     private bool TransferExecute(Address from, Address to, UInt256 amount)
@@ -414,7 +414,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         SetBalance(from, GetBalance(from) - amount);
         SetBalance(to, GetBalance(to) + amount);
         
-        LogTransferEvent(from, to, amount, EventType.TransferEvent);
+        LogTransferEvent(from, to, amount);
         
         return true;
     }
@@ -440,73 +440,67 @@ public class OpdexPair : ContractBase, IStandardToken256
         return result;
     }
 
-    private void LogApprovalEvent(Address owner, Address spender, UInt256 amount, EventType eventType)
+    private void LogApprovalEvent(Address owner, Address spender, UInt256 amount)
     {
-        Log(new ApprovalEvent
+        Log(new OpdexApprovalEvent
         {
             Owner = owner, 
             Spender = spender, 
-            Amount = amount, 
-            EventTypeId = (byte)eventType
+            Amount = amount
         });
     }
 
-    private void LogMintEvent(ulong amountCrs, UInt256 amountSrc, Address sender, EventType eventType)
+    private void LogMintEvent(ulong amountCrs, UInt256 amountSrc, Address sender)
     {
-        Log(new MintEvent
+        Log(new OpdexMintEvent
+        {
+            AmountCrs = amountCrs, 
+            AmountSrc = amountSrc, 
+            Sender = sender
+        });
+    }
+
+    private void LogBurnEvent(ulong amountCrs, UInt256 amountSrc, Address sender, Address to)
+    {
+        Log(new OpdexBurnEvent
         {
             AmountCrs = amountCrs, 
             AmountSrc = amountSrc, 
             Sender = sender, 
-            EventTypeId = (byte)eventType
-        });
-    }
-
-    private void LogBurnEvent(ulong amountCrs, UInt256 amountSrc, Address sender, Address to, EventType eventType)
-    {
-        Log(new BurnEvent
-        {
-            AmountCrs = amountCrs, 
-            AmountSrc = amountSrc, 
-            Sender = sender, 
-            To = to,
-            EventTypeId = (byte)eventType
+            To = to
         });
     }
 
     private void LogSwapEvent(ulong amountCrsIn, ulong amountCrsOut, UInt256 amountSrcIn, UInt256 amountSrcOut, 
-        Address from, Address to, EventType eventType)
+        Address from, Address to)
     {
-        Log(new SwapEvent 
+        Log(new OpdexSwapEvent 
         { 
             AmountCrsIn = amountCrsIn, 
             AmountCrsOut = amountCrsOut, 
             AmountSrcIn = amountSrcIn,
             AmountSrcOut = amountSrcOut, 
             Sender = from, 
-            To = to, 
-            EventTypeId = (byte)eventType
+            To = to
         });
     }
 
-    private void LogSyncEvent(ulong reserveCrs, UInt256 reserveSrc, EventType eventType)
+    private void LogSyncEvent(ulong reserveCrs, UInt256 reserveSrc)
     {
-        Log(new SyncEvent
+        Log(new OpdexSyncEvent
         {
             ReserveCrs = reserveCrs, 
-            ReserveSrc = reserveSrc, 
-            EventTypeId = (byte)eventType
+            ReserveSrc = reserveSrc
         });
     }
 
-    private void LogTransferEvent(Address from, Address to, UInt256 amount, EventType eventType)
+    private void LogTransferEvent(Address from, Address to, UInt256 amount)
     {
-        Log(new TransferEvent
+        Log(new OpdexTransferEvent
         {
             From = from, 
             To = to, 
-            Amount = amount, 
-            EventTypeId = (byte)eventType
+            Amount = amount
         });
     }
 }
