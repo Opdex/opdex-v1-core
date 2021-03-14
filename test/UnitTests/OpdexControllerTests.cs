@@ -15,66 +15,36 @@ namespace OpdexCoreContracts.Tests.UnitTests
         public void CreatesNewController_Success()
         {
             var controller = CreateNewOpdexController();
-            controller.FeeTo.Should().Be(FeeTo);
-            controller.FeeToSetter.Should().Be(FeeToSetter);
-            controller.StakeToken.Should().Be(StakeToken);
+            controller.Owner.Should().Be(Owner);
         }
 
-        #region FeeTo and FeeToSetter
-
+        #region Owner
+        
         [Fact]
-        public void SetFeeTo_Success()
+        public void SetOwner_Success()
         {
-            var newFeeTo = OtherAddress;
+            var newOwner = OtherAddress;
             var controller = CreateNewOpdexController();
 
-            SetupMessage(Controller, FeeToSetter);
+            SetupMessage(Controller, Owner);
 
-            controller.SetFeeTo(newFeeTo);
-
-            controller.FeeTo.Should().Be(newFeeTo);
+            controller.SetOwner(newOwner);
+            controller.Owner.Should().Be(newOwner);
         }
 
         [Fact]
-        public void SetFeeTo_Throws()
+        public void SetOwner_Throws()
         {
-            var newFeeTo = OtherAddress;
-            var caller = Address.Zero; // or any other address != FeeToSetter 
+            var caller = Address.Zero; // or any other address != Owner 
+            var newOwner = OtherAddress;
             var controller = CreateNewOpdexController();
 
             SetupMessage(Controller, caller);
 
             controller
-                .Invoking(c => c.SetFeeTo(newFeeTo))
+                .Invoking(c => c.SetOwner(newOwner))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: FORBIDDEN");
-        }
-
-        [Fact]
-        public void SetFeeToSetter_Success()
-        {
-            var newFeeToSetter = OtherAddress;
-            var controller = CreateNewOpdexController();
-
-            SetupMessage(Controller, FeeToSetter);
-
-            controller.SetFeeToSetter(newFeeToSetter);
-            controller.FeeToSetter.Should().Be(newFeeToSetter);
-        }
-
-        [Fact]
-        public void SetFeeToSetter_Throws()
-        {
-            var caller = Address.Zero; // or any other address != FeeToSetter 
-            var newFeeToSetter = OtherAddress;
-            var controller = CreateNewOpdexController();
-
-            SetupMessage(Controller, caller);
-
-            controller
-                .Invoking(c => c.SetFeeToSetter(newFeeToSetter))
-                .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: FORBIDDEN");
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
 
         #endregion
@@ -92,12 +62,31 @@ namespace OpdexCoreContracts.Tests.UnitTests
         }
 
         [Fact]
-        public void CreatesPair_Success()
+        public void CreatesPairWithStakeToken_Success()
+        {
+            var controller = CreateNewOpdexController();
+            PersistentState.SetContract(Token, true);
+            PersistentState.SetAddress(nameof(StakeToken), StakeToken);
+
+            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, StakeToken});
+
+            var pair = controller.CreatePair(Token);
+
+            controller.GetPair(Token)
+                .Should().Be(pair)
+                .And.Be(Pair);
+
+            var expectedPairCreatedEvent = new OpdexPairCreatedEvent { Token = Token, Pair = Pair };
+            VerifyLog(expectedPairCreatedEvent, Times.Once);
+        }
+        
+        [Fact]
+        public void CreatesPairWithoutStakeToken_Success()
         {
             var controller = CreateNewOpdexController();
             PersistentState.SetContract(Token, true);
 
-            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, StakeToken});
+            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, Address.Zero});
 
             var pair = controller.CreatePair(Token);
 

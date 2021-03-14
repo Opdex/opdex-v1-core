@@ -27,6 +27,8 @@ public abstract class ContractBase : SmartContract
     
     protected void SafeTransferFrom(Address token, Address from, Address to, UInt256 amount)
     {
+        if (amount == 0) return;
+        
         var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");

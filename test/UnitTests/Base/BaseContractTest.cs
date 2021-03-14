@@ -16,7 +16,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         protected readonly ISerializer Serializer;
         protected readonly Address Controller;
         protected readonly Address Pair;
-        protected readonly Address FeeToSetter;
+        protected readonly Address Owner;
         protected readonly Address FeeTo;
         protected readonly Address Token;
         protected readonly Address Trader0;
@@ -26,7 +26,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         protected readonly Address PairTwo;
         protected readonly Address TokenTwo;
         protected readonly InMemoryState PersistentState;
-        
+
         protected BaseContractTest()
         {
             PersistentState = new InMemoryState();
@@ -40,7 +40,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             _mockContractState.Setup(x => x.Serializer).Returns(Serializer);
             Controller = "0x0000000000000000000000000000000000000001".HexToAddress();
             Pair = "0x0000000000000000000000000000000000000002".HexToAddress();
-            FeeToSetter = "0x0000000000000000000000000000000000000003".HexToAddress();
+            Owner = "0x0000000000000000000000000000000000000003".HexToAddress();
             FeeTo = "0x0000000000000000000000000000000000000004".HexToAddress();
             Token = "0x0000000000000000000000000000000000000005".HexToAddress();
             Trader0 = "0x0000000000000000000000000000000000000006".HexToAddress();
@@ -50,16 +50,16 @@ namespace OpdexCoreContracts.Tests.UnitTests
             PairTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
             TokenTwo = "0x0000000000000000000000000000000000000011".HexToAddress();
         }
-        
+
         protected OpdexController CreateNewOpdexController(ulong balance = 0)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, FeeToSetter, 0));
+            _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
             _mockContractState.Setup(x => x.Block.Number).Returns(() => 10);
             PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexController(_mockContractState.Object, FeeToSetter, FeeTo, StakeToken);
+            return new OpdexController(_mockContractState.Object);
         }
-        
+
         protected OpdexPair CreateNewOpdexPair(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pair, Controller, 0));
@@ -79,7 +79,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             _mockContractState.Setup(x => x.GetBalance).Returns(() => balance);
         }
-        
+
         protected void SetupCall(Address to, ulong amountToTransfer, string methodName, object[] parameters, TransferResult result, Action callback = null)
         {
             _mockInternalExecutor
@@ -90,7 +90,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
                     // Adjusts for CRS sent out with a Call
                     var balance = _mockContractState.Object.GetBalance();
                     _mockContractState.Setup(x => x.GetBalance).Returns(() => checked(balance - amountToTransfer));
-                    
+
                     // Optional callback for scenarios where CRS or SRC funds are transferred back within the call being setup ^
                     callback?.Invoke();
                 });

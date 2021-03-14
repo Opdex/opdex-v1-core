@@ -3,24 +3,15 @@
 [Deploy]
 public class OpdexController : ContractBase
 {
-    public OpdexController(ISmartContractState smartContractState, Address feeToSetter, Address feeTo, Address stakeToken) : base(smartContractState)
+    public OpdexController(ISmartContractState smartContractState) : base(smartContractState)
     {
-        Assert(State.IsContract(stakeToken), "OPDEX: INVALID_TOKEN");
-        FeeToSetter = feeToSetter;
-        FeeTo = feeTo;
-        StakeToken = stakeToken;
-    }
-
-    public Address FeeToSetter
-    {
-        get => State.GetAddress(nameof(FeeToSetter));
-        private set => State.SetAddress(nameof(FeeToSetter), value);
+        Owner = Message.Sender;
     }
     
-    public Address FeeTo
+    public Address Owner
     {
-        get => State.GetAddress(nameof(FeeTo));
-        private set => State.SetAddress(nameof(FeeTo), value);
+        get => State.GetAddress(nameof(Owner));
+        private set => State.SetAddress(nameof(Owner), value);
     }
     
     public Address StakeToken
@@ -28,17 +19,17 @@ public class OpdexController : ContractBase
         get => State.GetAddress(nameof(StakeToken));
         private set => State.SetAddress(nameof(StakeToken), value);
     }
-
-    public void SetFeeTo(Address feeTo)
+    
+    public Address MiningGovernance
     {
-        Assert(Message.Sender == FeeToSetter, "OPDEX: FORBIDDEN");
-        FeeTo = feeTo;
+        get => State.GetAddress(nameof(MiningGovernance));
+        private set => State.SetAddress(nameof(MiningGovernance), value);
     }
 
-    public void SetFeeToSetter(Address feeToSetter)
+    public void SetOwner(Address address)
     {
-        Assert(Message.Sender == FeeToSetter, "OPDEX: FORBIDDEN");
-        FeeToSetter = feeToSetter;
+        EnsureOwner();
+        Owner = address;
     }
 
     public Address GetPair(Address token)
@@ -112,43 +103,6 @@ public class OpdexController : ContractBase
         
         return new object[] { receivedCrs, receivedSrc };
     }
-
-    // public void Stake(Address token, UInt256 amount)
-    // {
-    //     var OPDT = Address.Zero;
-    //     Assert(token != OPDT, "OPDEX: Cannot stake OPDT.");
-    //     var pair = GetValidatedPair(token);
-    //     SafeTransferFrom(OPDT, Message.Sender, pair, amount);
-    //     var response = Call(pair, 0, "Stake", new object[] {Message.Sender});
-    //     Assert(response.Success);
-    // }
-    //
-    // public void StopStaking(Address to)
-    // {
-    //     // Need ECRecover
-    //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
-    //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
-    //     // Or Create a new contract altogether for each pairs staking management
-    //     // Or Don't have withdraws go through controller at all, direct only
-    // }
-    //
-    // public void WithdrawStakingRewards(Address to)
-    // {
-    //     // Need ECRecover
-    //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
-    //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
-    //     // Or Create a new contract altogether for each pairs staking management
-    //     // Or Don't have withdraws go through controller at all, direct only
-    // }
-    //
-    // public void WithdrawStakingRewardsAndLiquidity(Address to)
-    // {
-    //     // Need ECRecover
-    //     // Or Couple pairs to controller tightly and Authorize(Message.Sender == Owner) and send Address from
-    //     // Or Create _another_ token like LPT, maybe staking liquidity pool token so SLPT
-    //     // Or Create a new contract altogether for each pairs staking management
-    //     // Or Don't have withdraws go through controller at all, direct only
-    // }
     
     public void SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
     {
@@ -300,7 +254,70 @@ public class OpdexController : ContractBase
         var amountSrc = GetAmountOut(amountCrs, crsOutReserveCrs, crsOutReserveSrc);
 
         return new[] {amountCrs, amountSrc};
-    } 
+    }
+
+    public void NominateLiquidityMiner(Address token)
+    {
+        EnsureMiningEnabled();
+        
+        var pair = GetValidatedPair(token);
+        
+        var weightResponse = Call(pair, 0ul, "get_TotalWeight");
+        var weight = (UInt256)weightResponse.ReturnValue;
+        
+        Assert(weight > UInt256.Zero, "OPDEX: INVALID_STAKING_WEIGHT");
+        Assert((bool)Call(MiningGovernance, 0ul, "Nominate", new object[] {pair, weight}).ReturnValue);
+    }
+
+    public void EnableStakingAndMining(Address stakingToken, Address miningGovernance)
+    {
+        EnsureOwner();
+        
+        Assert(State.IsContract(stakingToken));
+        Assert(State.IsContract(miningGovernance));
+        Assert(StakeToken == Address.Zero);
+        Assert(MiningGovernance == Address.Zero);
+        
+        StakeToken = stakingToken;
+        MiningGovernance = miningGovernance;
+        
+        SetMiningGovernanceController(Address);
+    }
+
+    public void UpdateMiningGovernanceControllerAddress(Address updatedController)
+    {
+        EnsureOwner();
+        EnsureMiningEnabled();
+        
+        Assert(State.IsContract(updatedController));
+
+        SetMiningGovernanceController(updatedController);
+    }
+
+    public void UpdateMiningGovernanceAddress(Address miningGovernance)
+    {
+        EnsureOwner();
+        EnsureMiningEnabled();
+        
+        Assert(State.IsContract(miningGovernance));
+        
+        MiningGovernance = miningGovernance;
+    }
+
+    private void SetMiningGovernanceController(Address controller)
+    {
+        Assert(Call(MiningGovernance, 0ul, "SetController", new object[] {controller}).Success);
+    }
+
+    private void EnsureOwner()
+    {
+        Assert(Message.Sender == Owner, "OPDEX: UNAUTHORIZED");
+    }
+
+    private void EnsureMiningEnabled()
+    {
+        Assert(MiningGovernance != Address.Zero, "OPDEX: MINING_UNAVAILABLE");
+    }
     
     private object[] CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
     {
