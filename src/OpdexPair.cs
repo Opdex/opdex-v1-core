@@ -69,10 +69,16 @@ public class OpdexPair : ContractBase, IStandardToken256
         private set => State.SetUInt256(nameof(TotalWeight), value);
     }
     
-    public UInt256 StakingLiquidityRewardsBalance
+    public UInt256 TotalWeightApplicable
     {
-        get => State.GetUInt256(nameof(StakingLiquidityRewardsBalance));
-        private set => State.SetUInt256(nameof(StakingLiquidityRewardsBalance), value);
+        get => State.GetUInt256(nameof(TotalWeightApplicable));
+        private set => State.SetUInt256(nameof(TotalWeightApplicable), value);
+    }
+    
+    public UInt256 StakingRewardsBalance
+    {
+        get => State.GetUInt256(nameof(StakingRewardsBalance));
+        private set => State.SetUInt256(nameof(StakingRewardsBalance), value);
     }
     
     public bool Locked
@@ -81,24 +87,24 @@ public class OpdexPair : ContractBase, IStandardToken256
         private set => State.SetBool(nameof(Locked), value);
     }
 
-    public UInt256 GetWeight(Address address)
+    public UInt256 GetStakedBalance(Address address)
     {
-        return State.GetUInt256($"Weight:{address}");
+        return State.GetUInt256($"StakedBalance:{address}");
     }
     
-    private void SetWeight(Address address, UInt256 weight)
+    private void SetStakedBalance(Address address, UInt256 weight)
     {
-        State.SetUInt256($"Weight:{address}", weight);
+        State.SetUInt256($"StakedBalance:{address}", weight);
     }
     
-    public UInt256 GetWeightK(Address address)
+    public UInt256 GetStakedWeight(Address address)
     {
-        return State.GetUInt256($"WeightK:{address}");
+        return State.GetUInt256($"StakedWeight:{address}");
     }
     
-    private void SetWeightK(Address address, UInt256 weightK)
+    private void SetStakedWeight(Address address, UInt256 weightK)
     {
-        State.SetUInt256($"WeightK:{address}", weightK);
+        State.SetUInt256($"StakedWeight:{address}", weightK);
     }
 
     public UInt256 GetBalance(Address address)
@@ -192,6 +198,8 @@ public class OpdexPair : ContractBase, IStandardToken256
 
         LogMintEvent(amountCrs, amountSrc, Message.Sender);
             
+        Unlock();
+        
         return liquidity;
     }
 
@@ -205,7 +213,8 @@ public class OpdexPair : ContractBase, IStandardToken256
         var token = Token;
         var balanceCrs = Balance;
         var balanceSrc = GetSrcBalance(token, address);
-        var liquidity = GetBalance(address) - StakingLiquidityRewardsBalance;
+        // Todo: Check for overflow
+        var liquidity = GetBalance(address) - StakingRewardsBalance;
         var totalSupply = TotalSupply; // Todo: Bug this sets totalSupply - but that is updated during MintFee
         var amountCrs = (ulong)(liquidity * balanceCrs / totalSupply);
         var amountSrc = liquidity * balanceSrc / totalSupply;
@@ -225,6 +234,8 @@ public class OpdexPair : ContractBase, IStandardToken256
         KLast = ReserveCrs * ReserveSrc;
 
         LogBurnEvent(amountCrs, amountSrc, Message.Sender, to);
+        
+        Unlock();
         
         return new [] {amountCrs, amountSrc};
     }
@@ -268,70 +279,98 @@ public class OpdexPair : ContractBase, IStandardToken256
         Update(balanceCrs, balanceSrc);
         
         LogSwapEvent(amountCrsIn, amountCrsOut, amountSrcIn, amountSrcOut, Message.Sender, to);
+        
+        Unlock();
     }
+    
+    public void Stake(Address to, UInt256 amount)
+    {
+        EnsureStakingEnabled();
 
-    // - Handle Address Balance = 0 Issues
-    //   - Either stakers can't stake until MintFee is called and this Address has an LP balance
-    //   - Or, part of the initial burned fee of add liquidity is sent to here to allow staking immediately
-    //   - - test scenarios and calculations with initializing immediately with burned fee
-    public void Stake(Address to, UInt256 weight)
-    {
-        EnsureStakingEnabled();
+        MintFee(ReserveCrs, ReserveSrc);
         
-        // - How to handle adding on with extra weight
-        // TransferFrom only if this is to be called directly, else TransferTo - probably should be TransferTo going through controller
-        // Would mean we check the difference between balance and totalWeight
-        SafeTransferFrom(StakeToken, Message.Sender, Address, weight);
-        SetWeight(to, weight);
-        var weightK = weight * GetBalance(Address) / TotalWeight; // - This will return a floating point number, adjust for sats
-        SetWeightK(Address, weightK);
-        // Verify this 99% sure TotalWeight gets updated **after** finding weightK
-        TotalWeight += weight;
-    }
-    
-    // - Add shared methods, this does some things twice in combination with WithdrawStakingRewards
-    // - Asserts and validations
-    // - Coming in from Controller
-    public void StopStaking(Address to)
-    {
-        EnsureStakingEnabled();
-        
-        var weight = GetWeight(Message.Sender);
-        WithdrawStakingRewards(to);
-        SafeTransferTo(StakeToken, to, weight);
-        SetWeight(Message.Sender, 0);
-        SetWeightK(Message.Sender, 0);
-        TotalWeight -= weight;
-    }
-    
-    // - Add another method, one for withdrawing LP tokens, one for total withdraw from reserves
-    // - In order to not use Message.Sender, we have to expect something sent in the same transaction
-    // - similar to how liquidity pool tokens are expected to be sent back first, in order to burn.
-    public void WithdrawStakingRewards(Address to)
-    {
-        EnsureStakingEnabled();
-        
-        // Keep staking, withdraw rewards
+        SafeTransferFrom(StakeToken, Message.Sender, Address, amount);
+        SetStakedBalance(to, amount);
+
         var totalWeight = TotalWeight;
-        var weight = GetWeight(Message.Sender);
-        var weightKLast = GetWeightK(Message.Sender);
-        var weightK = weight * GetBalance(Address) / totalWeight;
-        Assert(weightK > weightKLast); // maybe just return;
-        var rewards = weightK - weightKLast;
-        TransferExecute(Address, to, rewards);
-        var updateWeightK = weight * GetBalance(Address) / totalWeight;
-        SetWeight(Message.Sender, updateWeightK); // Should this recalc? The Address balance would be different
+        var stakingRewardsBalance = StakingRewardsBalance;
+
+        var weight = totalWeight != UInt256.Zero && stakingRewardsBalance != UInt256.Zero
+            ? amount * stakingRewardsBalance / totalWeight
+            : 0;
+        
+        SetStakedWeight(Address, weight);
+        
+        TotalWeight += amount;
     }
     
-    public void WithdrawStakingRewardsAndBurn(Address to)
+    // Continues Staking
+    public void WithdrawStakingRewards(Address to) // maybe burn flag
     {
         EnsureStakingEnabled();
         
+        MintFee(ReserveCrs, ReserveSrc);
+        
+        var stakingRewardsBalance = StakingRewardsBalance;
+        var totalWeightApplicable = TotalWeightApplicable;
+        var stakedBalance = GetStakedBalance(Message.Sender);
+        var stakedWeight = GetStakedWeight(Message.Sender);
+        var contractBalance = GetBalance(Address);
+        
+        Assert(contractBalance >= stakingRewardsBalance);
+        
+        var currentWeight = stakedBalance * contractBalance / totalWeightApplicable;
+        
+        if (currentWeight <= stakedWeight) return; 
+        
+        var rewards = currentWeight - stakedWeight;
+        
+        TransferExecute(Address, to, rewards);
+        
+        StakingRewardsBalance -= rewards;
+        
+        // Todo: Use GetBalance here or StakingRewardsBalances both are _correct_
+        var resetWeight = stakedBalance * GetBalance(Address) / TotalWeight;
+        SetStakedWeight(Message.Sender, resetWeight);
+    }
+    
+    // Continues Staking
+    public void WithdrawStakingRewardsAndRemoveLiquidity(Address to)
+    {
+        // This might be an issue withdrawing and transferring to this same address
         WithdrawStakingRewards(Address);
         
         Burn(to);
     }
+    
+    public void ExitStaking(Address to) // maybe burn flag
+    {
+        EnsureStakingEnabled();
+        
+        var stakedBalance = GetStakedBalance(Message.Sender);
+        
+        WithdrawStakingRewards(to);
+        
+        SafeTransferTo(StakeToken, to, stakedBalance);
+        
+        SetStakedBalance(Message.Sender, 0);
+        SetStakedWeight(Message.Sender, 0);
+        
+        TotalWeight -= stakedBalance;
+        TotalWeightApplicable -= stakedBalance;
+    }
 
+    public void ExitStakingAndRemoveLiquidity(Address to)
+    {
+        EnsureStakingEnabled();
+        
+        // Conflict with this approach, break out methods further
+        ExitStaking(Address);
+
+        Burn(to);
+    }
+
+    // Todo: Consider adjusting staked balances and weight
     public void Skim(Address to)
     {
         EnsureUnlocked();
@@ -342,6 +381,8 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         SafeTransfer(to, balanceCrs);
         SafeTransferTo(token, to, balanceSrc);
+        
+        Unlock();
     }
 
     public void Sync()
@@ -349,6 +390,8 @@ public class OpdexPair : ContractBase, IStandardToken256
         EnsureUnlocked();
         
         Update(Balance, GetSrcBalance(Token, Address));
+        
+        Unlock();
     }
 
     public byte[][] GetReserves()
@@ -403,7 +446,9 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         if (liquidity == 0) return;
 
-        StakingLiquidityRewardsBalance += liquidity;
+        StakingRewardsBalance += liquidity;
+
+        TotalWeightApplicable = TotalWeight;
         
         MintExecute(Address, liquidity);
     }
@@ -447,7 +492,13 @@ public class OpdexPair : ContractBase, IStandardToken256
     
     private void EnsureUnlocked()
     {
-        Assert(!Locked, "OPDEX: PAIR_LOCKED");
+        Assert(!Locked, "OPDEX: NO_REENTRANT");
+        Locked = true;
+    }
+    
+    private void Unlock()
+    {
+        Locked = false;
     }
     
     private static UInt256 Sqrt(UInt256 value)

@@ -266,7 +266,7 @@ public class OpdexController : ContractBase
         var weight = (UInt256)weightResponse.ReturnValue;
         
         Assert(weight > UInt256.Zero, "OPDEX: INVALID_STAKING_WEIGHT");
-        Assert((bool)Call(MiningGovernance, 0ul, "Nominate", new object[] {pair, weight}).ReturnValue);
+        Assert(Call(MiningGovernance, 0ul, "Nominate", new object[] {pair, weight}).Success);
     }
 
     public void EnableStakingAndMining(Address stakingToken, Address miningGovernance)

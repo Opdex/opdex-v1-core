@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public abstract class ContractBase : SmartContract
+public class ContractBase : SmartContract
 {
     protected ContractBase(ISmartContractState contractState) : base(contractState)
     {
