@@ -51,6 +51,8 @@ public class OpdexPair : ContractBase, IStandardToken256
         private set => State.SetUInt256(nameof(ReserveSrc), value);
     }
     
+    public byte[][] Reserves => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
+    
     public UInt256 KLast
     {
         get => State.GetUInt256(nameof(KLast));
@@ -174,13 +176,13 @@ public class OpdexPair : ContractBase, IStandardToken256
         var amountSrc = balanceSrc - reserveSrc;
         var totalSupply = TotalSupply;
         
-        MintFee(reserveCrs, reserveSrc);
+        MintStakingRewards(reserveCrs, reserveSrc);
         
         UInt256 liquidity;
         if (totalSupply == 0)
         {
             liquidity = Sqrt(amountCrs * amountSrc) - MinimumLiquidity;
-            MintExecute(Address.Zero, MinimumLiquidity);
+            MintTokensExecute(Address.Zero, MinimumLiquidity);
         }
         else
         {
@@ -191,7 +193,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         
         Assert(liquidity > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
         
-        MintExecute(to, liquidity);
+        MintTokensExecute(to, liquidity);
         Update(balanceCrs, balanceSrc);
         
         KLast = ReserveCrs * ReserveSrc;
@@ -206,38 +208,12 @@ public class OpdexPair : ContractBase, IStandardToken256
     public UInt256[] Burn(Address to)
     {
         EnsureUnlocked();
-        
-        var reserveCrs = ReserveCrs;
-        var reserveSrc = ReserveSrc;
-        var address = Address;
-        var token = Token;
-        var balanceCrs = Balance;
-        var balanceSrc = GetSrcBalance(token, address);
-        // Todo: Check for overflow
-        var liquidity = GetBalance(address) - StakingRewardsBalance;
-        var totalSupply = TotalSupply; // Todo: Bug this sets totalSupply - but that is updated during MintFee
-        var amountCrs = (ulong)(liquidity * balanceCrs / totalSupply);
-        var amountSrc = liquidity * balanceSrc / totalSupply;
-        
-        Assert(amountCrs > 0 && amountSrc > 0, "OPDEX: INSUFFICIENT_LIQUIDITY_BURNED");
-        
-        MintFee(reserveCrs, reserveSrc);
-        BurnExecute(address, liquidity);
-        SafeTransfer(to, amountCrs);
-        SafeTransferTo(token, to, amountSrc);
-        
-        balanceCrs = Balance;
-        balanceSrc = GetSrcBalance(token, address);
-        
-        Update(balanceCrs, balanceSrc);
-        
-        KLast = ReserveCrs * ReserveSrc;
 
-        LogBurnEvent(amountCrs, amountSrc, Message.Sender, to);
+        var amounts = BurnExecute(to);
         
         Unlock();
-        
-        return new [] {amountCrs, amountSrc};
+
+        return amounts;
     }
 
     public void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
@@ -283,18 +259,31 @@ public class OpdexPair : ContractBase, IStandardToken256
         Unlock();
     }
     
-    public void Stake(Address to, UInt256 amount)
+    public void Stake(UInt256 amount)
     {
         EnsureStakingEnabled();
+        EnsureUnlocked();
 
-        MintFee(ReserveCrs, ReserveSrc);
+        MintStakingRewards(ReserveCrs, ReserveSrc);
+
+        var stakedBalance = GetStakedBalance(Message.Sender);
+        if (stakedBalance > 0)
+        {
+            // Todo: ensure not having MintFee run after this process is ok
+            // Reset and withdraw existing rewards to reset staker
+            WithdrawStakingRewardsExecute(Message.Sender, false, true);
+        }
         
+        // Todo: Issue here if the user is adding onto their staking balance
+        // withdraw currently transfers staking balance back to user,
+        // causing allowance issues
         SafeTransferFrom(StakeToken, Message.Sender, Address, amount);
-        SetStakedBalance(to, amount);
+        SetStakedBalance(Message.Sender, stakedBalance + amount);
 
         var totalWeight = TotalWeight;
         var stakingRewardsBalance = StakingRewardsBalance;
 
+        // Todo: amount should be += stakedBalance
         var weight = totalWeight != UInt256.Zero && stakingRewardsBalance != UInt256.Zero
             ? amount * stakingRewardsBalance / totalWeight
             : 0;
@@ -302,72 +291,30 @@ public class OpdexPair : ContractBase, IStandardToken256
         SetStakedWeight(Address, weight);
         
         TotalWeight += amount;
+        
+        LogStakeEvent(Message.Sender, amount, weight);
+        
+        Unlock();
     }
     
-    // Continues Staking
-    public void WithdrawStakingRewards(Address to) // maybe burn flag
+    public void WithdrawStakingRewards(Address to, bool burn)
     {
         EnsureStakingEnabled();
-        
-        MintFee(ReserveCrs, ReserveSrc);
-        
-        var stakingRewardsBalance = StakingRewardsBalance;
-        var totalWeightApplicable = TotalWeightApplicable;
-        var stakedBalance = GetStakedBalance(Message.Sender);
-        var stakedWeight = GetStakedWeight(Message.Sender);
-        var contractBalance = GetBalance(Address);
-        
-        Assert(contractBalance >= stakingRewardsBalance);
-        
-        var currentWeight = stakedBalance * contractBalance / totalWeightApplicable;
-        
-        if (currentWeight <= stakedWeight) return; 
-        
-        var rewards = currentWeight - stakedWeight;
-        
-        TransferExecute(Address, to, rewards);
-        
-        StakingRewardsBalance -= rewards;
-        
-        // Todo: Use GetBalance here or StakingRewardsBalances both are _correct_
-        var resetWeight = stakedBalance * GetBalance(Address) / TotalWeight;
-        SetStakedWeight(Message.Sender, resetWeight);
-    }
-    
-    // Continues Staking
-    public void WithdrawStakingRewardsAndRemoveLiquidity(Address to)
-    {
-        // This might be an issue withdrawing and transferring to this same address
-        WithdrawStakingRewards(Address);
-        
-        Burn(to);
-    }
-    
-    public void ExitStaking(Address to) // maybe burn flag
-    {
-        EnsureStakingEnabled();
-        
-        var stakedBalance = GetStakedBalance(Message.Sender);
-        
-        WithdrawStakingRewards(to);
-        
-        SafeTransferTo(StakeToken, to, stakedBalance);
-        
-        SetStakedBalance(Message.Sender, 0);
-        SetStakedWeight(Message.Sender, 0);
-        
-        TotalWeight -= stakedBalance;
-        TotalWeightApplicable -= stakedBalance;
-    }
+        EnsureUnlocked();
 
-    public void ExitStakingAndRemoveLiquidity(Address to)
+        WithdrawStakingRewardsExecute(to, burn, false);
+        
+        Unlock();
+    }
+    
+    public void ExitStaking(Address to, bool burn)
     {
         EnsureStakingEnabled();
+        EnsureUnlocked();
         
-        // Conflict with this approach, break out methods further
-        ExitStaking(Address);
+        WithdrawStakingRewardsExecute(to, burn, true);
 
-        Burn(to);
+        Unlock();
     }
 
     // Todo: Consider adjusting staked balances and weight
@@ -394,9 +341,88 @@ public class OpdexPair : ContractBase, IStandardToken256
         Unlock();
     }
 
-    public byte[][] GetReserves()
+    private UInt256[] BurnExecute(Address to)
     {
-        return new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
+        var reserveCrs = ReserveCrs;
+        var reserveSrc = ReserveSrc;
+        
+        MintStakingRewards(reserveCrs, reserveSrc);
+        
+        var address = Address;
+        var token = Token;
+        var balanceCrs = Balance;
+        var balanceSrc = GetSrcBalance(token, address);
+        var liquidity = GetBalance(Address) - StakingRewardsBalance;
+        var totalSupply = TotalSupply;
+        var amountCrs = (ulong)(liquidity * balanceCrs / totalSupply);
+        var amountSrc = liquidity * balanceSrc / totalSupply;
+        
+        Assert(amountCrs > 0 && amountSrc > 0, "OPDEX: INSUFFICIENT_LIQUIDITY_BURNED");
+        
+        BurnTokensExecute(address, liquidity);
+        SafeTransfer(to, amountCrs);
+        SafeTransferTo(token, to, amountSrc);
+        
+        balanceCrs = Balance;
+        balanceSrc = GetSrcBalance(token, address);
+        
+        Update(balanceCrs, balanceSrc);
+        
+        KLast = ReserveCrs * ReserveSrc;
+
+        LogBurnEvent(amountCrs, amountSrc, Message.Sender, to);
+        
+        return new [] {amountCrs, amountSrc};
+    }
+
+    private void WithdrawStakingRewardsExecute(Address to, bool burn, bool exit)
+    {
+        MintStakingRewards(ReserveCrs, ReserveSrc);
+        
+        var stakingRewardsBalance = StakingRewardsBalance;
+        var totalWeightApplicable = TotalWeightApplicable;
+        var stakedBalance = GetStakedBalance(Message.Sender);
+        var stakedWeight = GetStakedWeight(Message.Sender);
+        var contractBalance = GetBalance(Address);
+        
+        Assert(contractBalance >= stakingRewardsBalance);
+        
+        var currentWeight = stakedBalance * contractBalance / totalWeightApplicable;
+        
+        if (currentWeight <= stakedWeight) return; 
+        
+        var rewards = currentWeight - stakedWeight;
+
+        stakingRewardsBalance -= rewards;
+        StakingRewardsBalance = stakingRewardsBalance;
+        
+        if (burn) BurnExecute(to);
+        else TransferExecute(Address, to, rewards);
+        
+        LogRewardEvent(Message.Sender, stakedBalance, currentWeight, rewards);
+        
+        if (exit)
+        {
+            // Todo: maybe don't have exit in this method, for stakers adding to their balance,
+            // we don't want to transfer these tokens. 
+            SafeTransferTo(StakeToken, to, stakedBalance);
+        
+            SetStakedBalance(Message.Sender, 0);
+            SetStakedWeight(Message.Sender, 0);
+        
+            TotalWeight -= stakedBalance;
+            
+            // Todo: this may not be necessary
+            TotalWeightApplicable -= stakedBalance;
+        }
+        else
+        {
+            var resetWeight = stakedBalance * stakingRewardsBalance / TotalWeight;
+            
+            SetStakedWeight(Message.Sender, resetWeight);
+            
+            LogStakeEvent(Message.Sender, stakedBalance, resetWeight);
+        }
     }
 
     private bool StakingEnabled()
@@ -427,7 +453,7 @@ public class OpdexPair : ContractBase, IStandardToken256
         LogSyncEvent(balanceCrs, balanceSrc);
     }
     
-    private void MintFee(ulong reserveCrs, UInt256 reserveSrc)
+    private void MintStakingRewards(ulong reserveCrs, UInt256 reserveSrc)
     {
         if (!StakingEnabled()) return;
         
@@ -450,16 +476,25 @@ public class OpdexPair : ContractBase, IStandardToken256
 
         TotalWeightApplicable = TotalWeight;
         
-        MintExecute(Address, liquidity);
+        MintTokensExecute(Address, liquidity);
     }
-    
-    private void MintExecute(Address to, UInt256 amount)
+
+    private void MintTokensExecute(Address to, UInt256 amount)
     {
         TotalSupply += amount;
-        
+
         SetBalance(to, GetBalance(to) + amount);
-        
+
         LogTransferEvent(Address.Zero, to, amount);
+    }
+
+    private void BurnTokensExecute(Address from, UInt256 amount)
+    {
+        TotalSupply -= amount;
+
+        SetBalance(from, GetBalance(from) - amount);
+        
+        LogTransferEvent(from, Address.Zero, amount);
     }
     
     private UInt256 GetSrcBalance(Address token, Address owner)
@@ -469,15 +504,6 @@ public class OpdexPair : ContractBase, IStandardToken256
         Assert(balanceResponse.Success, "OPDEX: INVALID_BALANCE");
         
         return (UInt256)balanceResponse.ReturnValue;
-    }
-    
-    private void BurnExecute(Address from, UInt256 amount)
-    {
-        SetBalance(from, GetBalance(from) - amount);
-        
-        TotalSupply -= amount;
-
-        LogTransferEvent(from, Address.Zero, amount);
     }
     
     private bool TransferExecute(Address from, Address to, UInt256 amount)
@@ -492,7 +518,7 @@ public class OpdexPair : ContractBase, IStandardToken256
     
     private void EnsureUnlocked()
     {
-        Assert(!Locked, "OPDEX: NO_REENTRANT");
+        Assert(!Locked, "OPDEX: LOCKED");
         Locked = true;
     }
     
@@ -515,6 +541,27 @@ public class OpdexPair : ContractBase, IStandardToken256
         }
         
         return result;
+    }
+
+    private void LogStakeEvent(Address sender, UInt256 amount, UInt256 weight)
+    {
+        Log(new OpdexStakeEvent
+        {
+            Sender = sender,
+            Amount = amount,
+            Weight = weight
+        });
+    }
+    
+    private void LogRewardEvent(Address sender, UInt256 amount, UInt256 weight, UInt256 reward)
+    {
+        Log(new OpdexRewardEvent
+        {
+            Sender = sender,
+            Amount = amount,
+            Weight = weight,
+            Reward = reward
+        });
     }
 
     private void LogApprovalEvent(Address owner, Address spender, UInt256 amount)

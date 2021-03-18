@@ -62,7 +62,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             var pair = CreateNewOpdexPair();
 
-            var reserves = pair.GetReserves();
+            var reserves = pair.Reserves;
             var reserveCrs = Serializer.ToUInt64(reserves[0]);
             var reserveToken = Serializer.ToUInt256(reserves[1]);
             
@@ -422,7 +422,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
-                To = FeeTo,
+                To = Pair,
                 Amount = mintedFee
             }, Times.Once);
 
@@ -479,7 +479,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair
                 .Invoking(p => p.Mint(Trader0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: PAIR_LOCKED");
+                .WithMessage("OPDEX: LOCKED");
         }
         
         #endregion
@@ -494,8 +494,8 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 currentTotalSupply = 15_000;
             UInt256 currentKLast = 90_000_000_000;
             UInt256 burnAmount = 1_200;
-            const ulong expectedReceivedCrs = 8_000;
-            UInt256 expectedReceivedSrc = 80_000;
+            const ulong expectedReceivedCrs = 7_931;
+            UInt256 expectedReceivedSrc = 79_317;
             UInt256 expectedMintedFee = 129;
             var to = Trader0;
 
@@ -526,7 +526,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
-                To = FeeTo,
+                To = Pair,
                 Amount = expectedMintedFee
             }, Times.Once);
             
@@ -640,7 +640,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair
                 .Invoking(p => p.Burn(Trader0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: PAIR_LOCKED");
+                .WithMessage("OPDEX: LOCKED");
         }
         
         #endregion
@@ -789,6 +789,8 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             foreach(var address in addresses)
             {
+                PersistentState.SetBool("Locked", false);
+                
                 pair
                     .Invoking(p => p.Swap(1000, 0, address, new byte[0]))
                     .Should().Throw<SmartContractAssertException>()
@@ -904,7 +906,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             pair
                 .Invoking(p => p.Swap(0, 10, Trader0, new byte[0]))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: PAIR_LOCKED");
+                .WithMessage("OPDEX: LOCKED");
         }
         
         #endregion

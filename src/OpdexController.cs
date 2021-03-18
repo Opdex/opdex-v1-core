@@ -371,7 +371,7 @@ public class OpdexController : ContractBase
 
     private Reserves GetReserves(Address pair)
     {
-        var reservesResponse = Call(pair, 0, "GetReserves");
+        var reservesResponse = Call(pair, 0, "get_Reserves");
         
         Assert(reservesResponse.Success, "OPDEX: INVALID_PAIR");
         

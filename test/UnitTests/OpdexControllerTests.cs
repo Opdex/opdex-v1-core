@@ -145,7 +145,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(expectedReserveCrs), Serializer.Serialize(expectedReserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pair
             var transferFromParams = new object[] {OtherAddress, Pair, amountTokenDesired};
@@ -166,7 +166,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
             VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
             VerifyTransfer(Pair, amountCrsDesired, Times.Once);
@@ -188,7 +188,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pair
             var expectedAmountSrcOptimal = controller.GetLiquidityQuote(amountCrsDesired, reserveCrs, reserveToken);
@@ -211,7 +211,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
             VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
             VerifyTransfer(Pair, amountCrsDesired, Times.Once);
@@ -233,7 +233,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
 
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pair
             // CrsOptimal route always uses amountTokenDesired
@@ -260,7 +260,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
             VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
             VerifyTransfer(Pair, expectedAmountCrsOptimal, Times.Once);
@@ -409,7 +409,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountCrsIn, reserveCrs, reserveToken);
@@ -425,7 +425,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
             VerifyTransfer(Pair, amountCrsIn, Times.Once);
             VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
         }
@@ -453,7 +453,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0))
@@ -490,7 +490,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountIn = controller.GetAmountIn(amountCrsOut, reserveToken, reserveCrs);
@@ -507,7 +507,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller.SwapSrcForExactCrs(amountCrsOut, amountIn, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
             VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
         }
@@ -535,7 +535,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapSrcForExactCrs(amountCrsOut, amountTokenInMax, Token, OtherAddress, 0))
@@ -572,7 +572,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountTokenIn, reserveToken, reserveCrs);
@@ -589,7 +589,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
             VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
         }
@@ -617,7 +617,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0))
@@ -654,7 +654,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
 
             var amountIn = (ulong)controller.GetAmountIn(amountTokenOut, reserveCrs, reserveToken);
 
@@ -676,7 +676,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
             VerifyTransfer(Pair, amountIn, Times.Once);
             VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
 
@@ -708,7 +708,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             SetupMessage(Controller, OtherAddress);
             
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "GetReserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0))
@@ -752,11 +752,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pair
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrsIn = (ulong)controller.GetAmountIn(amountSrcOut, reserveCrsOut, reserveSrcOut);
             var amountSrcIn = controller.GetAmountOut(amountCrsIn, reserveSrcIn, reserveCrsIn);
@@ -780,8 +780,8 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0);
             
             // Assert
-            VerifyCall(tokenInPair, 0, "GetReserves", null, Times.Once);
-            VerifyCall(tokenOutPair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(tokenInPair, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(tokenOutPair, 0, "get_Reserves", null, Times.Once);
             VerifyTransfer(tokenOutPair, amountCrsIn, Times.Once);
             VerifyCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, Times.Once);
             VerifyCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, Times.Once);
@@ -807,11 +807,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pair
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
                 .Invoking(c => c.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0))
@@ -855,11 +855,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pair
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrsOut = (ulong)controller.GetAmountOut(amountSrcIn, reserveSrcOut, reserveCrsOut);
             var amountSrcOut = controller.GetAmountOut(amountCrsOut, reserveCrsIn, reserveSrcIn);
@@ -883,8 +883,8 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0);
             
             // Assert
-            VerifyCall(tokenInPair, 0, "GetReserves", null, Times.Once);
-            VerifyCall(tokenOutPair, 0, "GetReserves", null, Times.Once);
+            VerifyCall(tokenInPair, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(tokenOutPair, 0, "get_Reserves", null, Times.Once);
             VerifyTransfer(tokenOutPair, amountCrsOut, Times.Once);
             VerifyCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, Times.Once);
             VerifyCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, Times.Once);
@@ -910,11 +910,11 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             // Call to get reserves from pair
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pair
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "GetReserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
                 .Invoking(c => c.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0))
