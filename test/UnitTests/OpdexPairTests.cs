@@ -1352,5 +1352,107 @@ namespace OpdexCoreContracts.Tests.UnitTests
         }
 
         #endregion
+        
+        #region Staking
+
+        [Fact]
+        public void Stake_ZeroStakingBalance_Success()
+        {
+            UInt256 stakeAmount = 1_000;
+            
+            var pair = CreateNewOpdexPair();
+            
+            PersistentState.SetAddress("StakeToken", StakeToken);
+            PersistentState.SetUInt256("ReserveSrc", UInt256.Zero);
+            PersistentState.SetUInt64("ReserveCrs", 0);
+            PersistentState.SetUInt256("KLast", 0);
+            PersistentState.SetUInt256($"StakedBalance:{Trader0}", 0);
+
+            var transferFromParameters = new object[] { Trader0, Pair, stakeAmount };
+            SetupCall(StakeToken, 0ul, "TransferFrom", transferFromParameters, TransferResult.Transferred(true));
+            
+            SetupMessage(Pair, Trader0);
+            
+            pair.Stake(stakeAmount);
+
+            pair.TotalStaked.Should().Be(stakeAmount);
+            pair.TotalStakedApplicable.Should().Be(UInt256.Zero);
+            pair.GetStakedWeight(Trader0).Should().Be(UInt256.Zero);
+            pair.GetStakedBalance(Trader0).Should().Be(stakeAmount);
+            
+            VerifyCall(StakeToken, 0ul, "TransferFrom", transferFromParameters, Times.Once);
+
+            VerifyLog(new OpdexStakeEvent
+            {
+                Sender = Trader0,
+                Amount = stakeAmount,
+                Weight = UInt256.Zero
+            }, Times.Once);
+        }
+
+        [Fact]
+        public void Stake_ZeroTraderBalance_Success()
+        {
+            UInt256 stakeAmount = 1_000;
+            UInt256 reserveSrc = 23532234235;
+            const ulong reserveCrs = 2343485;
+            UInt256 kLast = 55147432946208975;
+            UInt256 totalSupply = 1000000000;
+            UInt256 totalStaked = 10_000;
+            UInt256 stakingRewardsBalance = 1_000_000;
+            UInt256 expectedWeight = 100_000;
+            
+            var pair = CreateNewOpdexPair();
+            
+            PersistentState.SetAddress("StakeToken", StakeToken);
+            PersistentState.SetUInt256("ReserveSrc", reserveSrc);
+            PersistentState.SetUInt64("ReserveCrs", reserveCrs);
+            PersistentState.SetUInt256("KLast", kLast);
+            PersistentState.SetUInt256($"StakedBalance:{Trader0}", 0);
+            PersistentState.SetUInt256("TotalStaked", totalStaked);
+            PersistentState.SetUInt256("StakingRewardsBalance", stakingRewardsBalance);
+            PersistentState.SetUInt256("TotalSupply", totalSupply);
+
+            var transferFromParameters = new object[] { Trader0, Pair, stakeAmount };
+            SetupCall(StakeToken, 0ul, "TransferFrom", transferFromParameters, TransferResult.Transferred(true));
+            
+            SetupMessage(Pair, Trader0);
+            
+            pair.Stake(stakeAmount);
+
+            pair.TotalStaked.Should().Be(stakeAmount + totalStaked);
+            pair.TotalStakedApplicable.Should().Be(totalStaked);
+            pair.GetStakedWeight(Trader0).Should().Be(expectedWeight);
+            pair.GetStakedBalance(Trader0).Should().Be(stakeAmount);
+            
+            VerifyCall(StakeToken, 0ul, "TransferFrom", transferFromParameters, Times.Once);
+
+            VerifyLog(new OpdexStakeEvent
+            {
+                Sender = Trader0,
+                Amount = stakeAmount,
+                Weight = expectedWeight
+            }, Times.Once);
+        }
+
+        [Fact]
+        public void Stake_AddToTraderBalance_Success()
+        {
+            
+        }
+
+        [Fact]
+        public void WithdrawStakingRewards_Success()
+        {
+            
+        }
+
+        [Fact]
+        public void ExitStaking_Success()
+        {
+            
+        }
+        
+        #endregion
     }
 }
