@@ -50,7 +50,7 @@ public class OpdexController : ContractBase
         
         Assert(pair == Address.Zero, "OPDEX: PAIR_EXISTS");
         
-        var pairContract = Create<OpdexPair>(0, new object[] {token, StakeToken});
+        var pairContract = Create<OpdexStakingPool>(0, new object[] {token, StakeToken});
         
         pair = pairContract.NewContractAddress;
         

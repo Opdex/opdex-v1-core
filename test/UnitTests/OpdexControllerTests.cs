@@ -68,7 +68,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             PersistentState.SetContract(Token, true);
             PersistentState.SetAddress(nameof(StakeToken), StakeToken);
 
-            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, StakeToken});
+            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, StakeToken});
 
             var pair = controller.CreatePair(Token);
 
@@ -86,7 +86,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             var controller = CreateNewOpdexController();
             PersistentState.SetContract(Token, true);
 
-            SetupCreate<OpdexPair>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, Address.Zero});
+            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, Address.Zero});
 
             var pair = controller.CreatePair(Token);
 

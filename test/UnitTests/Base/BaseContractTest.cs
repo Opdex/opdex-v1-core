@@ -60,12 +60,12 @@ namespace OpdexCoreContracts.Tests.UnitTests
             return new OpdexController(_mockContractState.Object);
         }
 
-        protected OpdexPair CreateNewOpdexPair(ulong balance = 0)
+        protected OpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pair, Controller, 0));
             PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexPair(_mockContractState.Object, Token, StakeToken);
+            return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken);
         }
 
         protected void SetupMessage(Address contractAddress, Address sender, ulong value = 0)

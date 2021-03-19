@@ -7,12 +7,12 @@ using Xunit;
 
 namespace OpdexCoreContracts.Tests.UnitTests
 {
-    public class OpdexPairTests : BaseContractTest
+    public class OpdexStakingPoolTests : BaseContractTest
     {
         [Fact]
         public void GetsTokenProperties_Success()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             
             pair.Decimals.Should().Be(8);
             pair.Name.Should().Be("Opdex Liquidity Pool Token");
@@ -22,7 +22,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void CreatesNewPair_Success()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
 
             pair.Token.Should().Be(Token);
             pair.Controller.Should().Be(Controller);
@@ -35,7 +35,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expected = 100;
             PersistentState.SetUInt256($"Balance:{Trader0}", expected);
 
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             
             pair.GetBalance(Trader0).Should().Be(expected);
         }
@@ -46,7 +46,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expected = 100;
             PersistentState.SetUInt256($"Allowance:{Trader0}:{Trader1}", expected);
 
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             
             pair.GetAllowance(Trader0, Trader1).Should().Be(expected);
         }
@@ -60,7 +60,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             PersistentState.SetUInt64("ReserveCrs", expectedCrs);
             PersistentState.SetUInt256("ReserveSrc", expectedToken);
             
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
 
             var reserves = pair.Reserves;
             var reserveCrs = Serializer.ToUInt64(reserves[0]);
@@ -76,7 +76,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
 
-            var pair = CreateNewOpdexPair(expectedBalanceCrs);
+            var pair = CreateNewOpdexStakingPool(expectedBalanceCrs);
             
             var expectedSrcBalanceParams = new object[] {Pair};
             SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
@@ -102,7 +102,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong currentReserveCrs = 50;
             UInt256 currentReserveSrc = 100;
 
-            var pair = CreateNewOpdexPair(expectedBalanceCrs);
+            var pair = CreateNewOpdexStakingPool(expectedBalanceCrs);
             
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
@@ -127,7 +127,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void TransferTo_Success()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             var from = Trader0;
             var to = Trader1;
             UInt256 amount = 75;
@@ -157,7 +157,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void TransferTo_Throws_InsufficientFromBalance()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             var from = Trader0;
             var to = Trader1;
             UInt256 amount = 115;
@@ -176,7 +176,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void TransferTo_Throws_ToBalanceOverflow()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             var from = Trader0;
             var to = Trader1;
             UInt256 amount = 1;
@@ -195,7 +195,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void TransferFrom_Success()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             var from = Trader0;
             var to = Trader1;
             UInt256 amount = 30;
@@ -227,7 +227,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void TransferFrom_Throws_InsufficientFromBalance()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             var from = Trader0;
             var to = Trader1;
             UInt256 amount = 150;
@@ -246,7 +246,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void TransferFrom_Throws_InsufficientSpenderAllowance()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             var from = Trader0;
             var to = Trader1;
             UInt256 amount = 200;
@@ -267,7 +267,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [InlineData(false)]
         public void Approve_Success(bool isIStandardContractImplementation)
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             var from = Trader0;
             var spender = Trader1;
             UInt256 amount = 100;
@@ -312,7 +312,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedBurnAmount = 1_000;
             var trader = Trader0;
 
-            var pair = CreateNewOpdexPair(currentBalanceCrs);
+            var pair = CreateNewOpdexStakingPool(currentBalanceCrs);
             
             SetupMessage(Pair, Trader0);
             
@@ -373,7 +373,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong currentReserveCrs = 5_000;
             UInt256 currentReserveSrc = 10_000;
             UInt256 currentTotalSupply = 2500;
-            UInt256 expectedLiquidity = 250;
+            UInt256 expectedLiquidity = 252;
             UInt256 expectedKLast = 45_000_000;
             UInt256 expectedK = currentBalanceCrs * currentBalanceToken;
             UInt256 currentFeeToBalance = 100;
@@ -381,7 +381,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 mintedFee = 21;
             var trader = Trader0;
 
-            var pair = CreateNewOpdexPair(currentBalanceCrs);
+            var pair = CreateNewOpdexStakingPool(currentBalanceCrs);
             SetupMessage(Pair, trader);
             
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
@@ -447,7 +447,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 currentTraderBalance = 0;
             var trader = Trader0;
 
-            var pair = CreateNewOpdexPair(currentBalanceCrs);
+            var pair = CreateNewOpdexStakingPool(currentBalanceCrs);
             
             SetupMessage(Pair, Trader0);
             
@@ -470,7 +470,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void Mint_Throws_ContractLocked()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
 
             SetupMessage(Pair, Controller);
             
@@ -499,7 +499,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedMintedFee = 129;
             var to = Trader0;
 
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pair, Controller);
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
@@ -561,7 +561,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedMintedFee = 0;
             var to = Trader0;
 
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pair, Controller);
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
@@ -612,7 +612,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 burnAmount = 0;
             var to = Trader0;
 
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pair, Controller);
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
             PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
@@ -631,7 +631,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void Burn_Throws_LockedContract()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
 
             SetupMessage(Pair, Controller);
             
@@ -656,7 +656,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedReceivedToken = 7_259;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller, swapAmountCrs);
 
@@ -701,7 +701,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsReceived = 6_500;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
             
@@ -742,7 +742,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong currentReserveCrs = 450_000;
             UInt256 currentReserveSrc = 200_000;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pair, Controller);
             
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
@@ -762,7 +762,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong currentReserveCrs = 450_000;
             UInt256 currentReserveSrc = 200_000;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pair, Controller);
             
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
@@ -781,7 +781,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 currentReserveSrc = 200_000;
             var addresses = new[] {Pair, Token};
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pair, Controller);
             
             PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
@@ -806,7 +806,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedReceivedToken = 7_259;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -830,7 +830,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsReceived = 6_500;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
             
@@ -854,7 +854,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedReceivedToken = 7_259;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller, 1);
 
@@ -878,7 +878,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsReceived = 6_500;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
             
@@ -897,7 +897,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         [Fact]
         public void Swap_Throws_LockedContract()
         {
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
 
             SetupMessage(Pair, Controller);
             
@@ -922,7 +922,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedFee = 52;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -973,7 +973,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsReceived = 6_737;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1025,7 +1025,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsFee = 14;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1077,7 +1077,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedSrcReceived = 2_027;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1128,7 +1128,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedSrcReceived = 1;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1159,7 +1159,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsReceived = 1;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1191,7 +1191,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedSrcReceived = 0;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1222,7 +1222,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsReceived = 0;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1255,7 +1255,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             const ulong expectedCrsReceived = 2_250;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1308,7 +1308,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 expectedSrcReceived = 1_470;
             var to = Trader0;
             
-            var pair = CreateNewOpdexPair(currentReserveCrs);
+            var pair = CreateNewOpdexStakingPool(currentReserveCrs);
 
             SetupMessage(Pair, Controller);
 
@@ -1360,7 +1360,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             UInt256 stakeAmount = 1_000;
             
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             
             PersistentState.SetAddress("StakeToken", StakeToken);
             PersistentState.SetUInt256("ReserveSrc", UInt256.Zero);
@@ -1402,7 +1402,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 stakingRewardsBalance = 1_000_000;
             UInt256 expectedWeight = 100_000;
             
-            var pair = CreateNewOpdexPair();
+            var pair = CreateNewOpdexStakingPool();
             
             PersistentState.SetAddress("StakeToken", StakeToken);
             PersistentState.SetUInt256("ReserveSrc", reserveSrc);
