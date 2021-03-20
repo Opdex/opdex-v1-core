@@ -192,7 +192,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         
         UpdateReserves(balanceCrs, balanceSrc);
         
-         KLast = ReserveCrs * ReserveSrc;
+        KLast = ReserveCrs * ReserveSrc;
 
         LogBurnEvent(amountCrs, amountSrc, Message.Sender, to);
         
@@ -261,8 +261,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         });
     }
 
-    private void LogSwapEvent(ulong amountCrsIn, ulong amountCrsOut, UInt256 amountSrcIn, UInt256 amountSrcOut, 
-        Address from, Address to)
+    private void LogSwapEvent(ulong amountCrsIn, ulong amountCrsOut, UInt256 amountSrcIn, UInt256 amountSrcOut, Address from, Address to)
     {
         Log(new OpdexSwapEvent 
         { 
