@@ -34,8 +34,12 @@ public class OpdexController : ContractBase
         pool = poolContract.NewContractAddress;
         
         SetPool(token, pool);
-
-        LogPoolCreatedEvent(token, pool);
+        
+        Log(new OpdexPoolCreatedEvent
+        {
+            Token = token, 
+            Pool = pool,
+        });
         
         return pool;
     }
@@ -301,13 +305,4 @@ public class OpdexController : ContractBase
 
     private void ValidateDeadline(ulong deadline) => 
         Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
-
-    private void LogPoolCreatedEvent(Address token, Address pool)
-    {
-        Log(new OpdexPoolCreatedEvent
-        {
-            Token = token, 
-            Pool = pool,
-        });
-    }
 }

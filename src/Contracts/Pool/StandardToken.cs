@@ -58,8 +58,13 @@ public abstract class StandardToken : ContractBase, IStandardToken256
     public bool Approve(Address spender, UInt256 amount)
     {
         SetAllowance(Message.Sender, spender, amount);
-
-        LogApprovalEvent(Message.Sender, spender, amount);
+        
+        Log(new OpdexApprovalEvent
+        {
+            Owner = Message.Sender, 
+            Spender = spender, 
+            Amount = amount
+        });
         
         return true;
     }
@@ -90,16 +95,6 @@ public abstract class StandardToken : ContractBase, IStandardToken256
         SetBalance(from, GetBalance(from) - amount);
         
         LogTransferEvent(from, Address.Zero, amount);
-    }
-    
-    private void LogApprovalEvent(Address owner, Address spender, UInt256 amount)
-    {
-        Log(new OpdexApprovalEvent
-        {
-            Owner = owner, 
-            Spender = spender, 
-            Amount = amount
-        });
     }
     
     private void LogTransferEvent(Address from, Address to, UInt256 amount)

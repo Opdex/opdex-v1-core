@@ -120,8 +120,16 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Assert(balanceCrsAdjusted * balanceSrcAdjusted >= reserveCrs * reserveSrc * 1_000_000, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
     
         UpdateReserves(balanceCrs, balanceSrc);
-    
-        LogSwapEvent(amountCrsIn, amountCrsOut, amountSrcIn, amountSrcOut, Message.Sender, to);
+        
+        Log(new OpdexSwapEvent 
+        { 
+            AmountCrsIn = amountCrsIn, 
+            AmountCrsOut = amountCrsOut, 
+            AmountSrcIn = amountSrcIn,
+            AmountSrcOut = amountSrcOut, 
+            Sender = Message.Sender, 
+            To = to
+        });
     
         Unlock();
     }
@@ -166,7 +174,12 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     
         KLast = ReserveCrs * ReserveSrc;
 
-        LogMintEvent(amountCrs, amountSrc, Message.Sender);
+        Log(new OpdexMintEvent
+        {
+            AmountCrs = amountCrs, 
+            AmountSrc = amountSrc, 
+            Sender = Message.Sender
+        });
 
         return liquidity;
     }
@@ -193,8 +206,14 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         UpdateReserves(balanceCrs, balanceSrc);
         
         KLast = ReserveCrs * ReserveSrc;
-
-        LogBurnEvent(amountCrs, amountSrc, Message.Sender, to);
+        
+        Log(new OpdexBurnEvent
+        {
+            AmountCrs = amountCrs, 
+            AmountSrc = amountSrc, 
+            Sender = Message.Sender, 
+            To = to
+        });
         
         return new [] {amountCrs, amountSrc};
     }
@@ -236,50 +255,11 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     {
         ReserveCrs = balanceCrs;
         ReserveSrc = balanceSrc;
-
-        LogSyncEvent(balanceCrs, balanceSrc);
-    }
-
-    private void LogMintEvent(ulong amountCrs, UInt256 amountSrc, Address sender)
-    {
-        Log(new OpdexMintEvent
-        {
-            AmountCrs = amountCrs, 
-            AmountSrc = amountSrc, 
-            Sender = sender
-        });
-    }
-
-    private void LogBurnEvent(ulong amountCrs, UInt256 amountSrc, Address sender, Address to)
-    {
-        Log(new OpdexBurnEvent
-        {
-            AmountCrs = amountCrs, 
-            AmountSrc = amountSrc, 
-            Sender = sender, 
-            To = to
-        });
-    }
-
-    private void LogSwapEvent(ulong amountCrsIn, ulong amountCrsOut, UInt256 amountSrcIn, UInt256 amountSrcOut, Address from, Address to)
-    {
-        Log(new OpdexSwapEvent 
-        { 
-            AmountCrsIn = amountCrsIn, 
-            AmountCrsOut = amountCrsOut, 
-            AmountSrcIn = amountSrcIn,
-            AmountSrcOut = amountSrcOut, 
-            Sender = from, 
-            To = to
-        });
-    }
-
-    private void LogSyncEvent(ulong reserveCrs, UInt256 reserveSrc)
-    {
+        
         Log(new OpdexSyncEvent
         {
-            ReserveCrs = reserveCrs, 
-            ReserveSrc = reserveSrc
+            ReserveCrs = balanceCrs, 
+            ReserveSrc = balanceSrc
         });
     }
 }
