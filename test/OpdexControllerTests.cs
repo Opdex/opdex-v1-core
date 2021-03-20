@@ -1,126 +1,91 @@
-using System;
-using DBreeze.Utils;
 using FluentAssertions;
 using Moq;
-using Nethereum.Hex.HexConvertors.Extensions;
 using Stratis.SmartContracts;
-using Xunit;
 using Stratis.SmartContracts.CLR;
+using Xunit;
 
-namespace OpdexCoreContracts.Tests.UnitTests
+namespace OpdexCoreContracts.Tests
 {
     public class OpdexControllerTests : BaseContractTest
     {
         [Fact]
         public void CreatesNewController_Success()
         {
-            var controller = CreateNewOpdexController();
-            controller.Owner.Should().Be(Owner);
+            CreateNewOpdexController();
         }
 
-        #region Owner
-        
-        [Fact]
-        public void SetOwner_Success()
-        {
-            var newOwner = OtherAddress;
-            var controller = CreateNewOpdexController();
-
-            SetupMessage(Controller, Owner);
-
-            controller.SetOwner(newOwner);
-            controller.Owner.Should().Be(newOwner);
-        }
+        #region Pool
 
         [Fact]
-        public void SetOwner_Throws()
-        {
-            var caller = Address.Zero; // or any other address != Owner 
-            var newOwner = OtherAddress;
-            var controller = CreateNewOpdexController();
-
-            SetupMessage(Controller, caller);
-
-            controller
-                .Invoking(c => c.SetOwner(newOwner))
-                .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: UNAUTHORIZED");
-        }
-
-        #endregion
-
-        #region Pair
-
-        [Fact]
-        public void GetPair_Success()
+        public void GetPool_Success()
         {
             var controller = CreateNewOpdexController();
-            PersistentState.SetContract(Pair, true);
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetContract(Pool, true);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
-            controller.GetPair(Token).Should().Be(Pair);
+            controller.GetPool(Token).Should().Be(Pool);
         }
 
         [Fact]
-        public void CreatesPairWithStakeToken_Success()
+        public void CreatesPoolWithStakeToken_Success()
         {
             var controller = CreateNewOpdexController();
             PersistentState.SetContract(Token, true);
             PersistentState.SetAddress(nameof(StakeToken), StakeToken);
 
-            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, StakeToken});
+            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakeToken});
 
-            var pair = controller.CreatePair(Token);
+            var pool = controller.CreatePool(Token);
 
-            controller.GetPair(Token)
-                .Should().Be(pair)
-                .And.Be(Pair);
+            controller.GetPool(Token)
+                .Should().Be(pool)
+                .And.Be(Pool);
 
-            var expectedPairCreatedEvent = new OpdexPairCreatedEvent { Token = Token, Pair = Pair };
-            VerifyLog(expectedPairCreatedEvent, Times.Once);
+            var expectedPoolCreatedEvent = new OpdexPoolCreatedEvent { Token = Token, Pool = Pool };
+            VerifyLog(expectedPoolCreatedEvent, Times.Once);
         }
         
         [Fact]
-        public void CreatesPairWithoutStakeToken_Success()
+        public void CreatesPoolWithoutStakeToken_Success()
         {
             var controller = CreateNewOpdexController();
             PersistentState.SetContract(Token, true);
 
-            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pair), parameters: new object[] {Token, Address.Zero});
+            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakeToken});
 
-            var pair = controller.CreatePair(Token);
+            var pool = controller.CreatePool(Token);
 
-            controller.GetPair(Token)
-                .Should().Be(pair)
-                .And.Be(Pair);
+            controller.GetPool(Token)
+                .Should().Be(pool)
+                .And.Be(Pool);
 
-            var expectedPairCreatedEvent = new OpdexPairCreatedEvent { Token = Token, Pair = Pair };
-            VerifyLog(expectedPairCreatedEvent, Times.Once);
+            var expectedPoolCreatedEvent = new OpdexPoolCreatedEvent { Token = Token, Pool = Pool };
+            VerifyLog(expectedPoolCreatedEvent, Times.Once);
         }
 
         [Fact]
-        public void CreatesPair_Throws_ZeroAddress()
+        public void CreatesPool_Throws_ZeroAddress()
         {
             var token = Address.Zero;
             var controller = CreateNewOpdexController();
             
             controller
-                .Invoking(c => c.CreatePair(token))
+                .Invoking(c => c.CreatePool(token))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: ZERO_ADDRESS");
         }
         
         [Fact]
-        public void CreatesPair_Throws_PairExists()
+        public void CreatesPool_Throws_PoolExists()
         {
             var controller = CreateNewOpdexController();
             PersistentState.SetContract(Token, true);
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             controller
-                .Invoking(c => c.CreatePair(Token))
+                .Invoking(c => c.CreatePool(Token))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: PAIR_EXISTS");
+                .WithMessage("OPDEX: POOL_EXISTS");
         }
         
         #endregion
@@ -139,25 +104,25 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             var controller = CreateNewOpdexController();
 
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress, amountCrsDesired);
 
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(expectedReserveCrs), Serializer.Serialize(expectedReserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
-            // Transfer SRC to Pair
-            var transferFromParams = new object[] {OtherAddress, Pair, amountTokenDesired};
+            // Transfer SRC to Pool
+            var transferFromParams = new object[] {OtherAddress, Pool, amountTokenDesired};
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
-            // Transfer CRS to Pair
-            SetupTransfer(Pair, amountCrsDesired, TransferResult.Transferred(true));
+            // Transfer CRS to Pool
+            SetupTransfer(Pool, amountCrsDesired, TransferResult.Transferred(true));
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
 
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
@@ -166,10 +131,10 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(Pair, amountCrsDesired, Times.Once);
+            VerifyCall(Pool, 0, "Mint", mintParams, Times.Once);
+            VerifyTransfer(Pool, amountCrsDesired, Times.Once);
         }
         
         [Theory]
@@ -182,27 +147,27 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             var controller = CreateNewOpdexController();
 
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress, amountCrsDesired);
 
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
-            // Transfer SRC to Pair
+            // Transfer SRC to Pool
             var expectedAmountSrcOptimal = controller.GetLiquidityQuote(amountCrsDesired, reserveCrs, reserveToken);
-            var transferFromParams = new object[] {OtherAddress, Pair, expectedAmountSrcOptimal};
+            var transferFromParams = new object[] {OtherAddress, Pool, expectedAmountSrcOptimal};
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
-            // Transfer CRS to Pair
+            // Transfer CRS to Pool
             // TokenOptimal route always uses amountCrsDesired
-            SetupTransfer(Pair, amountCrsDesired, TransferResult.Transferred(true));
+            SetupTransfer(Pool, amountCrsDesired, TransferResult.Transferred(true));
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
@@ -211,10 +176,10 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(Pair, amountCrsDesired, Times.Once);
+            VerifyCall(Pool, 0, "Mint", mintParams, Times.Once);
+            VerifyTransfer(Pool, amountCrsDesired, Times.Once);
         }
         
         [Theory]
@@ -227,27 +192,27 @@ namespace OpdexCoreContracts.Tests.UnitTests
             
             var controller = CreateNewOpdexController();
 
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress, amountCrsDesired);
 
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
-            // Transfer SRC to Pair
+            // Transfer SRC to Pool
             // CrsOptimal route always uses amountTokenDesired
-            var transferFromParams = new object[] {OtherAddress, Pair, amountTokenDesired};
+            var transferFromParams = new object[] {OtherAddress, Pool, amountTokenDesired};
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
-            // Transfer CRS to Pair
+            // Transfer CRS to Pool
             var expectedAmountCrsOptimal = (ulong)controller.GetLiquidityQuote(amountTokenDesired, reserveToken, reserveCrs);
-            SetupTransfer(Pair, expectedAmountCrsOptimal, TransferResult.Transferred(true));
+            SetupTransfer(Pool, expectedAmountCrsOptimal, TransferResult.Transferred(true));
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pair, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             // Transfer CRS change back to sender
             var change = amountCrsDesired - expectedAmountCrsOptimal;
@@ -260,10 +225,10 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pair, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(Pair, expectedAmountCrsOptimal, Times.Once);
+            VerifyCall(Pool, 0, "Mint", mintParams, Times.Once);
+            VerifyTransfer(Pool, expectedAmountCrsOptimal, Times.Once);
             VerifyTransfer(OtherAddress, amountCrsDesired - expectedAmountCrsOptimal, Times.Once);
         }
 
@@ -289,30 +254,30 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var controller = CreateNewOpdexController();
 
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
 
             SetupMessage(Controller, OtherAddress);
             
-            // Transfer Liquidity tokens to pair
-            var transferFromParams = new object[] {OtherAddress, Pair, liquidity};
-            SetupCall(Pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            // Transfer Liquidity tokens to pool
+            var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
+            SetupCall(Pool, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
             var burnParams = new object[] {OtherAddress};
             var expectedBurnResponse = new [] { amountCrsMin, amountTokenMin };
-            SetupCall(Pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pool, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
 
             var removeLiquidityResponse = controller.RemoveLiquidity(Token, liquidity, amountCrsMin, amountCrsMin, OtherAddress, 0ul);
 
             removeLiquidityResponse[0].Should().Be(amountCrsMin);
             removeLiquidityResponse[1].Should().Be(amountTokenMin);
             
-            VerifyCall(Pair, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pair, 0, "Burn", burnParams, Times.Once);
+            VerifyCall(Pool, 0, "TransferFrom", transferFromParams, Times.Once);
+            VerifyCall(Pool, 0, "Burn", burnParams, Times.Once);
         }
 
         [Fact]
-        public void RemoveLiquidity_Throws_InvalidPair()
+        public void RemoveLiquidity_Throws_InvalidPool()
         {
             var controller = CreateNewOpdexController();
             
@@ -321,7 +286,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller
                 .Invoking(c => c.RemoveLiquidity(Token, 100, 1000, 1000, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: INVALID_PAIR");
+                .WithMessage("OPDEX: INVALID_POOL");
         }
         
         [Fact]
@@ -332,19 +297,19 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 amountTokenMin = 1000;
             var controller = CreateNewOpdexController();
 
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Transfer Liquidity tokens to pair
-            var transferFromParams = new object[] {OtherAddress, Pair, liquidity};
-            SetupCall(Pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            // Transfer Liquidity tokens to pool
+            var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
+            SetupCall(Pool, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
             var burnParams = new object[] {OtherAddress};
             var expectedAmountCrsMin = amountCrsMin - 1;
             var expectedBurnResponse = new [] { expectedAmountCrsMin, amountTokenMin };
-            SetupCall(Pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pool, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
             
             controller
                 .Invoking(c => c.RemoveLiquidity(Token, liquidity, amountCrsMin, amountTokenMin, OtherAddress, 0))
@@ -360,19 +325,19 @@ namespace OpdexCoreContracts.Tests.UnitTests
             UInt256 amountTokenMin = 1000;
             var controller = CreateNewOpdexController();
 
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Transfer Liquidity tokens to pair
-            var transferFromParams = new object[] {OtherAddress, Pair, liquidity};
-            SetupCall(Pair, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            // Transfer Liquidity tokens to pool
+            var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
+            SetupCall(Pool, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
             var burnParams = new object[] {OtherAddress};
             var expectedAmountSrcMin = amountTokenMin - 1;
             var expectedBurnResponse = new [] { amountCrsMin, expectedAmountSrcMin };
-            SetupCall(Pair, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pool, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
             
             controller
                 .Invoking(c => c.RemoveLiquidity(Token, liquidity, amountCrsMin, amountTokenMin, OtherAddress, 0))
@@ -403,42 +368,42 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress, amountCrsIn);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountCrsIn, reserveCrs, reserveToken);
 
-            // Transfer CRS to Pair
-            SetupTransfer(Pair, amountCrsIn, TransferResult.Transferred(true));
+            // Transfer CRS to Pool
+            SetupTransfer(Pool, amountCrsIn, TransferResult.Transferred(true));
             
-            // Call pair to swap
+            // Call pool to swap
             var swapParams = new object[] {0ul, amountOut, OtherAddress, new byte[0]};
-            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(Pair, amountCrsIn, Times.Once);
-            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
+            VerifyTransfer(Pool, amountCrsIn, Times.Once);
+            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
         }
 
         [Fact]
-        public void SwapExactCrsForSrc_Throws_InvalidPair()
+        public void SwapExactCrsForSrc_Throws_InvalidPool()
         {
             var controller = CreateNewOpdexController();
             
             controller
                 .Invoking(c => c.SwapExactCrsForSrc(1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: INVALID_PAIR");
+                .WithMessage("OPDEX: INVALID_POOL");
         }
         
         [Theory]
@@ -447,13 +412,13 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress, amountCrsIn);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0))
@@ -484,43 +449,43 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountIn = controller.GetAmountIn(amountCrsOut, reserveToken, reserveCrs);
             
-            // Call token to Transfer from caller to Pair
-            var transferFromParams = new object[] { OtherAddress, Pair, amountIn };
+            // Call token to Transfer from caller to Pool
+            var transferFromParams = new object[] { OtherAddress, Pool, amountIn };
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
-            // Call pair to swap
+            // Call pool to swap
             var swapParams = new object[] {amountCrsOut, UInt256.MinValue, OtherAddress, new byte[0]};
-            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapSrcForExactCrs(amountCrsOut, amountIn, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
         }
 
         [Fact]
-        public void SwapSrcForExactCrs_Throws_InvalidPair()
+        public void SwapSrcForExactCrs_Throws_InvalidPool()
         {
             var controller = CreateNewOpdexController();
             
             controller
                 .Invoking(c => c.SwapSrcForExactCrs(1000, 1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: INVALID_PAIR");
+                .WithMessage("OPDEX: INVALID_POOL");
         }
         
         [Theory]
@@ -529,13 +494,13 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapSrcForExactCrs(amountCrsOut, amountTokenInMax, Token, OtherAddress, 0))
@@ -566,43 +531,43 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountTokenIn, reserveToken, reserveCrs);
             
-            // Call token to Transfer from caller to Pair
-            var transferFromParams = new object[] { OtherAddress, Pair, amountTokenIn };
+            // Call token to Transfer from caller to Pool
+            var transferFromParams = new object[] { OtherAddress, Pool, amountTokenIn };
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
-            // Call pair to swap
+            // Call pool to swap
             var swapParams = new object[] {(ulong)amountOut, UInt256.MinValue, OtherAddress, new byte[0]};
-            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
         }
 
         [Fact]
-        public void SwapExactSrcForCrs_Throws_InvalidPair()
+        public void SwapExactSrcForCrs_Throws_InvalidPool()
         {
             var controller = CreateNewOpdexController();
             
             controller
                 .Invoking(c => c.SwapExactSrcForCrs(1000, 1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: INVALID_PAIR");
+                .WithMessage("OPDEX: INVALID_POOL");
         }
         
         [Theory]
@@ -611,13 +576,13 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var controller = CreateNewOpdexController();
 
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0))
@@ -648,24 +613,24 @@ namespace OpdexCoreContracts.Tests.UnitTests
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress, amountCrsIn);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
 
             var amountIn = (ulong)controller.GetAmountIn(amountTokenOut, reserveCrs, reserveToken);
 
             var change = amountCrsIn - amountIn;
             
-            // Transfer CRS to Pair
-            SetupTransfer(Pair, amountIn, TransferResult.Transferred(true));
+            // Transfer CRS to Pool
+            SetupTransfer(Pool, amountIn, TransferResult.Transferred(true));
             
-            // Call pair to swap
+            // Call pool to swap
             var swapParams = new object[] {0ul, amountTokenOut, OtherAddress, new byte[0]};
-            SetupCall(Pair, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
 
             if (change > 0)
             {
@@ -676,9 +641,9 @@ namespace OpdexCoreContracts.Tests.UnitTests
             controller.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pair, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(Pair, amountIn, Times.Once);
-            VerifyCall(Pair, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
+            VerifyTransfer(Pool, amountIn, Times.Once);
+            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
 
             if (change > 0)
             {
@@ -687,14 +652,14 @@ namespace OpdexCoreContracts.Tests.UnitTests
         }
 
         [Fact]
-        public void SwapCrsForExactSrc_Throws_InvalidPair()
+        public void SwapCrsForExactSrc_Throws_InvalidPool()
         {
             var controller = CreateNewOpdexController();
             
             controller
                 .Invoking(c => c.SwapCrsForExactSrc(1000, Token, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: INVALID_PAIR");
+                .WithMessage("OPDEX: INVALID_POOL");
         }
         
         [Theory]
@@ -703,12 +668,12 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{Token}", Pair);
+            PersistentState.SetAddress($"Pool:{Token}", Pool);
             
             SetupMessage(Controller, OtherAddress);
             
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pair, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0))
@@ -739,52 +704,52 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var tokenIn = Token;
             var tokenOut = TokenTwo;
-            var tokenInPair = Pair;
-            var tokenOutPair = PairTwo;
+            var tokenInPool = Pool;
+            var tokenOutPool = PoolTwo;
             
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{tokenIn}", tokenInPair);
-            PersistentState.SetAddress($"Pair:{tokenOut}", tokenOutPair);
+            PersistentState.SetAddress($"Pool:{tokenIn}", tokenInPool);
+            PersistentState.SetAddress($"Pool:{tokenOut}", tokenOutPool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrsIn = (ulong)controller.GetAmountIn(amountSrcOut, reserveCrsOut, reserveSrcOut);
             var amountSrcIn = controller.GetAmountOut(amountCrsIn, reserveSrcIn, reserveCrsIn);
             
             // Transfer SRC for CRS
-            var transferFromParams = new object[] { OtherAddress, tokenInPair, amountSrcIn };
+            var transferFromParams = new object[] { OtherAddress, tokenInPool, amountSrcIn };
             SetupCall(tokenIn, 0ul, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
         
             // Transfer CRS for SRC
-            SetupTransfer(tokenOutPair, amountCrsIn, TransferResult.Transferred(true));
+            SetupTransfer(tokenOutPool, amountCrsIn, TransferResult.Transferred(true));
         
-            // Call pair to swap src to crs
+            // Call pool to swap src to crs
             var swapSrcToCrsParams = new object[] {amountCrsIn, UInt256.MinValue, Controller, new byte[0]};
-            SetupCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsIn));
+            SetupCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsIn));
             
-            // Call pair to swap crs to src
+            // Call pool to swap crs to src
             var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress, new byte[0]};
-            SetupCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
+            SetupCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0);
             
             // Assert
-            VerifyCall(tokenInPair, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(tokenOutPair, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(tokenOutPair, amountCrsIn, Times.Once);
-            VerifyCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, Times.Once);
-            VerifyCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, Times.Once);
+            VerifyCall(tokenInPool, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(tokenOutPool, 0, "get_Reserves", null, Times.Once);
+            VerifyTransfer(tokenOutPool, amountCrsIn, Times.Once);
+            VerifyCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, Times.Once);
+            VerifyCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, Times.Once);
         }
 
         [Theory]
@@ -794,24 +759,24 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var tokenIn = Token;
             var tokenOut = TokenTwo;
-            var tokenInPair = Pair;
-            var tokenOutPair = PairTwo;
+            var tokenInPool = Pool;
+            var tokenOutPool = PoolTwo;
             
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{tokenIn}", tokenInPair);
-            PersistentState.SetAddress($"Pair:{tokenOut}", tokenOutPair);
+            PersistentState.SetAddress($"Pool:{tokenIn}", tokenInPool);
+            PersistentState.SetAddress($"Pool:{tokenOut}", tokenOutPool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
                 .Invoking(c => c.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0))
@@ -842,52 +807,52 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var tokenIn = Token;
             var tokenOut = TokenTwo;
-            var tokenInPair = Pair;
-            var tokenOutPair = PairTwo;
+            var tokenInPool = Pool;
+            var tokenOutPool = PoolTwo;
             
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{tokenIn}", tokenInPair);
-            PersistentState.SetAddress($"Pair:{tokenOut}", tokenOutPair);
+            PersistentState.SetAddress($"Pool:{tokenIn}", tokenInPool);
+            PersistentState.SetAddress($"Pool:{tokenOut}", tokenOutPool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrsOut = (ulong)controller.GetAmountOut(amountSrcIn, reserveSrcOut, reserveCrsOut);
             var amountSrcOut = controller.GetAmountOut(amountCrsOut, reserveCrsIn, reserveSrcIn);
             
             // Transfer SRC for CRS
-            var transferFromParams = new object[] { OtherAddress, tokenInPair, amountSrcIn };
+            var transferFromParams = new object[] { OtherAddress, tokenInPool, amountSrcIn };
             SetupCall(tokenIn, 0ul, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
         
             // Transfer CRS for SRC
-            SetupTransfer(tokenOutPair, amountCrsOut, TransferResult.Transferred(true));
+            SetupTransfer(tokenOutPool, amountCrsOut, TransferResult.Transferred(true));
         
-            // Call pair to swap src to crs
+            // Call pool to swap src to crs
             var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, Controller, new byte[0]};
-            SetupCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
+            SetupCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
             
-            // Call pair to swap crs to src
+            // Call pool to swap crs to src
             var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress, new byte[0]};
-            SetupCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
+            SetupCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0);
             
             // Assert
-            VerifyCall(tokenInPair, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(tokenOutPair, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(tokenOutPair, amountCrsOut, Times.Once);
-            VerifyCall(tokenInPair, 0, "Swap", swapSrcToCrsParams, Times.Once);
-            VerifyCall(tokenOutPair, 0, "Swap", swapCrsToSrcParams, Times.Once);
+            VerifyCall(tokenInPool, 0, "get_Reserves", null, Times.Once);
+            VerifyCall(tokenOutPool, 0, "get_Reserves", null, Times.Once);
+            VerifyTransfer(tokenOutPool, amountCrsOut, Times.Once);
+            VerifyCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, Times.Once);
+            VerifyCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, Times.Once);
         }
 
         [Theory]
@@ -897,24 +862,24 @@ namespace OpdexCoreContracts.Tests.UnitTests
         {
             var tokenIn = Token;
             var tokenOut = TokenTwo;
-            var tokenInPair = Pair;
-            var tokenOutPair = PairTwo;
+            var tokenInPool = Pool;
+            var tokenOutPool = PoolTwo;
             
             // Arrange
             var controller = CreateNewOpdexController();
             
-            PersistentState.SetAddress($"Pair:{tokenIn}", tokenInPair);
-            PersistentState.SetAddress($"Pair:{tokenOut}", tokenOutPair);
+            PersistentState.SetAddress($"Pool:{tokenIn}", tokenInPool);
+            PersistentState.SetAddress($"Pool:{tokenOut}", tokenOutPool);
             
             SetupMessage(Controller, OtherAddress);
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
             
-            // Call to get reserves from pair
+            // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPair, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
                 .Invoking(c => c.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0))

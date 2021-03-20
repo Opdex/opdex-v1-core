@@ -30,9 +30,4 @@
       <ProjectReference Include="..\src\OpdexCoreContracts.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="UnitTests\Samples\Controller" />
-      <Folder Include="UnitTests\Samples\Pair" />
-    </ItemGroup>
-
 </Project>

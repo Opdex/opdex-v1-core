@@ -23,36 +23,24 @@ public class StandardToken : ContractBase, IStandardToken256
         private set => State.SetUInt256(nameof(TotalSupply), value);
     }
     
-    public UInt256 GetBalance(Address address)
-    {
-        return State.GetUInt256($"Balance:{address}");
-    }
+    public UInt256 GetBalance(Address address) 
+        => State.GetUInt256($"Balance:{address}");
 
-    private void SetBalance(Address address, UInt256 amount)
-    {
+    private void SetBalance(Address address, UInt256 amount) => 
         State.SetUInt256($"Balance:{address}", amount);
-    }
 
     // IStandardToken256 interface compatibility
-    public UInt256 Allowance(Address owner, Address spender)
-    {
-        return GetAllowance(owner, spender);
-    }
-    
+    public UInt256 Allowance(Address owner, Address spender) 
+        => GetAllowance(owner, spender);
+
     public UInt256 GetAllowance(Address owner, Address spender)
-    {
-        return State.GetUInt256($"Allowance:{owner}:{spender}");
-    }
+        => State.GetUInt256($"Allowance:{owner}:{spender}");
 
     private void SetAllowance(Address owner, Address spender, UInt256 amount)
-    {
-        State.SetUInt256($"Allowance:{owner}:{spender}", amount);
-    }
+        => State.SetUInt256($"Allowance:{owner}:{spender}", amount);
 
     public bool TransferTo(Address to, UInt256 amount)
-    {
-        return TransferTokensExecute(Message.Sender, to, amount);
-    }
+        => TransferTokensExecute(Message.Sender, to, amount);
     
     public bool TransferFrom(Address from, Address to, UInt256 amount)
     {
@@ -64,10 +52,8 @@ public class StandardToken : ContractBase, IStandardToken256
     }
 
     // IStandardToken256 interface compatibility
-    public bool Approve(Address spender, UInt256 currentAmount, UInt256 amount)
-    {
-        return Approve(spender, amount);
-    }
+    public bool Approve(Address spender, UInt256 currentAmount, UInt256 amount) 
+        => Approve(spender, amount);
     
     public bool Approve(Address spender, UInt256 amount)
     {

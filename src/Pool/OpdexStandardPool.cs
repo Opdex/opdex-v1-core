@@ -1,10 +1,11 @@
 using Stratis.SmartContracts;
 
-public class OpdexStandardPool : StandardToken
+public class OpdexStandardPool : StandardToken, IOpdexStandardPool
 {
     private const ulong MinimumLiquidity = 1000;
 
-    protected OpdexStandardPool(ISmartContractState contractState, Address token) : base(contractState)
+    protected OpdexStandardPool(ISmartContractState contractState, Address token) 
+        : base(contractState)
     {
         Token = token;
     }
@@ -33,14 +34,14 @@ public class OpdexStandardPool : StandardToken
         private set => State.SetUInt256(nameof(KLast), value);
     }
     
-    
     public bool Locked
     {
         get => State.GetBool(nameof(Locked));
         private set => State.SetBool(nameof(Locked), value);
     }
 
-    public byte[][] Reserves => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
+    public byte[][] Reserves 
+        => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
     
     public virtual UInt256 Mint(Address to)
     {
@@ -51,6 +52,35 @@ public class OpdexStandardPool : StandardToken
         Unlock();
     
         return liquidity;
+    }
+    
+    public virtual UInt256[] Burn(Address to)
+    {
+        EnsureUnlocked();
+        
+        var amounts = BurnExecute(to,  GetBalance(Address));
+    
+        Unlock();
+
+        return amounts;
+    }
+    
+    public virtual void Skim(Address to)
+    {
+        EnsureUnlocked();
+    
+        SkimExecute(to);
+    
+        Unlock();
+    }
+
+    public virtual void Sync()
+    {
+        EnsureUnlocked();
+    
+        UpdateReserves(Balance, GetSrcBalance(Token, Address));
+    
+        Unlock();
     }
     
     public void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
@@ -95,49 +125,21 @@ public class OpdexStandardPool : StandardToken
     
         Unlock();
     }
-    
-    public virtual UInt256[] Burn(Address to)
-    {
-        EnsureUnlocked();
-        
-        var amounts = BurnExecute(to,  GetBalance(Address));
-    
-        Unlock();
 
-        return amounts;
-    }
-    
-    // Todo: Consider adjusting staked balances and weight
-    public void Skim(Address to)
+    protected void SkimExecute(Address to)
     {
-        EnsureUnlocked();
-    
         var token = Token;
         var balanceSrc = GetSrcBalance(token, Address) - ReserveSrc;
         var balanceCrs = Balance - ReserveCrs;
     
         SafeTransfer(to, balanceCrs);
         SafeTransferTo(token, to, balanceSrc);
-    
-        Unlock();
-    }
-
-    public void Sync()
-    {
-        EnsureUnlocked();
-    
-        UpdateReserves(Balance, GetSrcBalance(Token, Address));
-    
-        Unlock();
     }
 
     protected UInt256 MintExecute(Address to)
     {
         var reserveCrs = ReserveCrs;
         var reserveSrc = ReserveSrc;
-        
-        // Could implement mint fee
-        
         var balanceCrs = Balance;
         var balanceSrc = GetSrcBalance(Token, Address);
         var amountCrs = balanceCrs - reserveCrs;
@@ -171,8 +173,6 @@ public class OpdexStandardPool : StandardToken
     
     protected UInt256[] BurnExecute(Address to, UInt256 liquidity)
     {
-        // could implement mint fee
-        
         var address = Address;
         var token = Token;
         var balanceCrs = Balance;
@@ -192,31 +192,13 @@ public class OpdexStandardPool : StandardToken
         
         UpdateReserves(balanceCrs, balanceSrc);
         
-        KLast = ReserveCrs * ReserveSrc;
+         KLast = ReserveCrs * ReserveSrc;
 
         LogBurnEvent(amountCrs, amountSrc, Message.Sender, to);
         
         return new [] {amountCrs, amountSrc};
     }
     
-    private UInt256 GetSrcBalance(Address token, Address owner)
-    {
-        var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
-    
-        Assert(balanceResponse.Success, "OPDEX: INVALID_BALANCE");
-    
-        return (UInt256)balanceResponse.ReturnValue;
-    }
-    
-    private void UpdateReserves(ulong balanceCrs, UInt256 balanceSrc)
-    {
-        ReserveCrs = balanceCrs;
-    
-        ReserveSrc = balanceSrc;
-
-        LogSyncEvent(balanceCrs, balanceSrc);
-    }
-
     protected static UInt256 Sqrt(UInt256 value)
     {
         if (value <= 3) return 1;
@@ -239,11 +221,25 @@ public class OpdexStandardPool : StandardToken
         Locked = true;
     }
 
-    protected void Unlock()
+    protected void Unlock() => Locked = false;
+    
+    protected UInt256 GetSrcBalance(Address token, Address owner)
     {
-        Locked = false;
+        var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
+    
+        Assert(balanceResponse.Success, "OPDEX: INVALID_BALANCE");
+    
+        return (UInt256)balanceResponse.ReturnValue;
     }
     
+    protected void UpdateReserves(ulong balanceCrs, UInt256 balanceSrc)
+    {
+        ReserveCrs = balanceCrs;
+        ReserveSrc = balanceSrc;
+
+        LogSyncEvent(balanceCrs, balanceSrc);
+    }
+
     private void LogMintEvent(ulong amountCrs, UInt256 amountSrc, Address sender)
     {
         Log(new OpdexMintEvent

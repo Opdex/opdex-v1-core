@@ -6,7 +6,7 @@ using Stratis.SmartContracts.CLR;
 using Stratis.SmartContracts.CLR.Serialization;
 using Stratis.SmartContracts.Networks;
 
-namespace OpdexCoreContracts.Tests.UnitTests
+namespace OpdexCoreContracts.Tests
 {
     public class BaseContractTest
     {
@@ -15,7 +15,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         private readonly Mock<IInternalTransactionExecutor> _mockInternalExecutor;
         protected readonly ISerializer Serializer;
         protected readonly Address Controller;
-        protected readonly Address Pair;
+        protected readonly Address Pool;
         protected readonly Address Owner;
         protected readonly Address FeeTo;
         protected readonly Address Token;
@@ -23,7 +23,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
         protected readonly Address Trader1;
         protected readonly Address OtherAddress;
         protected readonly Address StakeToken;
-        protected readonly Address PairTwo;
+        protected readonly Address PoolTwo;
         protected readonly Address TokenTwo;
         protected readonly InMemoryState PersistentState;
 
@@ -39,7 +39,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             _mockContractState.Setup(x => x.InternalTransactionExecutor).Returns(_mockInternalExecutor.Object);
             _mockContractState.Setup(x => x.Serializer).Returns(Serializer);
             Controller = "0x0000000000000000000000000000000000000001".HexToAddress();
-            Pair = "0x0000000000000000000000000000000000000002".HexToAddress();
+            Pool = "0x0000000000000000000000000000000000000002".HexToAddress();
             Owner = "0x0000000000000000000000000000000000000003".HexToAddress();
             FeeTo = "0x0000000000000000000000000000000000000004".HexToAddress();
             Token = "0x0000000000000000000000000000000000000005".HexToAddress();
@@ -47,7 +47,7 @@ namespace OpdexCoreContracts.Tests.UnitTests
             Trader1 = "0x0000000000000000000000000000000000000007".HexToAddress();
             OtherAddress = "0x0000000000000000000000000000000000000008".HexToAddress();
             StakeToken = "0x0000000000000000000000000000000000000009".HexToAddress();
-            PairTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
+            PoolTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
             TokenTwo = "0x0000000000000000000000000000000000000011".HexToAddress();
         }
 
@@ -57,12 +57,12 @@ namespace OpdexCoreContracts.Tests.UnitTests
             _mockContractState.Setup(x => x.Block.Number).Returns(() => 10);
             PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexController(_mockContractState.Object);
+            return new OpdexController(_mockContractState.Object, StakeToken);
         }
 
         protected OpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Pair, Controller, 0));
+            _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
             PersistentState.SetContract(StakeToken, true);
             SetupBalance(balance);
             return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken);

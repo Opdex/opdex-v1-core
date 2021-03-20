@@ -1,17 +1,11 @@
 using Stratis.SmartContracts;
 
-public class OpdexStakingPool : OpdexStandardPool
+public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
 {
-    public OpdexStakingPool(ISmartContractState smartContractState, Address token, Address stakeToken) : base(smartContractState, token)
+    public OpdexStakingPool(ISmartContractState smartContractState, Address token, Address stakeToken) 
+        : base(smartContractState, token)
     {
-        Controller = Message.Sender;
         StakeToken = stakeToken;
-    }
-
-    public Address Controller
-    {
-        get => State.GetAddress(nameof(Controller));
-        private set => State.SetAddress(nameof(Controller), value);
     }
 
     public Address StakeToken
@@ -38,53 +32,20 @@ public class OpdexStakingPool : OpdexStandardPool
         private set => State.SetUInt256(nameof(StakingRewardsBalance), value);
     }
 
-    public UInt256 GetStakedBalance(Address address)
-    {
-        return State.GetUInt256($"StakedBalance:{address}");
-    }
+    public UInt256 GetStakedBalance(Address address) 
+        => State.GetUInt256($"StakedBalance:{address}");
     
-    private void SetStakedBalance(Address address, UInt256 weight)
-    {
-        State.SetUInt256($"StakedBalance:{address}", weight);
-    }
+    private void SetStakedBalance(Address address, UInt256 weight) 
+        => State.SetUInt256($"StakedBalance:{address}", weight);
     
-    public UInt256 GetStakedWeight(Address address)
-    {
-        return State.GetUInt256($"StakedWeight:{address}");
-    }
-    
-    private void SetStakedWeight(Address address, UInt256 weightK)
-    {
-        State.SetUInt256($"StakedWeight:{address}", weightK);
-    }
+    public UInt256 GetStakedWeight(Address address) 
+        => State.GetUInt256($"StakedWeight:{address}");
 
-    public override UInt256 Mint(Address to)
-    {
-        EnsureUnlocked();
-        
-        // Todo: Maybe only if staking is enabled
-        MintStakingRewards(ReserveCrs, ReserveSrc);
-        
-        var liquidity = MintExecute(to);
-        
-        Unlock();
+    private void SetStakedWeight(Address address, UInt256 weightK) 
+        => State.SetUInt256($"StakedWeight:{address}", weightK);
 
-        return liquidity;
-    }
-
-    public override UInt256[] Burn(Address to)
-    {
-        EnsureUnlocked();
-        
-        // Todo: Maybe only if staking is enabled
-        MintStakingRewards(ReserveCrs, ReserveSrc);
-        
-        var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
-        
-        Unlock();
-
-        return amounts;
-    }
+    public UInt256 GetStakingRewards(Address staker) 
+        => GetStakingRewardsExecute(staker, GetStakedBalance(staker));
 
     public void Stake(UInt256 amount)
     {
@@ -132,10 +93,53 @@ public class OpdexStakingPool : OpdexStandardPool
         ExitStakingExecute(to, stakedBalance, true);
         Unlock();
     }
-
-    public UInt256 GetStakingRewards(Address staker)
+    
+    public override UInt256 Mint(Address to)
     {
-        return GetStakingRewardsExecute(staker, GetStakedBalance(staker));
+        EnsureUnlocked();
+        
+        if (StakingEnabled()) MintStakingRewards(ReserveCrs, ReserveSrc);
+
+        var liquidity = MintExecute(to);
+        
+        Unlock();
+
+        return liquidity;
+    }
+
+    public override UInt256[] Burn(Address to)
+    {
+        EnsureUnlocked();
+        
+        if (StakingEnabled()) MintStakingRewards(ReserveCrs, ReserveSrc);
+        
+        var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
+        
+        Unlock();
+
+        return amounts;
+    }
+    
+    public override void Skim(Address to)
+    {
+        EnsureUnlocked();
+    
+        SkimExecute(to);
+
+        TransferTokensExecute(Address, to, GetBalance(Address) - StakingRewardsBalance);
+    
+        Unlock();
+    }
+
+    public override void Sync()
+    {
+        EnsureUnlocked();
+
+        UpdateReserves(Balance, GetSrcBalance(Token, Address));
+        
+        StakingRewardsBalance = GetBalance(Address);
+    
+        Unlock();
     }
     
     private void SetStakingWeightExecute(UInt256 balance)
@@ -196,20 +200,11 @@ public class OpdexStakingPool : OpdexStandardPool
     {
         var stakeToken = StakeToken;
 
-        if (stakeToken == Token) return false;
-
-        if (stakeToken != Address.Zero) return true;
-        
-        // Todo: Waste of a call if staking is intentionally delayed
-        StakeToken = (Address)Call(Controller, 0, "get_StakeToken").ReturnValue;
-        
-        return StakeToken != Address.Zero;
+        return stakeToken != Token && stakeToken != Address.Zero;
     }
 
-    private void EnsureStakingEnabled()
-    {
-        Assert(StakingEnabled(), "OPDEX: STAKING_UNAVAILABLE");
-    }
+    private void EnsureStakingEnabled() 
+        => Assert(StakingEnabled(), "OPDEX: STAKING_UNAVAILABLE");
 
     private void MintStakingRewards(ulong reserveCrs, UInt256 reserveSrc)
     {
@@ -231,7 +226,6 @@ public class OpdexStakingPool : OpdexStandardPool
         if (liquidity == 0) return;
 
         StakingRewardsBalance += liquidity;
-
         TotalStakedApplicable = TotalStaked;
         
         MintTokensExecute(Address, liquidity);

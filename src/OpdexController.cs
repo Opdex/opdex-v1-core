@@ -3,15 +3,10 @@
 [Deploy]
 public class OpdexController : ContractBase
 {
-    public OpdexController(ISmartContractState smartContractState) : base(smartContractState)
+    public OpdexController(ISmartContractState smartContractState, Address stakeToken) 
+        : base(smartContractState)
     {
-        Owner = Message.Sender;
-    }
-    
-    public Address Owner
-    {
-        get => State.GetAddress(nameof(Owner));
-        private set => State.SetAddress(nameof(Owner), value);
+        StakeToken = stakeToken;
     }
     
     public Address StakeToken
@@ -19,46 +14,30 @@ public class OpdexController : ContractBase
         get => State.GetAddress(nameof(StakeToken));
         private set => State.SetAddress(nameof(StakeToken), value);
     }
-    
-    public Address MiningGovernance
-    {
-        get => State.GetAddress(nameof(MiningGovernance));
-        private set => State.SetAddress(nameof(MiningGovernance), value);
-    }
 
-    public void SetOwner(Address address)
-    {
-        EnsureOwner();
-        Owner = address;
-    }
+    public Address GetPool(Address token) 
+        => State.GetAddress($"Pool:{token}");
 
-    public Address GetPair(Address token)
-    {
-        return State.GetAddress($"Pair:{token}");
-    }
-    
-    private void SetPair(Address token, Address contract)
-    {
-        State.SetAddress($"Pair:{token}", contract);
-    }
-    
-    public Address CreatePair(Address token)
+    private void SetPool(Address token, Address contract) 
+        => State.SetAddress($"Pool:{token}", contract);
+
+    public Address CreatePool(Address token)
     {
         Assert(token != Address.Zero && State.IsContract(token), "OPDEX: ZERO_ADDRESS");
         
-        var pair = GetPair(token);
+        var pool = GetPool(token);
         
-        Assert(pair == Address.Zero, "OPDEX: PAIR_EXISTS");
+        Assert(pool == Address.Zero, "OPDEX: POOL_EXISTS");
         
-        var pairContract = Create<OpdexStakingPool>(0, new object[] {token, StakeToken});
+        var poolContract = Create<OpdexStakingPool>(0, new object[] {token, StakeToken});
         
-        pair = pairContract.NewContractAddress;
+        pool = poolContract.NewContractAddress;
         
-        SetPair(token, pair);
+        SetPool(token, pool);
 
-        LogPairCreatedEvent(token, pair);
+        LogPoolCreatedEvent(token, pool);
         
-        return pair;
+        return pool;
     }
     
     public object[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
@@ -68,20 +47,18 @@ public class OpdexController : ContractBase
         var liquidityAmounts = CalculateLiquidityAmounts(token, Message.Value, amountSrcDesired, amountCrsMin, amountSrcMin);
         var amountCrs = (ulong)liquidityAmounts[0];
         var amountSrc = (UInt256)liquidityAmounts[1];
-        var pair = (Address)liquidityAmounts[2];
+        var pool = (Address)liquidityAmounts[2];
         
-        SafeTransferFrom(token, Message.Sender, pair, amountSrc);
+        SafeTransferFrom(token, Message.Sender, pool, amountSrc);
         
         var change = Message.Value - amountCrs;
         
-        SafeTransfer(pair, amountCrs);
-        
-        var liquidityResponse = Call(pair, 0, "Mint", new object[] {to});
-        
-        Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
-        
+        SafeTransfer(pool, amountCrs);
         SafeTransfer(Message.Sender, change);
-        
+
+        var liquidityResponse = Call(pool, 0, "Mint", new object[] {to});
+        Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
+
         return new [] { amountCrs, amountSrc, liquidityResponse.ReturnValue };
     }
     
@@ -89,11 +66,11 @@ public class OpdexController : ContractBase
     {
         ValidateDeadline(deadline);
         
-        var pair = GetValidatedPair(token);
+        var pool = GetValidatedPool(token);
         
-        SafeTransferFrom(pair, Message.Sender, pair, liquidity);
+        SafeTransferFrom(pool, Message.Sender, pool, liquidity);
         
-        var burnDtoResponse = Call(pair, 0, "Burn", new object[] {to});
+        var burnDtoResponse = Call(pool, 0, "Burn", new object[] {to});
         var burnResponse = (UInt256[])burnDtoResponse.ReturnValue;
         var receivedCrs = (ulong)burnResponse[0];
         var receivedSrc = burnResponse[1];
@@ -108,58 +85,58 @@ public class OpdexController : ContractBase
     {
         ValidateDeadline(deadline);
         
-        var pair = GetValidatedPair(token);
-        var reserves = GetReserves(pair);
+        var pool = GetValidatedPool(token);
+        var reserves = GetReserves(pool);
         var amountOut = GetAmountOut(Message.Value, reserves.ReserveCrs, reserves.ReserveSrc);
         
         Assert(amountOut >= amountSrcOutMin, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
-        SafeTransfer(pair, Message.Value);
-        Swap(0, amountOut, pair, to);
+        SafeTransfer(pool, Message.Value);
+        Swap(0, amountOut, pool, to);
     }
     
     public void SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
-        var pair = GetValidatedPair(token);
-        var reserves = GetReserves(pair);
+        var pool = GetValidatedPool(token);
+        var reserves = GetReserves(pool);
         var amountIn = GetAmountIn(amountCrsOut, reserves.ReserveSrc, reserves.ReserveCrs);
         
         Assert(amountIn <= amountSrcInMax, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
         
-        SafeTransferFrom(token, Message.Sender, pair, amountIn);
-        Swap(amountCrsOut, 0, pair, to);
+        SafeTransferFrom(token, Message.Sender, pool, amountIn);
+        Swap(amountCrsOut, 0, pool, to);
     }
     
     public void SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
-        var pair = GetValidatedPair(token);
-        var reserves = GetReserves(pair);
+        var pool = GetValidatedPool(token);
+        var reserves = GetReserves(pool);
         var amountOut = GetAmountOut(amountSrcIn, reserves.ReserveSrc, reserves.ReserveCrs);
         
         Assert(amountOut >= amountCrsOutMin, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
-        SafeTransferFrom(token, Message.Sender, pair, amountSrcIn);
-        Swap((ulong)amountOut, 0, pair, to);
+        SafeTransferFrom(token, Message.Sender, pool, amountSrcIn);
+        Swap((ulong)amountOut, 0, pool, to);
     }
     
     public void SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
-        var pair = GetValidatedPair(token);
-        var reserves = GetReserves(pair);
+        var pool = GetValidatedPool(token);
+        var reserves = GetReserves(pool);
         var amountIn = (ulong)GetAmountIn(amountSrcOut, reserves.ReserveCrs, reserves.ReserveSrc);
         
         Assert(amountIn <= Message.Value, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
         
         var change = Message.Value - amountIn;
         
-        SafeTransfer(pair, amountIn);
-        Swap(0, amountSrcOut, pair, to);
+        SafeTransfer(pool, amountIn);
+        Swap(0, amountSrcOut, pool, to);
         SafeTransfer(Message.Sender, change);
     }
 
@@ -167,42 +144,42 @@ public class OpdexController : ContractBase
     {
         ValidateDeadline(deadline);
         
-        var tokenInPair = GetValidatedPair(tokenIn);
-        var tokenOutPair = GetValidatedPair(tokenOut);
-        var tokenInReserves = GetReserves(tokenInPair);
-        var tokenOutReserves = GetReserves(tokenOutPair);
+        var tokenInPool = GetValidatedPool(tokenIn);
+        var tokenOutPool = GetValidatedPool(tokenOut);
+        var tokenInReserves = GetReserves(tokenInPool);
+        var tokenOutReserves = GetReserves(tokenOutPool);
         var amounts = GetAmountIn(amountSrcOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
         var amountCrs = (ulong)amounts[0];
         var amountSrc = amounts[1];
 
         Assert(amountSrcOut <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
 
-        SafeTransferFrom(tokenIn, Message.Sender, tokenInPair, amountSrc);
-        Swap(amountCrs, 0, tokenInPair, Address);
+        SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrc);
+        Swap(amountCrs, 0, tokenInPool, Address);
         
-        SafeTransfer(tokenOutPair, amountCrs);
-        Swap(0, amountSrcOut, tokenOutPair, to);
+        SafeTransfer(tokenOutPool, amountCrs);
+        Swap(0, amountSrcOut, tokenOutPool, to);
     }
     
     public void SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
-        var tokenInPair = GetValidatedPair(tokenIn);
-        var tokenOutPair = GetValidatedPair(tokenOut);
-        var tokenInReserves = GetReserves(tokenInPair);
-        var tokenOutReserves = GetReserves(tokenOutPair);
+        var tokenInPool = GetValidatedPool(tokenIn);
+        var tokenOutPool = GetValidatedPool(tokenOut);
+        var tokenInReserves = GetReserves(tokenInPool);
+        var tokenOutReserves = GetReserves(tokenOutPool);
         var amounts = GetAmountOut(amountSrcIn, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
         var amountCrsOut = (ulong)amounts[0];
         var amountSrcOut = amounts[1];
         
         Assert(amountSrcOutMin <= amountSrcOut, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
-        SafeTransferFrom(tokenIn, Message.Sender, tokenInPair, amountSrcIn);
-        Swap(amountCrsOut, 0, tokenInPair, Address);
+        SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
+        Swap(amountCrsOut, 0, tokenInPool, Address);
         
-        SafeTransfer(tokenOutPair, amountCrsOut);
-        Swap(0, amountSrcOut, tokenOutPair, to);
+        SafeTransfer(tokenOutPool, amountCrsOut);
+        Swap(0, amountSrcOut, tokenOutPool, to);
     }
     
     public UInt256 GetLiquidityQuote(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
@@ -236,7 +213,6 @@ public class OpdexController : ContractBase
         return numerator / denominator + 1;
     }
 
-    // Todo: Tests
     public UInt256[] GetAmountIn(UInt256 amountSrcOut, UInt256 srcOutReserveCrs, UInt256 srcOutReserveSrc, 
         UInt256 crsInReserveSrc, UInt256 crsInReserveCrs)
     {
@@ -246,7 +222,6 @@ public class OpdexController : ContractBase
         return new[] {amountCrs, amountSrc};
     }
     
-    // Todo: Tests
     public UInt256[] GetAmountOut(UInt256 amountSrcIn, UInt256 srcInReserveSrc, UInt256 srcInReserveCrs,  
         UInt256 crsOutReserveCrs, UInt256 crsOutReserveSrc)
     {
@@ -255,84 +230,15 @@ public class OpdexController : ContractBase
 
         return new[] {amountCrs, amountSrc};
     }
-
-    public void NominateLiquidityMiner(Address token)
-    {
-        EnsureMiningEnabled();
-        
-        var pair = GetValidatedPair(token);
-        
-        var weightResponse = Call(pair, 0ul, "get_TotalWeight");
-        var weight = (UInt256)weightResponse.ReturnValue;
-        
-        Assert(weight > UInt256.Zero, "OPDEX: INVALID_STAKING_WEIGHT");
-        Assert(Call(MiningGovernance, 0ul, "Nominate", new object[] {pair, weight}).Success);
-    }
-
-    public void EnableStakingAndMining(Address stakingToken, Address miningGovernance)
-    {
-        EnsureOwner();
-        
-        Assert(State.IsContract(stakingToken));
-        Assert(State.IsContract(miningGovernance));
-        Assert(StakeToken == Address.Zero);
-        Assert(MiningGovernance == Address.Zero);
-        
-        StakeToken = stakingToken;
-        MiningGovernance = miningGovernance;
-        
-        SetMiningGovernanceController(Address);
-    }
-
-    public void UpdateMiningGovernanceControllerAddress(Address updatedController)
-    {
-        EnsureOwner();
-        EnsureMiningEnabled();
-        
-        Assert(State.IsContract(updatedController));
-
-        SetMiningGovernanceController(updatedController);
-    }
-
-    public void UpdateMiningGovernanceAddress(Address miningGovernance)
-    {
-        EnsureOwner();
-        EnsureMiningEnabled();
-        
-        Assert(State.IsContract(miningGovernance));
-        
-        MiningGovernance = miningGovernance;
-    }
-
-    private void SetMiningGovernanceController(Address controller)
-    {
-        Assert(Call(MiningGovernance, 0ul, "SetController", new object[] {controller}).Success);
-    }
-
-    private void EnsureOwner()
-    {
-        Assert(Message.Sender == Owner, "OPDEX: UNAUTHORIZED");
-    }
-
-    private void EnsureMiningEnabled()
-    {
-        Assert(MiningGovernance != Address.Zero, "OPDEX: MINING_UNAVAILABLE");
-    }
     
     private object[] CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
     {
         var reserves = new Reserves();
-        var pair = GetPair(token);
+        var pool = GetPool(token);
 
-        if (pair == Address.Zero)
-        {
-            pair = CreatePair(token);
-        }
-        else
-        {
-            reserves = GetReserves(pair);
-        }
-        
+        if (pool == Address.Zero) pool = CreatePool(token);
+        else reserves = GetReserves(pool);
+
         ulong amountCrs;
         UInt256 amountSrc;
         
@@ -359,21 +265,21 @@ public class OpdexController : ContractBase
             }
         }
         
-        return new object[] { amountCrs, amountSrc, pair };
+        return new object[] { amountCrs, amountSrc, pool };
     }
     
-    private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pair, Address to)
+    private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pool, Address to)
     {
-        var response = Call(pair, 0, "Swap", new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
+        var response = Call(pool, 0, "Swap", new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
         
         Assert(response.Success, "OPDEX: INVALID_SWAP_ATTEMPT");
     }
 
-    private Reserves GetReserves(Address pair)
+    private Reserves GetReserves(Address pool)
     {
-        var reservesResponse = Call(pair, 0, "get_Reserves");
+        var reservesResponse = Call(pool, 0, "get_Reserves");
         
-        Assert(reservesResponse.Success, "OPDEX: INVALID_PAIR");
+        Assert(reservesResponse.Success, "OPDEX: INVALID_POOL");
         
         var reserves = (byte[][])reservesResponse.ReturnValue;
         
@@ -384,26 +290,24 @@ public class OpdexController : ContractBase
         };
     }
     
-    private Address GetValidatedPair(Address token)
+    private Address GetValidatedPool(Address token)
     {
-        var pair = GetPair(token);
+        var pool = GetPool(token);
         
-        Assert(pair != Address.Zero, "OPDEX: INVALID_PAIR");
+        Assert(pool != Address.Zero, "OPDEX: INVALID_POOL");
         
-        return pair;
+        return pool;
     }
 
-    private void ValidateDeadline(ulong deadline)
-    {
+    private void ValidateDeadline(ulong deadline) => 
         Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
-    }
 
-    private void LogPairCreatedEvent(Address token, Address pair)
+    private void LogPoolCreatedEvent(Address token, Address pool)
     {
-        Log(new OpdexPairCreatedEvent
+        Log(new OpdexPoolCreatedEvent
         {
             Token = token, 
-            Pair = pair,
+            Pool = pool,
         });
     }
 }
