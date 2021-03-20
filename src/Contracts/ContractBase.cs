@@ -6,7 +6,6 @@ public class ContractBase : SmartContract
     {
     }
     
-    // Todo: Test Asserts and Failures
     protected void SafeTransfer(Address to, ulong amount)
     {
         if (amount == 0) return;

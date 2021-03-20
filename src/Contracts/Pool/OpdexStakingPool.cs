@@ -73,9 +73,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         EnsureUnlocked();
         EnsureStakingEnabled();
         MintStakingRewards(ReserveCrs, ReserveSrc);
-        
         var stakedBalance = GetStakedBalance(Message.Sender);
-        
         WithdrawStakingRewardsExecute(to, stakedBalance, burn);
         SetStakingWeightExecute(stakedBalance);
         Unlock();
@@ -98,7 +96,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     {
         EnsureUnlocked();
         
-        if (StakingEnabled()) MintStakingRewards(ReserveCrs, ReserveSrc);
+        MintStakingRewards(ReserveCrs, ReserveSrc);
 
         var liquidity = MintExecute(to);
         
@@ -111,7 +109,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     {
         EnsureUnlocked();
         
-        if (StakingEnabled()) MintStakingRewards(ReserveCrs, ReserveSrc);
+        MintStakingRewards(ReserveCrs, ReserveSrc);
         
         var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
         
@@ -196,19 +194,18 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         SetStakedWeight(Message.Sender, 0);
     }
 
-    private bool StakingEnabled()
+    private void EnsureStakingEnabled()
     {
         var stakeToken = StakeToken;
 
-        return stakeToken != Token && stakeToken != Address.Zero;
+        var enabled = stakeToken != Token && stakeToken != Address.Zero;
+        
+        Assert(enabled, "OPDEX: STAKING_UNAVAILABLE");
     }
-
-    private void EnsureStakingEnabled() 
-        => Assert(StakingEnabled(), "OPDEX: STAKING_UNAVAILABLE");
 
     private void MintStakingRewards(ulong reserveCrs, UInt256 reserveSrc)
     {
-        if (!StakingEnabled()) return;
+        if (TotalStaked == 0) return;
         
         var kLast = KLast;
         

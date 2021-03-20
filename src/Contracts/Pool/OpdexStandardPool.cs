@@ -4,7 +4,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
 {
     private const ulong MinimumLiquidity = 1000;
 
-    protected OpdexStandardPool(ISmartContractState contractState, Address token) 
+    public OpdexStandardPool(ISmartContractState contractState, Address token) 
         : base(contractState)
     {
         Token = token;

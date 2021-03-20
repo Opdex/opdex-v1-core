@@ -1,7 +1,7 @@
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.Standards;
 
-public class StandardToken : ContractBase, IStandardToken256
+public abstract class StandardToken : ContractBase, IStandardToken256
 {
     private const string TokenSymbol = "OLPT";
     private const string TokenName = "Opdex Liquidity Pool Token";

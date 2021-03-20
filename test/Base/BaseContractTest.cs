@@ -67,6 +67,13 @@ namespace OpdexCoreContracts.Tests
             SetupBalance(balance);
             return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken);
         }
+        
+        protected OpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0)
+        {
+            _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
+            SetupBalance(balance);
+            return new OpdexStandardPool(_mockContractState.Object, Token);
+        }
 
         protected void SetupMessage(Address contractAddress, Address sender, ulong value = 0)
         {
