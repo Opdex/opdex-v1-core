@@ -10,21 +10,14 @@ namespace OpdexCoreContracts.Tests
     public class OpdexStandardPoolTests : BaseContractTest
     {
         [Fact]
-        public void GetsTokenProperties_Success()
-        {
-            var pool = CreateNewOpdexStandardPool();
-            
-            pool.Decimals.Should().Be(8);
-            pool.Name.Should().Be("Opdex Liquidity Pool Token");
-            pool.Symbol.Should().Be("OLPT");
-        }
-        
-        [Fact]
         public void CreatesNewPool_Success()
         {
             var pool = CreateNewOpdexStandardPool();
 
             pool.Token.Should().Be(Token);
+            pool.Decimals.Should().Be(8);
+            pool.Name.Should().Be("Opdex Liquidity Pool Token");
+            pool.Symbol.Should().Be("OLPT");
         }
 
         [Fact]

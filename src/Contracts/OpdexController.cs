@@ -1,7 +1,7 @@
 ﻿using Stratis.SmartContracts;
 
 [Deploy]
-public class OpdexController : ContractBase
+public class OpdexController : ContractBase, IOpdexController
 {
     public OpdexController(ISmartContractState smartContractState, Address stakeToken) 
         : base(smartContractState)
@@ -303,6 +303,5 @@ public class OpdexController : ContractBase
         return pool;
     }
 
-    private void ValidateDeadline(ulong deadline) => 
-        Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
+    private void ValidateDeadline(ulong deadline) => Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
 }

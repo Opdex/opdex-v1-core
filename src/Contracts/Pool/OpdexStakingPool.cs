@@ -65,21 +65,24 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         SafeTransferFrom(StakeToken, Message.Sender, Address, amount);
         SetStakedBalance(Message.Sender, stakedBalance);
         SetStakingWeightExecute(stakedBalance);
+        NominatePool();
         Unlock();
     }
 
-    public void WithdrawStakingRewards(Address to, bool burn)
+    public void WithdrawStakingRewards(Address to, bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
         MintStakingRewards(ReserveCrs, ReserveSrc);
+        
         var stakedBalance = GetStakedBalance(Message.Sender);
-        WithdrawStakingRewardsExecute(to, stakedBalance, burn);
+        
+        WithdrawStakingRewardsExecute(to, stakedBalance, liquidate);
         SetStakingWeightExecute(stakedBalance);
         Unlock();
     }
     
-    public void ExitStaking(Address to, bool burn)
+    public void ExitStaking(Address to, bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
@@ -87,8 +90,9 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         
         var stakedBalance = GetStakedBalance(Message.Sender);
         
-        WithdrawStakingRewardsExecute(to, stakedBalance, burn);
+        WithdrawStakingRewardsExecute(to, stakedBalance, liquidate);
         ExitStakingExecute(to, stakedBalance, true);
+        NominatePool();
         Unlock();
     }
     
@@ -139,6 +143,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     
         Unlock();
     }
+
+    private void NominatePool() => Call(StakeToken, 0ul, "Nominate");
     
     private void SetStakingWeightExecute(UInt256 balance)
     {
@@ -155,7 +161,12 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
 
             TotalStaked += balance;
             
-            LogStakeEvent(Message.Sender, balance, weight);
+            Log(new OpdexStakeEvent
+            {
+                Sender = Message.Sender,
+                Amount = balance,
+                Weight = weight
+            });
         }
         
         SetStakedWeight(Message.Sender, weight);
@@ -169,7 +180,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         return currentWeight <= stakedWeight ? 0 : currentWeight - stakedWeight;
     }
 
-    private void WithdrawStakingRewardsExecute(Address to, UInt256 stakedBalance, bool burn)
+    private void WithdrawStakingRewardsExecute(Address to, UInt256 stakedBalance, bool liquidate)
     {
         var rewards = GetStakingRewardsExecute(Message.Sender, stakedBalance);
         
@@ -177,10 +188,15 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         TotalStaked -= stakedBalance;
         TotalStakedApplicable -= stakedBalance;
         
-        if (burn) BurnExecute(to, rewards);
+        if (liquidate) BurnExecute(to, rewards);
         else TransferTokensExecute(Address, to, rewards);
         
-        LogRewardEvent(Message.Sender, stakedBalance, rewards);
+        Log(new OpdexRewardEvent
+        {
+            Sender = Message.Sender,
+            Amount = stakedBalance,
+            Reward = rewards
+        });
     }
 
     private void ExitStakingExecute(Address to, UInt256 stakedBalance, bool transfer)
@@ -226,25 +242,5 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         TotalStakedApplicable = TotalStaked;
         
         MintTokensExecute(Address, liquidity);
-    }
-
-    private void LogStakeEvent(Address sender, UInt256 amount, UInt256 weight)
-    {
-        Log(new OpdexStakeEvent
-        {
-            Sender = sender,
-            Amount = amount,
-            Weight = weight
-        });
-    }
-    
-    private void LogRewardEvent(Address sender, UInt256 amount, UInt256 reward)
-    {
-        Log(new OpdexRewardEvent
-        {
-            Sender = sender,
-            Amount = amount,
-            Reward = reward
-        });
     }
 }

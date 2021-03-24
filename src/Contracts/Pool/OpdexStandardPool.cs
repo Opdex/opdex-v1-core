@@ -40,8 +40,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         private set => State.SetBool(nameof(Locked), value);
     }
 
-    public byte[][] Reserves 
-        => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
+    public byte[][] Reserves => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
     
     public virtual UInt256 Mint(Address to)
     {
