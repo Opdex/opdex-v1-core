@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using Moq;
 using Stratis.SmartContracts;
@@ -94,6 +95,7 @@ namespace OpdexCoreContracts.Tests
 
         [Theory]
         [InlineData(1_000, 10_000, 990, 9_900)]
+        [InlineData(50000000, 950000000, 45000000, 85000000)]
         public void AddLiquidity_Success_NoReserves(ulong amountCrsDesired, UInt256 amountTokenDesired, ulong amountCrsMin, UInt256 amountTokenMin)
         {
             var to = OtherAddress;
@@ -729,10 +731,7 @@ namespace OpdexCoreContracts.Tests
             // Transfer SRC for CRS
             var transferFromParams = new object[] { OtherAddress, tokenInPool, amountSrcIn };
             SetupCall(tokenIn, 0ul, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
-        
-            // Transfer CRS for SRC
-            SetupTransfer(tokenOutPool, amountCrsIn, TransferResult.Transferred(true));
-        
+            
             // Call pool to swap src to crs
             var swapSrcToCrsParams = new object[] {amountCrsIn, UInt256.MinValue, Controller, new byte[0]};
             SetupCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsIn));
@@ -747,7 +746,6 @@ namespace OpdexCoreContracts.Tests
             // Assert
             VerifyCall(tokenInPool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(tokenOutPool, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(tokenOutPool, amountCrsIn, Times.Once);
             VerifyCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, Times.Once);
             VerifyCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, Times.Once);
         }
@@ -802,6 +800,7 @@ namespace OpdexCoreContracts.Tests
         
         [Theory]
         [InlineData(24_000, 19_000, 200_000, 450_000, 200_000, 450_000)]
+        [InlineData(100_000_000_000, 1_000_000, 2_500_000_000_000, 10_000_000_000, 2_500_000_000_000, 10_000_000_000)]
         public void SwapExactSrcForSrc_Success(UInt256 amountSrcIn, UInt256 amountSrcOutMin, 
             UInt256 reserveSrcIn, ulong reserveCrsIn, UInt256 reserveSrcOut, ulong reserveCrsOut)
         {
@@ -833,9 +832,6 @@ namespace OpdexCoreContracts.Tests
             var transferFromParams = new object[] { OtherAddress, tokenInPool, amountSrcIn };
             SetupCall(tokenIn, 0ul, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
         
-            // Transfer CRS for SRC
-            SetupTransfer(tokenOutPool, amountCrsOut, TransferResult.Transferred(true));
-        
             // Call pool to swap src to crs
             var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, Controller, new byte[0]};
             SetupCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
@@ -850,7 +846,6 @@ namespace OpdexCoreContracts.Tests
             // Assert
             VerifyCall(tokenInPool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(tokenOutPool, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(tokenOutPool, amountCrsOut, Times.Once);
             VerifyCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, Times.Once);
             VerifyCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, Times.Once);
         }

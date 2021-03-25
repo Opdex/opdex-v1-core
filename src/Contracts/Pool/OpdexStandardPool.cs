@@ -9,39 +9,48 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     {
         Token = token;
     }
-
+    
+    public override void Receive() => base.Receive();
+    
+    /// <inheritdoc />
     public Address Token
     {
         get => State.GetAddress(nameof(Token));
         private set => State.SetAddress(nameof(Token), value);
     }
-    
+        
+    /// <inheritdoc />
     public ulong ReserveCrs
     {
         get => State.GetUInt64(nameof(ReserveCrs));
         private set => State.SetUInt64(nameof(ReserveCrs), value);
     }
-
+    
+    /// <inheritdoc />
     public UInt256 ReserveSrc
     {
         get => State.GetUInt256(nameof(ReserveSrc));
         private set => State.SetUInt256(nameof(ReserveSrc), value);
     }
-    
+        
+    /// <inheritdoc />
     public UInt256 KLast
     {
         get => State.GetUInt256(nameof(KLast));
         private set => State.SetUInt256(nameof(KLast), value);
     }
-    
+        
+    /// <inheritdoc />
     public bool Locked
     {
         get => State.GetBool(nameof(Locked));
         private set => State.SetBool(nameof(Locked), value);
     }
-
-    public byte[][] Reserves => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
     
+    /// <inheritdoc />
+    public byte[][] Reserves => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
+        
+    /// <inheritdoc />
     public virtual UInt256 Mint(Address to)
     {
         EnsureUnlocked();
@@ -52,7 +61,8 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     
         return liquidity;
     }
-    
+        
+    /// <inheritdoc />
     public virtual UInt256[] Burn(Address to)
     {
         EnsureUnlocked();
@@ -63,7 +73,8 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
 
         return amounts;
     }
-    
+        
+    /// <inheritdoc />
     public virtual void Skim(Address to)
     {
         EnsureUnlocked();
@@ -72,7 +83,8 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     
         Unlock();
     }
-
+    
+    /// <inheritdoc />
     public virtual void Sync()
     {
         EnsureUnlocked();
@@ -81,7 +93,8 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     
         Unlock();
     }
-    
+        
+    /// <inheritdoc />
     public void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
     {
         EnsureUnlocked();
@@ -124,8 +137,8 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         { 
             AmountCrsIn = amountCrsIn, 
             AmountCrsOut = amountCrsOut, 
-            AmountSrcIn = amountSrcIn,
-            AmountSrcOut = amountSrcOut, 
+            AmountSrcIn = amountSrcIn.ToString(),
+            AmountSrcOut = amountSrcOut.ToString(), 
             Sender = Message.Sender, 
             To = to
         });
@@ -176,7 +189,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Log(new OpdexMintEvent
         {
             AmountCrs = amountCrs, 
-            AmountSrc = amountSrc, 
+            AmountSrc = amountSrc.ToString(), 
             Sender = Message.Sender
         });
 
@@ -209,7 +222,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Log(new OpdexBurnEvent
         {
             AmountCrs = amountCrs, 
-            AmountSrc = amountSrc, 
+            AmountSrc = amountSrc.ToString(), 
             Sender = Message.Sender, 
             To = to
         });
@@ -258,7 +271,32 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Log(new OpdexSyncEvent
         {
             ReserveCrs = balanceCrs, 
-            ReserveSrc = balanceSrc
+            ReserveSrc = balanceSrc.ToString()
         });
+    }
+    
+    protected void SafeTransferTo(Address token, Address to, UInt256 amount)
+    {
+        if (amount == 0) return;
+        
+        var result = Call(token, 0, "TransferTo", new object[] {to, amount});
+        
+        Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_TO");
+    }
+    
+    protected void SafeTransferFrom(Address token, Address from, Address to, UInt256 amount)
+    {
+        if (amount == 0) return;
+        
+        var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
+        
+        Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
+    }
+
+    private void SafeTransfer(Address to, ulong amount)
+    {
+        if (amount == 0) return;
+        
+        Assert(Transfer(to, amount).Success, "OPDEX: INVALID_TRANSFER");
     }
 }

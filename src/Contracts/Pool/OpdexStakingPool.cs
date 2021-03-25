@@ -7,46 +7,56 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     {
         StakeToken = stakeToken;
     }
+    
+    public override void Receive() => base.Receive();
 
+    /// <inheritdoc />
     public Address StakeToken
     {
         get => State.GetAddress(nameof(StakeToken));
         private set => State.SetAddress(nameof(StakeToken), value);
     }
-    
+        
+    /// <inheritdoc />
     public UInt256 TotalStaked
     {
         get => State.GetUInt256(nameof(TotalStaked));
         private set => State.SetUInt256(nameof(TotalStaked), value);
     }
-    
+        
+    /// <inheritdoc />
     public UInt256 TotalStakedApplicable
     {
         get => State.GetUInt256(nameof(TotalStakedApplicable));
         private set => State.SetUInt256(nameof(TotalStakedApplicable), value);
     }
-    
+        
+    /// <inheritdoc />
     public UInt256 StakingRewardsBalance
     {
         get => State.GetUInt256(nameof(StakingRewardsBalance));
         private set => State.SetUInt256(nameof(StakingRewardsBalance), value);
     }
-
+    
+    /// <inheritdoc />
     public UInt256 GetStakedBalance(Address address) 
         => State.GetUInt256($"StakedBalance:{address}");
     
     private void SetStakedBalance(Address address, UInt256 weight) 
         => State.SetUInt256($"StakedBalance:{address}", weight);
-    
+        
+    /// <inheritdoc />
     public UInt256 GetStakedWeight(Address address) 
         => State.GetUInt256($"StakedWeight:{address}");
 
     private void SetStakedWeight(Address address, UInt256 weightK) 
         => State.SetUInt256($"StakedWeight:{address}", weightK);
-
+    
+    /// <inheritdoc />
     public UInt256 GetStakingRewards(Address staker) 
         => GetStakingRewardsExecute(staker, GetStakedBalance(staker));
-
+    
+    /// <inheritdoc />
     public void Stake(UInt256 amount)
     {
         EnsureUnlocked();
@@ -68,7 +78,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         NominatePool();
         Unlock();
     }
-
+    
+    /// <inheritdoc />
     public void WithdrawStakingRewards(Address to, bool liquidate)
     {
         EnsureUnlocked();
@@ -81,7 +92,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         SetStakingWeightExecute(stakedBalance);
         Unlock();
     }
-    
+        
+    /// <inheritdoc />
     public void ExitStaking(Address to, bool liquidate)
     {
         EnsureUnlocked();
@@ -95,7 +107,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         NominatePool();
         Unlock();
     }
-    
+        
+    /// <inheritdoc />
     public override UInt256 Mint(Address to)
     {
         EnsureUnlocked();
@@ -108,7 +121,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
 
         return liquidity;
     }
-
+    
+    /// <inheritdoc />
     public override UInt256[] Burn(Address to)
     {
         EnsureUnlocked();
@@ -121,7 +135,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
 
         return amounts;
     }
-    
+        
+    /// <inheritdoc />
     public override void Skim(Address to)
     {
         EnsureUnlocked();
@@ -132,7 +147,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     
         Unlock();
     }
-
+    
+    /// <inheritdoc />
     public override void Sync()
     {
         EnsureUnlocked();
@@ -164,8 +180,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
             Log(new OpdexStakeEvent
             {
                 Sender = Message.Sender,
-                Amount = balance,
-                Weight = weight
+                Amount = balance.ToString(),
+                Weight = weight.ToString()
             });
         }
         
@@ -194,8 +210,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         Log(new OpdexRewardEvent
         {
             Sender = Message.Sender,
-            Amount = stakedBalance,
-            Reward = rewards
+            Amount = stakedBalance.ToString(),
+            Reward = rewards.ToString()
         });
     }
 

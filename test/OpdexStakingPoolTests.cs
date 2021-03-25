@@ -41,7 +41,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = expectedBalanceCrs, 
-                ReserveSrc = expectedBalanceToken
+                ReserveSrc = expectedBalanceToken.ToString()
             }, Times.Once);
         }
 
@@ -101,7 +101,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = from, 
                 To = to, 
-                Amount = amount
+                Amount = amount.ToString()
             }, Times.Once);
         }
 
@@ -171,7 +171,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = from, 
                 To = to, 
-                Amount = amount
+                Amount = amount.ToString()
             }, Times.Once);
         }
 
@@ -291,13 +291,13 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken
+                ReserveSrc = currentBalanceToken.ToString()
             }, Times.Once);
             
             VerifyLog(new OpdexMintEvent
             {
                 AmountCrs = currentBalanceCrs,
-                AmountSrc = currentBalanceToken,
+                AmountSrc = currentBalanceToken.ToString(),
                 Sender = trader
             }, Times.Once);
             
@@ -305,14 +305,14 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Address.Zero,
                 To = Address.Zero,
-                Amount = expectedBurnAmount
+                Amount = expectedBurnAmount.ToString()
             }, Times.Once);
 
             VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = trader,
-                Amount = expectedLiquidity
+                Amount = expectedLiquidity.ToString()
             }, Times.Once);
         }
         
@@ -362,13 +362,13 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken
+                ReserveSrc = currentBalanceToken.ToString()
             }, Times.Once);
             
             VerifyLog(new OpdexMintEvent
             {
                 AmountCrs = 500,
-                AmountSrc = 1000,
+                AmountSrc = 1000.ToString(),
                 Sender = trader
             }, Times.Once);
             
@@ -376,14 +376,14 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Address.Zero,
                 To = Pool,
-                Amount = mintedFee
+                Amount = mintedFee.ToString()
             }, Times.Once);
 
             VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = trader,
-                Amount = expectedLiquidity
+                Amount = expectedLiquidity.ToString()
             }, Times.Once);
         }
 
@@ -482,7 +482,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Address.Zero,
                 To = Pool,
-                Amount = expectedMintedFee
+                Amount = expectedMintedFee.ToString()
             }, Times.Once);
             
             // Burn Tokens
@@ -490,7 +490,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Pool,
                 To = Address.Zero,
-                Amount = burnAmount
+                Amount = burnAmount.ToString()
             }, Times.Once);
             
             // Burn Event Summary
@@ -499,7 +499,7 @@ namespace OpdexCoreContracts.Tests
                 Sender = Controller,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc
+                AmountSrc = expectedReceivedSrc.ToString()
             }, Times.Once);
         }
         
@@ -544,7 +544,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Pool,
                 To = Address.Zero,
-                Amount = burnAmount
+                Amount = burnAmount.ToString()
             }, Times.Once);
             
             // Burn Event Summary
@@ -553,7 +553,7 @@ namespace OpdexCoreContracts.Tests
                 Sender = Controller,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc
+                AmountSrc = expectedReceivedSrc.ToString()
             }, Times.Once);
         }
 
@@ -633,8 +633,8 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexStakeEvent
             {
                 Sender = Trader0,
-                Amount = stakeAmount,
-                Weight = UInt256.Zero
+                Amount = stakeAmount.ToString(),
+                Weight = UInt256.Zero.ToString()
             }, Times.Once);
         }
 
@@ -679,8 +679,8 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexStakeEvent
             {
                 Sender = Trader0,
-                Amount = stakeAmount,
-                Weight = expectedWeight
+                Amount = stakeAmount.ToString(),
+                Weight = expectedWeight.ToString()
             }, Times.Once);
         }
 
@@ -727,15 +727,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexRewardEvent
             {
                 Sender = Trader0,
-                Amount = currentStakerBalance,
-                Reward = 100_000
+                Amount = currentStakerBalance.ToString(),
+                Reward = 100_000.ToString()
             }, Times.Once);
             
             VerifyLog(new OpdexStakeEvent
             {
                 Sender = Trader0,
-                Amount = stakeAmount + currentStakerBalance,
-                Weight = expectedWeight
+                Amount = (stakeAmount + currentStakerBalance).ToString(),
+                Weight = expectedWeight.ToString()
             }, Times.Once);
         }
 
@@ -783,7 +783,7 @@ namespace OpdexCoreContracts.Tests
 
             VerifyLog(new OpdexTransferEvent
             {
-                Amount = expectedReward,
+                Amount = expectedReward.ToString(),
                 From = Pool,
                 To = Address.Zero
             }, Times.Once);
@@ -793,14 +793,14 @@ namespace OpdexCoreContracts.Tests
                 Sender = Trader0,
                 To = Trader0,
                 AmountCrs = expectedRewardCrs,
-                AmountSrc = expectedRewardSrc
+                AmountSrc = expectedRewardSrc.ToString()
             }, Times.Once);
             
             VerifyLog(new OpdexRewardEvent
             {
                 Sender = Trader0,
-                Amount = currentStakerBalance,
-                Reward = expectedReward
+                Amount = currentStakerBalance.ToString(),
+                Reward = expectedReward.ToString()
             }, Times.Once);
         }
         
@@ -842,8 +842,8 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexRewardEvent
             {
                 Sender = Trader0,
-                Amount = currentStakerBalance,
-                Reward = expectedReward
+                Amount = currentStakerBalance.ToString(),
+                Reward = expectedReward.ToString()
             }, Times.Once);
         }
 
@@ -897,8 +897,8 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexRewardEvent
             {
                 Sender = Trader0,
-                Amount = currentStakerBalance,
-                Reward = expectedReward
+                Amount = currentStakerBalance.ToString(),
+                Reward = expectedReward.ToString()
             }, Times.Once);
         }
         

@@ -1,7 +1,7 @@
 ﻿using Stratis.SmartContracts;
 
 [Deploy]
-public class OpdexController : ContractBase, IOpdexController
+public class OpdexController : SmartContract, IOpdexController
 {
     public OpdexController(ISmartContractState smartContractState, Address stakeToken) 
         : base(smartContractState)
@@ -9,18 +9,21 @@ public class OpdexController : ContractBase, IOpdexController
         StakeToken = stakeToken;
     }
     
+    /// <inheritdoc />
     public Address StakeToken
     {
         get => State.GetAddress(nameof(StakeToken));
         private set => State.SetAddress(nameof(StakeToken), value);
     }
 
+    /// <inheritdoc />
     public Address GetPool(Address token) 
         => State.GetAddress($"Pool:{token}");
 
     private void SetPool(Address token, Address contract) 
         => State.SetAddress($"Pool:{token}", contract);
 
+    /// <inheritdoc />
     public Address CreatePool(Address token)
     {
         Assert(token != Address.Zero && State.IsContract(token), "OPDEX: ZERO_ADDRESS");
@@ -29,21 +32,16 @@ public class OpdexController : ContractBase, IOpdexController
         
         Assert(pool == Address.Zero, "OPDEX: POOL_EXISTS");
         
-        var poolContract = Create<OpdexStakingPool>(0, new object[] {token, StakeToken});
-        
-        pool = poolContract.NewContractAddress;
+        pool = Create<OpdexStakingPool>(0, new object[] {token, StakeToken}).NewContractAddress;
         
         SetPool(token, pool);
         
-        Log(new OpdexPoolCreatedEvent
-        {
-            Token = token, 
-            Pool = pool,
-        });
+        Log(new OpdexPoolCreatedEvent { Token = token, Pool = pool });
         
         return pool;
     }
     
+    /// <inheritdoc />
     public object[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     { 
         ValidateDeadline(deadline);
@@ -66,6 +64,7 @@ public class OpdexController : ContractBase, IOpdexController
         return new [] { amountCrs, amountSrc, liquidityResponse.ReturnValue };
     }
     
+    /// <inheritdoc />
     public object[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
@@ -85,6 +84,7 @@ public class OpdexController : ContractBase, IOpdexController
         return new object[] { receivedCrs, receivedSrc };
     }
     
+    /// <inheritdoc />
     public void SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
@@ -99,6 +99,7 @@ public class OpdexController : ContractBase, IOpdexController
         Swap(0, amountOut, pool, to);
     }
     
+    /// <inheritdoc />
     public void SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
@@ -113,6 +114,7 @@ public class OpdexController : ContractBase, IOpdexController
         Swap(amountCrsOut, 0, pool, to);
     }
     
+    /// <inheritdoc />
     public void SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
@@ -127,6 +129,7 @@ public class OpdexController : ContractBase, IOpdexController
         Swap((ulong)amountOut, 0, pool, to);
     }
     
+    /// <inheritdoc />
     public void SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
@@ -144,6 +147,7 @@ public class OpdexController : ContractBase, IOpdexController
         SafeTransfer(Message.Sender, change);
     }
 
+    /// <inheritdoc />
     public void SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
@@ -153,18 +157,17 @@ public class OpdexController : ContractBase, IOpdexController
         var tokenInReserves = GetReserves(tokenInPool);
         var tokenOutReserves = GetReserves(tokenOutPool);
         var amounts = GetAmountIn(amountSrcOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
-        var amountCrs = (ulong)amounts[0];
-        var amountSrc = amounts[1];
+        var amountCrsOut = (ulong)amounts[0];
+        var amountSrcIn = amounts[1];
 
-        Assert(amountSrcOut <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+        Assert(amountSrcIn <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
 
-        SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrc);
-        Swap(amountCrs, 0, tokenInPool, Address);
-        
-        SafeTransfer(tokenOutPool, amountCrs);
+        SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
+        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool);
         Swap(0, amountSrcOut, tokenOutPool, to);
     }
     
+    /// <inheritdoc />
     public void SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
@@ -180,12 +183,11 @@ public class OpdexController : ContractBase, IOpdexController
         Assert(amountSrcOutMin <= amountSrcOut, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
-        Swap(amountCrsOut, 0, tokenInPool, Address);
-        
-        SafeTransfer(tokenOutPool, amountCrsOut);
+        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool);
         Swap(0, amountSrcOut, tokenOutPool, to);
     }
     
+    /// <inheritdoc />
     public UInt256 GetLiquidityQuote(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
     {
         Assert(amountA > 0, "OPDEX: INSUFFICIENT_AMOUNT");
@@ -194,6 +196,7 @@ public class OpdexController : ContractBase, IOpdexController
         return amountA * reserveB / reserveA;
     }
     
+    /// <inheritdoc />
     public UInt256 GetAmountOut(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
     {
         Assert(amountIn > 0, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
@@ -206,6 +209,7 @@ public class OpdexController : ContractBase, IOpdexController
         return numerator / denominator;
     }
 
+    /// <inheritdoc />
     public UInt256 GetAmountIn(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
     {
         Assert(amountOut > 0, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
@@ -217,15 +221,17 @@ public class OpdexController : ContractBase, IOpdexController
         return numerator / denominator + 1;
     }
 
+    /// <inheritdoc />
     public UInt256[] GetAmountIn(UInt256 amountSrcOut, UInt256 srcOutReserveCrs, UInt256 srcOutReserveSrc, 
         UInt256 crsInReserveSrc, UInt256 crsInReserveCrs)
     {
-        var amountCrs = GetAmountIn(amountSrcOut, srcOutReserveCrs, srcOutReserveSrc);
+        var amountCrs = GetAmountIn(amountSrcOut, srcOutReserveCrs, srcOutReserveSrc) + 1;
         var amountSrc = GetAmountOut(amountCrs, crsInReserveCrs, crsInReserveSrc);
 
         return new[] {amountCrs, amountSrc};
     }
     
+    /// <inheritdoc />
     public UInt256[] GetAmountOut(UInt256 amountSrcIn, UInt256 srcInReserveSrc, UInt256 srcInReserveCrs,  
         UInt256 crsOutReserveCrs, UInt256 crsOutReserveSrc)
     {
@@ -303,5 +309,22 @@ public class OpdexController : ContractBase, IOpdexController
         return pool;
     }
 
-    private void ValidateDeadline(ulong deadline) => Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
+    private void ValidateDeadline(ulong deadline) 
+        => Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
+    
+    private void SafeTransfer(Address to, ulong amount)
+    {
+        if (amount == 0) return;
+        
+        Assert(Transfer(to, amount).Success, "OPDEX: INVALID_TRANSFER");
+    }
+    
+    private void SafeTransferFrom(Address token, Address from, Address to, UInt256 amount)
+    {
+        if (amount == 0) return;
+        
+        var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
+        
+        Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
+    }
 }
