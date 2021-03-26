@@ -17,7 +17,6 @@ namespace OpdexCoreContracts.Tests
         protected readonly Address Controller;
         protected readonly Address Pool;
         protected readonly Address Owner;
-        protected readonly Address FeeTo;
         protected readonly Address Token;
         protected readonly Address Trader0;
         protected readonly Address Trader1;
@@ -41,14 +40,13 @@ namespace OpdexCoreContracts.Tests
             Controller = "0x0000000000000000000000000000000000000001".HexToAddress();
             Pool = "0x0000000000000000000000000000000000000002".HexToAddress();
             Owner = "0x0000000000000000000000000000000000000003".HexToAddress();
-            FeeTo = "0x0000000000000000000000000000000000000004".HexToAddress();
-            Token = "0x0000000000000000000000000000000000000005".HexToAddress();
-            Trader0 = "0x0000000000000000000000000000000000000006".HexToAddress();
-            Trader1 = "0x0000000000000000000000000000000000000007".HexToAddress();
-            OtherAddress = "0x0000000000000000000000000000000000000008".HexToAddress();
-            StakeToken = "0x0000000000000000000000000000000000000009".HexToAddress();
-            PoolTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
-            TokenTwo = "0x0000000000000000000000000000000000000011".HexToAddress();
+            Token = "0x0000000000000000000000000000000000000004".HexToAddress();
+            Trader0 = "0x0000000000000000000000000000000000000005".HexToAddress();
+            Trader1 = "0x0000000000000000000000000000000000000006".HexToAddress();
+            OtherAddress = "0x0000000000000000000000000000000000000007".HexToAddress();
+            StakeToken = "0x0000000000000000000000000000000000000008".HexToAddress();
+            PoolTwo = "0x0000000000000000000000000000000000000009".HexToAddress();
+            TokenTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
         }
 
         protected OpdexController CreateNewOpdexController(ulong balance = 0)
@@ -132,7 +130,8 @@ namespace OpdexCoreContracts.Tests
             _mockInternalExecutor.Verify(x => x.Transfer(_mockContractState.Object, to, value), times);
         }
 
-        protected void VerifyLog<T>(T expectedLog, Func<Times> times) where T : struct
+        protected void VerifyLog<T>(T expectedLog, Func<Times> times)
+            where T : struct
         {
             _mockContractLogger.Verify(x => x.Log(_mockContractState.Object, expectedLog), times);
         }

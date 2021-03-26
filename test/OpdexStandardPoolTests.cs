@@ -48,8 +48,8 @@ namespace OpdexCoreContracts.Tests
             ulong expectedCrs = 100;
             UInt256 expectedToken = 150;
 
-            PersistentState.SetUInt64("ReserveCrs", expectedCrs);
-            PersistentState.SetUInt256("ReserveSrc", expectedToken);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), expectedCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), expectedToken);
             
             var pool = CreateNewOpdexStandardPool();
 
@@ -70,14 +70,14 @@ namespace OpdexCoreContracts.Tests
             var pool = CreateNewOpdexStandardPool(expectedBalanceCrs);
             
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
+            SetupCall(Token, 0ul, nameof(OpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
 
             pool.Sync();
 
             pool.ReserveCrs.Should().Be(expectedBalanceCrs);
             pool.ReserveSrc.Should().Be(expectedBalanceToken);
 
-            VerifyCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, Times.Once);
+            VerifyCall(Token, 0ul, nameof(OpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = expectedBalanceCrs, 
@@ -95,21 +95,21 @@ namespace OpdexCoreContracts.Tests
 
             var pool = CreateNewOpdexStandardPool(expectedBalanceCrs);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
+            SetupCall(Token, 0ul, nameof(OpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
 
             var expectedTransferToParams = new object[] { Trader0, (UInt256)50 };
-            SetupCall(Token, 0ul, "TransferTo", expectedTransferToParams, TransferResult.Transferred(true));
+            SetupCall(Token, 0ul, nameof(OpdexStandardPool.TransferTo), expectedTransferToParams, TransferResult.Transferred(true));
 
             SetupTransfer(Trader0, 50ul, TransferResult.Transferred(true));
             
             pool.Skim(Trader0);
 
-            VerifyCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, Times.Once);
-            VerifyCall( Token, 0ul, "TransferTo", expectedTransferToParams, Times.Once);
+            VerifyCall(Token, 0ul, nameof(OpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);
+            VerifyCall( Token, 0ul, nameof(OpdexStandardPool.TransferTo), expectedTransferToParams, Times.Once);
             VerifyTransfer(Trader0, 50ul, Times.Once);
         }
         
@@ -296,7 +296,6 @@ namespace OpdexCoreContracts.Tests
             UInt256 currentReserveSrc = 0;
             UInt256 currentTotalSupply = 0;
             UInt256 currentKLast = 0;
-            UInt256 currentFeeToBalance = 0;
             UInt256 currentTraderBalance = 0;
             UInt256 expectedLiquidity = 435888894;
             UInt256 expectedKLast = 190_000_000_000_000_000;
@@ -307,15 +306,14 @@ namespace OpdexCoreContracts.Tests
             
             SetupMessage(Pool, Trader0);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
-            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
-            PersistentState.SetUInt256("KLast", currentKLast);
-            PersistentState.SetUInt256($"Balance:{FeeTo}", currentFeeToBalance);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.TotalSupply), currentTotalSupply);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.KLast), currentKLast);
             PersistentState.SetUInt256($"Balance:{trader}", currentTraderBalance);
             
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
+            SetupCall(Token, 0ul, nameof(OpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
 
             var mintedLiquidity = pool.Mint(trader);
             mintedLiquidity.Should().Be(expectedLiquidity);
@@ -367,23 +365,20 @@ namespace OpdexCoreContracts.Tests
             UInt256 expectedLiquidity = 250;
             UInt256 expectedKLast = 45_000_000;
             UInt256 expectedK = currentBalanceCrs * currentBalanceToken;
-            UInt256 currentFeeToBalance = 100;
             UInt256 currentTraderBalance = 0;
             var trader = Trader0;
 
             var pool = CreateNewOpdexStandardPool(currentBalanceCrs);
             SetupMessage(Pool, trader);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
-            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
-            PersistentState.SetUInt256("KLast", expectedKLast);
-            PersistentState.SetUInt256($"Balance:{FeeTo}", currentFeeToBalance);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.TotalSupply), currentTotalSupply);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.KLast), expectedKLast);
             PersistentState.SetUInt256($"Balance:{Trader0}", currentTraderBalance);
 
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
-            SetupCall(Controller, 0ul, "get_FeeTo", null, TransferResult.Transferred(FeeTo));
+            SetupCall(Token, 0ul, nameof(OpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
             
             var mintedLiquidity = pool.Mint(Trader0);
             mintedLiquidity.Should().Be(expectedLiquidity);
@@ -426,7 +421,6 @@ namespace OpdexCoreContracts.Tests
             UInt256 currentReserveSrc = 0;
             UInt256 currentTotalSupply = 0;
             UInt256 currentKLast = 0;
-            UInt256 currentFeeToBalance = 0;
             UInt256 currentTraderBalance = 0;
             var trader = Trader0;
 
@@ -434,15 +428,14 @@ namespace OpdexCoreContracts.Tests
             
             SetupMessage(Pool, Trader0);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
-            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
-            PersistentState.SetUInt256("KLast", currentKLast);
-            PersistentState.SetUInt256($"Balance:{FeeTo}", currentFeeToBalance);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.TotalSupply), currentTotalSupply);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.KLast), currentKLast);
             PersistentState.SetUInt256($"Balance:{trader}", currentTraderBalance);
             
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, "GetBalance", expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
+            SetupCall(Token, 0ul, nameof(OpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
             
             pool
                 .Invoking(p => p.Mint(trader))
@@ -457,7 +450,7 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetBool("Locked", true);
+            PersistentState.SetBool(nameof(OpdexStandardPool.Locked), true);
 
             pool
                 .Invoking(p => p.Mint(Trader0))
@@ -483,18 +476,17 @@ namespace OpdexCoreContracts.Tests
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
-            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.TotalSupply), currentTotalSupply);
             PersistentState.SetUInt256($"Balance:{Pool}", burnAmount);
-            PersistentState.SetUInt256("KLast", currentKLast);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.KLast), currentKLast);
             
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
-            SetupCall(Controller, 0ul, "get_FeeTo", null, TransferResult.Transferred(FeeTo));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
             SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
             });
 
             var results = pool.Burn(to);
@@ -537,18 +529,17 @@ namespace OpdexCoreContracts.Tests
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
-            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.TotalSupply), currentTotalSupply);
             PersistentState.SetUInt256($"Balance:{Pool}", burnAmount);
-            PersistentState.SetUInt256("KLast", currentKLast);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.KLast), currentKLast);
             
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
-            SetupCall(Controller, 0ul, "get_FeeTo", new object[0], TransferResult.Transferred(FeeTo));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
             SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
             });
 
             var results = pool.Burn(to);
@@ -588,13 +579,13 @@ namespace OpdexCoreContracts.Tests
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
-            PersistentState.SetUInt256("TotalSupply", currentTotalSupply);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.TotalSupply), currentTotalSupply);
             PersistentState.SetUInt256($"Balance:{Pool}", burnAmount);
-            PersistentState.SetUInt256("KLast", currentKLast);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.KLast), currentKLast);
             
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
 
             pool
                 .Invoking(p => p.Burn(to))
@@ -609,7 +600,7 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetBool("Locked", true);
+            PersistentState.SetBool(nameof(OpdexStandardPool.Locked), true);
 
             pool
                 .Invoking(p => p.Burn(Trader0))
@@ -634,11 +625,11 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller, swapAmountCrs);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
 
             pool.Swap(0, expectedReceivedToken, to, new byte[0]);
 
@@ -646,8 +637,8 @@ namespace OpdexCoreContracts.Tests
             pool.ReserveSrc.Should().Be(currentReserveSrc - expectedReceivedToken);
             pool.Balance.Should().Be(467_000);
             
-            VerifyCall(Token, 0, "TransferTo", new object[] {to, expectedReceivedToken}, Times.Once);
-            VerifyCall(Token, 0, "GetBalance", new object[] {Pool}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] {to, expectedReceivedToken}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             
             VerifyLog(new OpdexSyncEvent
             {
@@ -679,11 +670,11 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
             
             SetupTransfer(to, expectedCrsReceived, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + swapAmountSrc));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + swapAmountSrc));
 
             pool.Swap(expectedCrsReceived, 0, to, new byte[0]);
             
@@ -719,8 +710,8 @@ namespace OpdexCoreContracts.Tests
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
             
             pool
                 .Invoking(p => p.Swap(amountCrsOut, amountSrcOut, Trader0, new byte[0]))
@@ -739,8 +730,8 @@ namespace OpdexCoreContracts.Tests
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
             
             pool
                 .Invoking(p => p.Swap(amountCrsOut, amountSrcOut, Trader0, new byte[0]))
@@ -758,12 +749,12 @@ namespace OpdexCoreContracts.Tests
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
             
             foreach(var address in addresses)
             {
-                PersistentState.SetBool("Locked", false);
+                PersistentState.SetBool(nameof(OpdexStandardPool.Locked), false);
                 
                 pool
                     .Invoking(p => p.Swap(1000, 0, address, new byte[0]))
@@ -784,11 +775,11 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
 
             pool
                 .Invoking(p => p.Swap(0, expectedReceivedToken, to, new byte[0]))
@@ -808,11 +799,11 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
             
             SetupTransfer(to, expectedCrsReceived, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
 
             pool
                 .Invoking(p => p.Swap(expectedCrsReceived, 0, to, new byte[0]))
@@ -832,11 +823,11 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller, 1);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, expectedReceivedToken }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedToken));
 
             pool
                 .Invoking(p => p.Swap(0, expectedReceivedToken, to, new byte[0]))
@@ -856,11 +847,11 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
             
             SetupTransfer(to, expectedCrsReceived, TransferResult.Transferred(true));
-            SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + 1));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + 1));
 
             pool
                 .Invoking(p => p.Swap(expectedCrsReceived, 0, to, new byte[0]))
@@ -875,7 +866,7 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetBool("Locked", true);
+            PersistentState.SetBool(nameof(OpdexStandardPool.Locked), true);
 
             pool
                 .Invoking(p => p.Swap(0, 10, Trader0, new byte[0]))
@@ -900,15 +891,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedFee));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedFee));
             });
             
             pool.Swap(0, borrowedSrc, to, Serializer.Serialize(callbackData));
@@ -917,8 +908,8 @@ namespace OpdexCoreContracts.Tests
             pool.ReserveSrc.Should().Be(currentReserveSrc + expectedFee);
             pool.Balance.Should().Be(currentReserveCrs);
             
-            VerifyCall(Token, 0, "TransferTo", new object[] {to, borrowedSrc}, Times.Once);
-            VerifyCall(Token, 0, "GetBalance", new object[] {Pool}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] {to, borrowedSrc}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
             VerifyLog(new OpdexSyncEvent
@@ -951,15 +942,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc));
                 SetupBalance(currentReserveCrs + expectedCrsReceived);
             });
             
@@ -969,8 +960,8 @@ namespace OpdexCoreContracts.Tests
             pool.ReserveSrc.Should().Be(currentReserveSrc - borrowedSrc);
             pool.Balance.Should().Be(currentReserveCrs + expectedCrsReceived);
             
-            VerifyCall(Token, 0, "TransferTo", new object[] {to, borrowedSrc}, Times.Once);
-            VerifyCall(Token, 0, "GetBalance", new object[] {Pool}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] {to, borrowedSrc}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
             VerifyLog(new OpdexSyncEvent
@@ -1003,15 +994,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
             SetupTransfer(to, borrowedCrs, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
                 SetupBalance(currentReserveCrs + expectedCrsFee);
             });
             
@@ -1022,7 +1013,7 @@ namespace OpdexCoreContracts.Tests
             pool.Balance.Should().Be(currentReserveCrs + expectedCrsFee);
             
             VerifyTransfer(to, borrowedCrs, Times.Once);
-            VerifyCall(Token, 0, "GetBalance", new object[] {Pool}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
             VerifyLog(new OpdexSyncEvent
@@ -1055,15 +1046,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
             SetupTransfer(to, borrowedCrs, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
             });
             
             pool.Swap(borrowedCrs, 0, to, Serializer.Serialize(callbackData));
@@ -1073,7 +1064,7 @@ namespace OpdexCoreContracts.Tests
             pool.Balance.Should().Be(currentReserveCrs - borrowedCrs);
             
             VerifyTransfer(to, borrowedCrs, Times.Once);
-            VerifyCall(Token, 0, "GetBalance", new object[] {Pool}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
             VerifyLog(new OpdexSyncEvent
@@ -1106,15 +1097,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
             SetupTransfer(to, borrowedCrs, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
             });
             
             pool
@@ -1137,15 +1128,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc));
                 SetupBalance(currentReserveCrs + expectedCrsReceived);
             });
             
@@ -1169,15 +1160,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
             SetupTransfer(to, borrowedCrs, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method, new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
             });
             
             pool
@@ -1200,15 +1191,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc));
                 SetupBalance(currentReserveCrs + expectedCrsReceived);
             });
             
@@ -1233,15 +1224,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
             SetupTransfer(to, borrowedCrs, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc + expectedSrcReceived));
                 SetupBalance(currentReserveCrs - borrowedCrs + expectedCrsReceived);
             });
             
@@ -1252,7 +1243,7 @@ namespace OpdexCoreContracts.Tests
             pool.Balance.Should().Be(currentReserveCrs - borrowedCrs + expectedCrsReceived);
             
             VerifyTransfer(to, borrowedCrs, Times.Once);
-            VerifyCall(Token, 0, "GetBalance", new object[] {Pool}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
             VerifyLog(new OpdexSyncEvent
@@ -1286,15 +1277,15 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
 
-            PersistentState.SetUInt64("ReserveCrs", currentReserveCrs);
-            PersistentState.SetUInt256("ReserveSrc", currentReserveSrc);
+            PersistentState.SetUInt64(nameof(OpdexStandardPool.ReserveCrs), currentReserveCrs);
+            PersistentState.SetUInt256(nameof(OpdexStandardPool.ReserveSrc), currentReserveSrc);
 
-            SetupCall(Token, 0, "TransferTo", new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] { to, borrowedSrc }, TransferResult.Transferred(true));
 
             var callbackData = new CallbackData {Method = "SomeMethod", Data = Serializer.Serialize("Test")};
             SetupCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, "GetBalance", new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc + expectedSrcReceived));
+                SetupCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - borrowedSrc + expectedSrcReceived));
                 SetupBalance(currentReserveCrs + expectedCrsReceived);
             });
             
@@ -1304,8 +1295,8 @@ namespace OpdexCoreContracts.Tests
             pool.ReserveSrc.Should().Be(currentReserveSrc - borrowedSrc + expectedSrcReceived);
             pool.Balance.Should().Be(currentReserveCrs + expectedCrsReceived);
             
-            VerifyCall(Token, 0, "TransferTo", new object[] {to, borrowedSrc}, Times.Once);
-            VerifyCall(Token, 0, "GetBalance", new object[] {Pool}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferTo), new object[] {to, borrowedSrc}, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
             VerifyLog(new OpdexSyncEvent
