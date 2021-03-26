@@ -4,5 +4,5 @@ public struct OpdexMintEvent
 {
     [Index] public Address Sender;
     public ulong AmountCrs;
-    public string AmountSrc;
+    public UInt256 AmountSrc;
 }

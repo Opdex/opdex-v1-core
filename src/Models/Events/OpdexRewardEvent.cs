@@ -3,6 +3,6 @@ using Stratis.SmartContracts;
 public struct OpdexRewardEvent
 {
     [Index] public Address Sender;
-    public string Amount;
-    public string Reward;
+    public UInt256 Amount;
+    public UInt256 Reward;
 }

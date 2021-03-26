@@ -10,7 +10,10 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Token = token;
     }
     
-    public override void Receive() => base.Receive();
+    public override void Receive()
+    {
+        // Purposely Empty
+    }
     
     /// <inheritdoc />
     public Address Token
@@ -137,8 +140,8 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         { 
             AmountCrsIn = amountCrsIn, 
             AmountCrsOut = amountCrsOut, 
-            AmountSrcIn = amountSrcIn.ToString(),
-            AmountSrcOut = amountSrcOut.ToString(), 
+            AmountSrcIn = amountSrcIn,
+            AmountSrcOut = amountSrcOut, 
             Sender = Message.Sender, 
             To = to
         });
@@ -189,7 +192,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Log(new OpdexMintEvent
         {
             AmountCrs = amountCrs, 
-            AmountSrc = amountSrc.ToString(), 
+            AmountSrc = amountSrc, 
             Sender = Message.Sender
         });
 
@@ -222,7 +225,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Log(new OpdexBurnEvent
         {
             AmountCrs = amountCrs, 
-            AmountSrc = amountSrc.ToString(), 
+            AmountSrc = amountSrc, 
             Sender = Message.Sender, 
             To = to
         });
@@ -271,7 +274,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         Log(new OpdexSyncEvent
         {
             ReserveCrs = balanceCrs, 
-            ReserveSrc = balanceSrc.ToString()
+            ReserveSrc = balanceSrc
         });
     }
     

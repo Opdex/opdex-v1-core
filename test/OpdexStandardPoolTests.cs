@@ -81,7 +81,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = expectedBalanceCrs, 
-                ReserveSrc = expectedBalanceToken.ToString()
+                ReserveSrc = expectedBalanceToken
             }, Times.Once);
         }
 
@@ -141,7 +141,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = from, 
                 To = to, 
-                Amount = amount.ToString()
+                Amount = amount
             }, Times.Once);
         }
 
@@ -211,7 +211,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = from, 
                 To = to, 
-                Amount = amount.ToString()
+                Amount = amount
             }, Times.Once);
         }
 
@@ -331,13 +331,13 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken.ToString()
+                ReserveSrc = currentBalanceToken
             }, Times.Once);
             
             VerifyLog(new OpdexMintEvent
             {
                 AmountCrs = currentBalanceCrs,
-                AmountSrc = currentBalanceToken.ToString(),
+                AmountSrc = currentBalanceToken,
                 Sender = trader
             }, Times.Once);
             
@@ -345,14 +345,14 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Address.Zero,
                 To = Address.Zero,
-                Amount = expectedBurnAmount.ToString()
+                Amount = expectedBurnAmount
             }, Times.Once);
 
             VerifyLog(new OpdexTransferEvent
             {
                 From = Address.Zero,
                 To = trader,
-                Amount = expectedLiquidity.ToString()
+                Amount = expectedLiquidity
             }, Times.Once);
         }
         
@@ -399,13 +399,13 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken.ToString()
+                ReserveSrc = currentBalanceToken
             }, Times.Once);
             
             VerifyLog(new OpdexMintEvent
             {
                 AmountCrs = 500,
-                AmountSrc = 1000.ToString(),
+                AmountSrc = 1000,
                 Sender = trader
             }, Times.Once);
 
@@ -413,7 +413,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Address.Zero,
                 To = trader,
-                Amount = expectedLiquidity.ToString()
+                Amount = expectedLiquidity
             }, Times.Once);
         }
 
@@ -509,7 +509,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Pool,
                 To = Address.Zero,
-                Amount = burnAmount.ToString()
+                Amount = burnAmount
             }, Times.Once);
             
             // Burn Event Summary
@@ -518,7 +518,7 @@ namespace OpdexCoreContracts.Tests
                 Sender = Controller,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc.ToString()
+                AmountSrc = expectedReceivedSrc
             }, Times.Once);
         }
         
@@ -563,7 +563,7 @@ namespace OpdexCoreContracts.Tests
             {
                 From = Pool,
                 To = Address.Zero,
-                Amount = burnAmount.ToString()
+                Amount = burnAmount
             }, Times.Once);
             
             // Burn Event Summary
@@ -572,7 +572,7 @@ namespace OpdexCoreContracts.Tests
                 Sender = Controller,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc.ToString()
+                AmountSrc = expectedReceivedSrc
             }, Times.Once);
         }
 
@@ -652,15 +652,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + swapAmountCrs,
-                ReserveSrc = (currentReserveSrc - expectedReceivedToken).ToString()
+                ReserveSrc = (currentReserveSrc - expectedReceivedToken)
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = swapAmountCrs,
                 AmountCrsOut = 0,
-                AmountSrcIn = 0.ToString(),
-                AmountSrcOut = expectedReceivedToken.ToString(),
+                AmountSrcIn = 0,
+                AmountSrcOut = expectedReceivedToken,
                 Sender = Controller,
                 To = to
             }, Times.Once);
@@ -694,15 +694,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs - expectedCrsReceived,
-                ReserveSrc = (currentReserveSrc + swapAmountSrc).ToString()
+                ReserveSrc = (currentReserveSrc + swapAmountSrc)
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = expectedCrsReceived,
-                AmountSrcIn = swapAmountSrc.ToString(),
-                AmountSrcOut = 0.ToString(),
+                AmountSrcIn = swapAmountSrc,
+                AmountSrcOut = 0,
                 Sender = Controller,
                 To = to
             }, Times.Once);
@@ -924,15 +924,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs,
-                ReserveSrc = (currentReserveSrc + expectedFee).ToString()
+                ReserveSrc = (currentReserveSrc + expectedFee)
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = 0,
-                AmountSrcIn = 17_052.ToString(),
-                AmountSrcOut = 17_000.ToString(),
+                AmountSrcIn = 17_052,
+                AmountSrcOut = 17_000,
                 Sender = Controller,
                 To = to
             }, Times.Once);
@@ -976,15 +976,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
-                ReserveSrc = (currentReserveSrc - borrowedSrc).ToString()
+                ReserveSrc = (currentReserveSrc - borrowedSrc)
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = 0,
-                AmountSrcIn = 0.ToString(),
-                AmountSrcOut = borrowedSrc.ToString(),
+                AmountSrcIn = 0,
+                AmountSrcOut = borrowedSrc,
                 Sender = Controller,
                 To = to
             }, Times.Once);
@@ -1028,15 +1028,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + expectedCrsFee,
-                ReserveSrc = currentReserveSrc.ToString()
+                ReserveSrc = currentReserveSrc
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = borrowedCrs + expectedCrsFee,
                 AmountCrsOut = borrowedCrs,
-                AmountSrcIn = 0.ToString(),
-                AmountSrcOut = 0.ToString(),
+                AmountSrcIn = 0,
+                AmountSrcOut = 0,
                 Sender = Controller,
                 To = to
             }, Times.Once);
@@ -1079,15 +1079,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs,
-                ReserveSrc = (currentReserveSrc + expectedSrcReceived).ToString()
+                ReserveSrc = (currentReserveSrc + expectedSrcReceived)
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = borrowedCrs,
-                AmountSrcIn = expectedSrcReceived.ToString(),
-                AmountSrcOut = 0.ToString(),
+                AmountSrcIn = expectedSrcReceived,
+                AmountSrcOut = 0,
                 Sender = Controller,
                 To = to
             }, Times.Once);
@@ -1258,15 +1258,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs + expectedCrsReceived,
-                ReserveSrc = (currentReserveSrc + expectedSrcReceived).ToString()
+                ReserveSrc = (currentReserveSrc + expectedSrcReceived)
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = borrowedCrs,
-                AmountSrcIn = expectedSrcReceived.ToString(),
-                AmountSrcOut = 0.ToString(),
+                AmountSrcIn = expectedSrcReceived,
+                AmountSrcOut = 0,
                 Sender = Controller,
                 To = to
             }, Times.Once);
@@ -1311,15 +1311,15 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
-                ReserveSrc = (currentReserveSrc - borrowedSrc + expectedSrcReceived).ToString()
+                ReserveSrc = (currentReserveSrc - borrowedSrc + expectedSrcReceived)
             }, Times.Once);
 
             VerifyLog(new OpdexSwapEvent
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = 0,
-                AmountSrcIn = expectedSrcReceived.ToString(),
-                AmountSrcOut = borrowedSrc.ToString(),
+                AmountSrcIn = expectedSrcReceived,
+                AmountSrcOut = borrowedSrc,
                 Sender = Controller,
                 To = to
             }, Times.Once);

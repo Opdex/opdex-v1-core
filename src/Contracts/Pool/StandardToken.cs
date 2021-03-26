@@ -96,7 +96,7 @@ public abstract class StandardToken : SmartContract, IStandardToken256
         {
             From = from, 
             To = to, 
-            Amount = amount.ToString()
+            Amount = amount
         });
     }
 }

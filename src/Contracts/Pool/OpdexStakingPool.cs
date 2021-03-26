@@ -7,8 +7,6 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     {
         StakeToken = stakeToken;
     }
-    
-    public override void Receive() => base.Receive();
 
     /// <inheritdoc />
     public Address StakeToken
@@ -75,7 +73,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         SafeTransferFrom(StakeToken, Message.Sender, Address, amount);
         SetStakedBalance(Message.Sender, stakedBalance);
         SetStakingWeightExecute(stakedBalance);
-        NominatePool();
+        NominateLiquidityPool();
         Unlock();
     }
     
@@ -104,7 +102,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         
         WithdrawStakingRewardsExecute(to, stakedBalance, liquidate);
         ExitStakingExecute(to, stakedBalance, true);
-        NominatePool();
+        NominateLiquidityPool();
         Unlock();
     }
         
@@ -160,7 +158,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         Unlock();
     }
 
-    private void NominatePool() => Call(StakeToken, 0ul, "Nominate");
+    private void NominateLiquidityPool() => Call(StakeToken, 0ul, nameof(NominateLiquidityPool));
     
     private void SetStakingWeightExecute(UInt256 balance)
     {
@@ -180,8 +178,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
             Log(new OpdexStakeEvent
             {
                 Sender = Message.Sender,
-                Amount = balance.ToString(),
-                Weight = weight.ToString()
+                Amount = balance,
+                Weight = weight
             });
         }
         
@@ -210,8 +208,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         Log(new OpdexRewardEvent
         {
             Sender = Message.Sender,
-            Amount = stakedBalance.ToString(),
-            Reward = rewards.ToString()
+            Amount = stakedBalance,
+            Reward = rewards
         });
     }
 

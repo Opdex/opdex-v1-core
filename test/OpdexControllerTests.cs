@@ -117,14 +117,11 @@ namespace OpdexCoreContracts.Tests
             // Transfer SRC to Pool
             var transferFromParams = new object[] {OtherAddress, Pool, amountTokenDesired};
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
-            
-            // Transfer CRS to Pool
-            SetupTransfer(Pool, amountCrsDesired, TransferResult.Transferred(true));
-            
+
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pool, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, amountCrsDesired, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
 
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
@@ -135,8 +132,7 @@ namespace OpdexCoreContracts.Tests
             
             VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(Pool, amountCrsDesired, Times.Once);
+            VerifyCall(Pool, amountCrsDesired, "Mint", mintParams, Times.Once);
         }
         
         [Theory]
@@ -161,15 +157,11 @@ namespace OpdexCoreContracts.Tests
             var expectedAmountSrcOptimal = controller.GetLiquidityQuote(amountCrsDesired, reserveCrs, reserveToken);
             var transferFromParams = new object[] {OtherAddress, Pool, expectedAmountSrcOptimal};
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
-            
-            // Transfer CRS to Pool
-            // TokenOptimal route always uses amountCrsDesired
-            SetupTransfer(Pool, amountCrsDesired, TransferResult.Transferred(true));
-            
+
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pool, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, amountCrsDesired, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
@@ -180,8 +172,7 @@ namespace OpdexCoreContracts.Tests
             
             VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(Pool, amountCrsDesired, Times.Once);
+            VerifyCall(Pool, amountCrsDesired, "Mint", mintParams, Times.Once);
         }
         
         [Theory]
@@ -207,14 +198,12 @@ namespace OpdexCoreContracts.Tests
             var transferFromParams = new object[] {OtherAddress, Pool, amountTokenDesired};
             SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
             
-            // Transfer CRS to Pool
             var expectedAmountCrsOptimal = (ulong)controller.GetLiquidityQuote(amountTokenDesired, reserveToken, reserveCrs);
-            SetupTransfer(Pool, expectedAmountCrsOptimal, TransferResult.Transferred(true));
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pool, 0, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, expectedAmountCrsOptimal, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             // Transfer CRS change back to sender
             var change = amountCrsDesired - expectedAmountCrsOptimal;
@@ -229,8 +218,7 @@ namespace OpdexCoreContracts.Tests
             
             VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
             VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, 0, "Mint", mintParams, Times.Once);
-            VerifyTransfer(Pool, expectedAmountCrsOptimal, Times.Once);
+            VerifyCall(Pool, expectedAmountCrsOptimal, "Mint", mintParams, Times.Once);
             VerifyTransfer(OtherAddress, amountCrsDesired - expectedAmountCrsOptimal, Times.Once);
         }
 
@@ -381,20 +369,16 @@ namespace OpdexCoreContracts.Tests
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountCrsIn, reserveCrs, reserveToken);
 
-            // Transfer CRS to Pool
-            SetupTransfer(Pool, amountCrsIn, TransferResult.Transferred(true));
-            
             // Call pool to swap
             var swapParams = new object[] {0ul, amountOut, OtherAddress, new byte[0]};
-            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, amountCrsIn, "Swap", swapParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0);
             
             // Assert
             VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(Pool, amountCrsIn, Times.Once);
-            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, amountCrsIn, "Swap", swapParams, Times.Once);
         }
 
         [Fact]
@@ -627,12 +611,9 @@ namespace OpdexCoreContracts.Tests
 
             var change = amountCrsIn - amountIn;
             
-            // Transfer CRS to Pool
-            SetupTransfer(Pool, amountIn, TransferResult.Transferred(true));
-            
             // Call pool to swap
             var swapParams = new object[] {0ul, amountTokenOut, OtherAddress, new byte[0]};
-            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, amountIn, "Swap", swapParams, TransferResult.Transferred(true));
 
             if (change > 0)
             {
@@ -644,8 +625,7 @@ namespace OpdexCoreContracts.Tests
             
             // Assert
             VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyTransfer(Pool, amountIn, Times.Once);
-            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, amountIn, "Swap", swapParams, Times.Once);
 
             if (change > 0)
             {

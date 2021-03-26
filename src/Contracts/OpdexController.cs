@@ -50,16 +50,14 @@ public class OpdexController : SmartContract, IOpdexController
         var amountCrs = (ulong)liquidityAmounts[0];
         var amountSrc = (UInt256)liquidityAmounts[1];
         var pool = (Address)liquidityAmounts[2];
-        
-        SafeTransferFrom(token, Message.Sender, pool, amountSrc);
-        
         var change = Message.Value - amountCrs;
-        
-        SafeTransfer(pool, amountCrs);
-        SafeTransfer(Message.Sender, change);
 
-        var liquidityResponse = Call(pool, 0, "Mint", new object[] {to});
+        SafeTransferFrom(token, Message.Sender, pool, amountSrc);
+
+        var liquidityResponse = Call(pool, amountCrs, "Mint", new object[] {to});
         Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
+        
+        SafeTransfer(Message.Sender, change);
 
         return new [] { amountCrs, amountSrc, liquidityResponse.ReturnValue };
     }
@@ -95,8 +93,7 @@ public class OpdexController : SmartContract, IOpdexController
         
         Assert(amountOut >= amountSrcOutMin, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
-        SafeTransfer(pool, Message.Value);
-        Swap(0, amountOut, pool, to);
+        Swap(0, amountOut, pool, to, Message.Value);
     }
     
     /// <inheritdoc />
@@ -111,7 +108,7 @@ public class OpdexController : SmartContract, IOpdexController
         Assert(amountIn <= amountSrcInMax, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
         
         SafeTransferFrom(token, Message.Sender, pool, amountIn);
-        Swap(amountCrsOut, 0, pool, to);
+        Swap(amountCrsOut, 0, pool, to, 0);
     }
     
     /// <inheritdoc />
@@ -126,7 +123,7 @@ public class OpdexController : SmartContract, IOpdexController
         Assert(amountOut >= amountCrsOutMin, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
         SafeTransferFrom(token, Message.Sender, pool, amountSrcIn);
-        Swap((ulong)amountOut, 0, pool, to);
+        Swap((ulong)amountOut, 0, pool, to, 0);
     }
     
     /// <inheritdoc />
@@ -137,13 +134,11 @@ public class OpdexController : SmartContract, IOpdexController
         var pool = GetValidatedPool(token);
         var reserves = GetReserves(pool);
         var amountIn = (ulong)GetAmountIn(amountSrcOut, reserves.ReserveCrs, reserves.ReserveSrc);
-        
+        var change = Message.Value - amountIn;
+
         Assert(amountIn <= Message.Value, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
         
-        var change = Message.Value - amountIn;
-        
-        SafeTransfer(pool, amountIn);
-        Swap(0, amountSrcOut, pool, to);
+        Swap(0, amountSrcOut, pool, to, amountIn);
         SafeTransfer(Message.Sender, change);
     }
 
@@ -163,8 +158,8 @@ public class OpdexController : SmartContract, IOpdexController
         Assert(amountSrcIn <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
 
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
-        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool);
-        Swap(0, amountSrcOut, tokenOutPool, to);
+        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool, 0);
+        Swap(0, amountSrcOut, tokenOutPool, to, 0);
     }
     
     /// <inheritdoc />
@@ -183,8 +178,8 @@ public class OpdexController : SmartContract, IOpdexController
         Assert(amountSrcOutMin <= amountSrcOut, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
-        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool);
-        Swap(0, amountSrcOut, tokenOutPool, to);
+        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool, 0);
+        Swap(0, amountSrcOut, tokenOutPool, to, 0);
     }
     
     /// <inheritdoc />
@@ -278,9 +273,9 @@ public class OpdexController : SmartContract, IOpdexController
         return new object[] { amountCrs, amountSrc, pool };
     }
     
-    private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pool, Address to)
+    private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pool, Address to, ulong amountCrsIn)
     {
-        var response = Call(pool, 0, "Swap", new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
+        var response = Call(pool, amountCrsIn, "Swap", new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
         
         Assert(response.Success, "OPDEX: INVALID_SWAP_ATTEMPT");
     }
