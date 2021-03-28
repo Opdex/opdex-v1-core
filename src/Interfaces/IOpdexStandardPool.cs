@@ -80,4 +80,9 @@ public interface IOpdexStandardPool
     /// Updates the pools reserves to equal match the pools current token balances.
     /// </summary>
     void Sync();
+
+    /// <summary>
+    /// Allows direct transfers of CRS tokens through the standard Transfer method to this contract.
+    /// </summary>
+    void Receive();
 }

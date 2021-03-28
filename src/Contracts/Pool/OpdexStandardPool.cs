@@ -9,11 +9,9 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     {
         Token = token;
     }
-    
-    public override void Receive()
-    {
-        // Purposely Empty
-    }
+
+    /// <inheritdoc cref="IOpdexStandardPool.Receive" />
+    public override void Receive() { }
     
     /// <inheritdoc />
     public Address Token
@@ -51,7 +49,8 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     }
     
     /// <inheritdoc />
-    public byte[][] Reserves => new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
+    public byte[][] Reserves => 
+        new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
         
     /// <inheritdoc />
     public virtual UInt256 Mint(Address to)
@@ -259,7 +258,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     
     protected UInt256 GetSrcBalance(Address token, Address owner)
     {
-        var balanceResponse = Call(token, 0, "GetBalance", new object[] {owner});
+        var balanceResponse = Call(token, 0, nameof(GetBalance), new object[] {owner});
     
         Assert(balanceResponse.Success, "OPDEX: INVALID_BALANCE");
     
@@ -282,7 +281,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     {
         if (amount == 0) return;
         
-        var result = Call(token, 0, "TransferTo", new object[] {to, amount});
+        var result = Call(token, 0, nameof(TransferTo), new object[] {to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_TO");
     }
@@ -291,7 +290,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     {
         if (amount == 0) return;
         
-        var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
+        var result = Call(token, 0, nameof(TransferFrom), new object[] {from, to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
     }

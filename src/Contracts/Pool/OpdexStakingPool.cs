@@ -37,22 +37,22 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     }
     
     /// <inheritdoc />
-    public UInt256 GetStakedBalance(Address address) 
-        => State.GetUInt256($"StakedBalance:{address}");
+    public UInt256 GetStakedBalance(Address address) => 
+        State.GetUInt256($"StakedBalance:{address}");
     
-    private void SetStakedBalance(Address address, UInt256 weight) 
-        => State.SetUInt256($"StakedBalance:{address}", weight);
+    private void SetStakedBalance(Address address, UInt256 weight) => 
+        State.SetUInt256($"StakedBalance:{address}", weight);
         
     /// <inheritdoc />
-    public UInt256 GetStakedWeight(Address address) 
-        => State.GetUInt256($"StakedWeight:{address}");
+    public UInt256 GetStakedWeight(Address address) => 
+        State.GetUInt256($"StakedWeight:{address}");
 
-    private void SetStakedWeight(Address address, UInt256 weightK) 
-        => State.SetUInt256($"StakedWeight:{address}", weightK);
+    private void SetStakedWeight(Address address, UInt256 weightK) => 
+        State.SetUInt256($"StakedWeight:{address}", weightK);
     
     /// <inheritdoc />
-    public UInt256 GetStakingRewards(Address staker) 
-        => GetStakingRewardsExecute(staker, GetStakedBalance(staker));
+    public UInt256 GetStakingRewards(Address staker) => 
+        GetStakingRewardsExecute(staker, GetStakedBalance(staker));
     
     /// <inheritdoc />
     public void Stake(UInt256 amount)
@@ -64,8 +64,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         var stakedBalance = GetStakedBalance(Message.Sender);
         if (stakedBalance > 0)
         {
-            WithdrawStakingRewardsExecute(Message.Sender, stakedBalance, false);
-            ExitStakingExecute(Message.Sender, stakedBalance, false);
+            CollectStakingRewardsExecute(Message.Sender, stakedBalance, false);
+            UnstakeExecute(Message.Sender, stakedBalance, false);
         }
         
         stakedBalance += amount;
@@ -78,7 +78,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     }
     
     /// <inheritdoc />
-    public void WithdrawStakingRewards(Address to, bool liquidate)
+    public void Collect(Address to, bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
@@ -86,13 +86,13 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         
         var stakedBalance = GetStakedBalance(Message.Sender);
         
-        WithdrawStakingRewardsExecute(to, stakedBalance, liquidate);
+        CollectStakingRewardsExecute(to, stakedBalance, liquidate);
         SetStakingWeightExecute(stakedBalance);
         Unlock();
     }
         
     /// <inheritdoc />
-    public void ExitStaking(Address to, bool liquidate)
+    public void Unstake(Address to, bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
@@ -100,8 +100,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         
         var stakedBalance = GetStakedBalance(Message.Sender);
         
-        WithdrawStakingRewardsExecute(to, stakedBalance, liquidate);
-        ExitStakingExecute(to, stakedBalance, true);
+        CollectStakingRewardsExecute(to, stakedBalance, liquidate);
+        UnstakeExecute(to, stakedBalance, true);
         NominateLiquidityPool();
         Unlock();
     }
@@ -158,7 +158,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         Unlock();
     }
 
-    private void NominateLiquidityPool() => Call(StakeToken, 0ul, nameof(NominateLiquidityPool));
+    private void NominateLiquidityPool() => 
+        Call(StakeToken, 0ul, nameof(NominateLiquidityPool));
     
     private void SetStakingWeightExecute(UInt256 balance)
     {
@@ -194,7 +195,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         return currentWeight <= stakedWeight ? 0 : currentWeight - stakedWeight;
     }
 
-    private void WithdrawStakingRewardsExecute(Address to, UInt256 stakedBalance, bool liquidate)
+    private void CollectStakingRewardsExecute(Address to, UInt256 stakedBalance, bool liquidate)
     {
         var rewards = GetStakingRewardsExecute(Message.Sender, stakedBalance);
         
@@ -205,7 +206,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         if (liquidate) BurnExecute(to, rewards);
         else TransferTokensExecute(Address, to, rewards);
         
-        Log(new OpdexRewardEvent
+        Log(new OpdexCollectEvent
         {
             Sender = Message.Sender,
             Amount = stakedBalance,
@@ -213,14 +214,20 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         });
     }
 
-    private void ExitStakingExecute(Address to, UInt256 stakedBalance, bool transfer)
+    private void UnstakeExecute(Address to, UInt256 stakedBalance, bool transfer)
     {
         if (transfer)
         {
             SafeTransferTo(StakeToken, to, stakedBalance);
-            SetStakedBalance(Message.Sender, 0);
+            
+            Log(new OpdexUnstakeEvent
+            {
+                Staker = Message.Sender,
+                Amount = stakedBalance
+            });
         }
         
+        SetStakedBalance(Message.Sender, 0);
         SetStakedWeight(Message.Sender, 0);
     }
 

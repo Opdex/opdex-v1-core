@@ -51,12 +51,12 @@ public interface IOpdexStakingPool : IOpdexStandardPool, IStandardToken256
     void Stake(UInt256 amount);
     
     /// <summary>
-    /// Withdraw any earned staking rewards while continuing to stake, optionally liquidate the earned LP
+    /// Collect any earned staking rewards while continuing to stake, optionally liquidate the earned LP
     /// tokens into the pools reserve tokens.
     /// </summary>
     /// <param name="to">The address to send rewards to.</param>
     /// <param name="liquidate">Boolean value to liquidate rewards.</param>
-    void WithdrawStakingRewards(Address to, bool liquidate);
+    void Collect(Address to, bool liquidate);
     
     /// <summary>
     /// Discontinue staking and withdraw rewards. Optionally liquidate the earned LP tokens into the pools
@@ -64,5 +64,5 @@ public interface IOpdexStakingPool : IOpdexStandardPool, IStandardToken256
     /// </summary>
     /// <param name="to">The address to send rewards to.</param>
     /// <param name="liquidate">Boolean value to liquidate rewards.</param>
-    void ExitStaking(Address to, bool liquidate);
+    void Unstake(Address to, bool liquidate);
 }

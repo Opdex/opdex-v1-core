@@ -111,16 +111,16 @@ namespace OpdexCoreContracts.Tests
 
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(expectedReserveCrs), Serializer.Serialize(expectedReserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pool
             var transferFromParams = new object[] {OtherAddress, Pool, amountTokenDesired};
-            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
 
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pool, amountCrsDesired, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, amountCrsDesired, nameof(OpdexStandardPool.Mint), mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
 
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
@@ -129,9 +129,9 @@ namespace OpdexCoreContracts.Tests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, amountCrsDesired, "Mint", mintParams, Times.Once);
+            VerifyCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
+            VerifyCall(Pool, amountCrsDesired, nameof(OpdexStandardPool.Mint), mintParams, Times.Once);
         }
         
         [Theory]
@@ -150,17 +150,17 @@ namespace OpdexCoreContracts.Tests
 
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pool
             var expectedAmountSrcOptimal = controller.GetLiquidityQuote(amountCrsDesired, reserveCrs, reserveToken);
             var transferFromParams = new object[] {OtherAddress, Pool, expectedAmountSrcOptimal};
-            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
 
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pool, amountCrsDesired, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, amountCrsDesired, nameof(OpdexStandardPool.Mint), mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             var addLiquidityResponse = controller.AddLiquidity(Token, amountTokenDesired, amountCrsMin, amountTokenMin, to, 0ul);
 
@@ -169,9 +169,9 @@ namespace OpdexCoreContracts.Tests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, amountCrsDesired, "Mint", mintParams, Times.Once);
+            VerifyCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
+            VerifyCall(Pool, amountCrsDesired, nameof(OpdexStandardPool.Mint), mintParams, Times.Once);
         }
         
         [Theory]
@@ -190,19 +190,19 @@ namespace OpdexCoreContracts.Tests
 
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pool
             // CrsOptimal route always uses amountTokenDesired
             var transferFromParams = new object[] {OtherAddress, Pool, amountTokenDesired};
-            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             var expectedAmountCrsOptimal = (ulong)controller.GetLiquidityQuote(amountTokenDesired, reserveToken, reserveCrs);
             
             // Mint Liquidity Tokens
             var mintParams = new object[] {to};
             // It is not this tests responsibility to validate the minted liquidity tokens amounts
-            SetupCall(Pool, expectedAmountCrsOptimal, "Mint", mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            SetupCall(Pool, expectedAmountCrsOptimal, nameof(OpdexStandardPool.Mint), mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
             
             // Transfer CRS change back to sender
             var change = amountCrsDesired - expectedAmountCrsOptimal;
@@ -215,9 +215,9 @@ namespace OpdexCoreContracts.Tests
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
             
-            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, expectedAmountCrsOptimal, "Mint", mintParams, Times.Once);
+            VerifyCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
+            VerifyCall(Pool, expectedAmountCrsOptimal, nameof(OpdexStandardPool.Mint), mintParams, Times.Once);
             VerifyTransfer(OtherAddress, amountCrsDesired - expectedAmountCrsOptimal, Times.Once);
         }
 
@@ -249,20 +249,20 @@ namespace OpdexCoreContracts.Tests
             
             // Transfer Liquidity tokens to pool
             var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
-            SetupCall(Pool, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
             var burnParams = new object[] {OtherAddress};
             var expectedBurnResponse = new [] { amountCrsMin, amountTokenMin };
-            SetupCall(Pool, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.Burn), burnParams, TransferResult.Transferred(expectedBurnResponse));
 
             var removeLiquidityResponse = controller.RemoveLiquidity(Token, liquidity, amountCrsMin, amountCrsMin, OtherAddress, 0ul);
 
             removeLiquidityResponse[0].Should().Be(amountCrsMin);
             removeLiquidityResponse[1].Should().Be(amountTokenMin);
             
-            VerifyCall(Pool, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, 0, "Burn", burnParams, Times.Once);
+            VerifyCall(Pool, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
+            VerifyCall(Pool, 0, nameof(OpdexStandardPool.Burn), burnParams, Times.Once);
         }
 
         [Fact]
@@ -292,13 +292,13 @@ namespace OpdexCoreContracts.Tests
             
             // Transfer Liquidity tokens to pool
             var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
-            SetupCall(Pool, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
             var burnParams = new object[] {OtherAddress};
             var expectedAmountCrsMin = amountCrsMin - 1;
             var expectedBurnResponse = new [] { expectedAmountCrsMin, amountTokenMin };
-            SetupCall(Pool, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.Burn), burnParams, TransferResult.Transferred(expectedBurnResponse));
             
             controller
                 .Invoking(c => c.RemoveLiquidity(Token, liquidity, amountCrsMin, amountTokenMin, OtherAddress, 0))
@@ -320,13 +320,13 @@ namespace OpdexCoreContracts.Tests
             
             // Transfer Liquidity tokens to pool
             var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
-            SetupCall(Pool, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Burn liquidity tokens
             var burnParams = new object[] {OtherAddress};
             var expectedAmountSrcMin = amountTokenMin - 1;
             var expectedBurnResponse = new [] { amountCrsMin, expectedAmountSrcMin };
-            SetupCall(Pool, 0, "Burn", burnParams, TransferResult.Transferred(expectedBurnResponse));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.Burn), burnParams, TransferResult.Transferred(expectedBurnResponse));
             
             controller
                 .Invoking(c => c.RemoveLiquidity(Token, liquidity, amountCrsMin, amountTokenMin, OtherAddress, 0))
@@ -363,21 +363,21 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountCrsIn, reserveCrs, reserveToken);
 
             // Call pool to swap
             var swapParams = new object[] {0ul, amountOut, OtherAddress, new byte[0]};
-            SetupCall(Pool, amountCrsIn, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, amountCrsIn, nameof(OpdexStandardPool.Swap), swapParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(Pool, amountCrsIn, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Pool, amountCrsIn, nameof(OpdexStandardPool.Swap), swapParams, Times.Once);
         }
 
         [Fact]
@@ -403,7 +403,7 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapExactCrsForSrc(amountTokenOutMin, Token, OtherAddress, 0))
@@ -440,26 +440,26 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountIn = controller.GetAmountIn(amountCrsOut, reserveToken, reserveCrs);
             
             // Call token to Transfer from caller to Pool
             var transferFromParams = new object[] { OtherAddress, Pool, amountIn };
-            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Call pool to swap
             var swapParams = new object[] {amountCrsOut, UInt256.MinValue, OtherAddress, new byte[0]};
-            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.Swap), swapParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapSrcForExactCrs(amountCrsOut, amountIn, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
+            VerifyCall(Pool, 0, nameof(OpdexStandardPool.Swap), swapParams, Times.Once);
         }
 
         [Fact]
@@ -485,7 +485,7 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapSrcForExactCrs(amountCrsOut, amountTokenInMax, Token, OtherAddress, 0))
@@ -522,26 +522,26 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
             var amountOut = controller.GetAmountOut(amountTokenIn, reserveToken, reserveCrs);
             
             // Call token to Transfer from caller to Pool
             var transferFromParams = new object[] { OtherAddress, Pool, amountTokenIn };
-            SetupCall(Token, 0, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Call pool to swap
             var swapParams = new object[] {(ulong)amountOut, UInt256.MinValue, OtherAddress, new byte[0]};
-            SetupCall(Pool, 0, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, 0, nameof(OpdexStandardPool.Swap), swapParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(Token, 0, "TransferFrom", transferFromParams, Times.Once);
-            VerifyCall(Pool, 0, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Token, 0, nameof(OpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
+            VerifyCall(Pool, 0, nameof(OpdexStandardPool.Swap), swapParams, Times.Once);
         }
 
         [Fact]
@@ -567,7 +567,7 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapExactSrcForCrs(amountTokenIn, amountCrsOutMin, Token, OtherAddress, 0))
@@ -604,7 +604,7 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
 
             var amountIn = (ulong)controller.GetAmountIn(amountTokenOut, reserveCrs, reserveToken);
 
@@ -612,7 +612,7 @@ namespace OpdexCoreContracts.Tests
             
             // Call pool to swap
             var swapParams = new object[] {0ul, amountTokenOut, OtherAddress, new byte[0]};
-            SetupCall(Pool, amountIn, "Swap", swapParams, TransferResult.Transferred(true));
+            SetupCall(Pool, amountIn, nameof(OpdexStandardPool.Swap), swapParams, TransferResult.Transferred(true));
 
             if (change > 0)
             {
@@ -623,8 +623,8 @@ namespace OpdexCoreContracts.Tests
             controller.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0);
             
             // Assert
-            VerifyCall(Pool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(Pool, amountIn, "Swap", swapParams, Times.Once);
+            VerifyCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Pool, amountIn, nameof(OpdexStandardPool.Swap), swapParams, Times.Once);
 
             if (change > 0)
             {
@@ -654,7 +654,7 @@ namespace OpdexCoreContracts.Tests
             SetupMessage(Controller, OtherAddress);
             
             var expectedReserves = new [] { Serializer.Serialize(reserveCrs), Serializer.Serialize(reserveToken) };
-            SetupCall(Pool, 0, "get_Reserves", null, TransferResult.Transferred(expectedReserves));
+            SetupCall(Pool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             controller
                 .Invoking(c => c.SwapCrsForExactSrc(amountTokenOut, Token, OtherAddress, 0))
@@ -698,35 +698,35 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrsIn = (ulong)controller.GetAmountIn(amountSrcOut, reserveCrsOut, reserveSrcOut);
             var amountSrcIn = controller.GetAmountOut(amountCrsIn, reserveSrcIn, reserveCrsIn);
             
             // Transfer SRC for CRS
             var transferFromParams = new object[] { OtherAddress, tokenInPool, amountSrcIn };
-            SetupCall(tokenIn, 0ul, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(tokenIn, 0ul, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Call pool to swap src to crs
             var swapSrcToCrsParams = new object[] {amountCrsIn, UInt256.MinValue, Controller, new byte[0]};
-            SetupCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsIn));
+            SetupCall(tokenInPool, 0, nameof(OpdexStandardPool.Swap), swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsIn));
             
             // Call pool to swap crs to src
             var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress, new byte[0]};
-            SetupCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
+            SetupCall(tokenOutPool, 0, nameof(OpdexStandardPool.Swap), swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0);
             
             // Assert
-            VerifyCall(tokenInPool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(tokenOutPool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, Times.Once);
-            VerifyCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, Times.Once);
+            VerifyCall(tokenInPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(tokenOutPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(tokenInPool, 0, nameof(OpdexStandardPool.Swap), swapSrcToCrsParams, Times.Once);
+            VerifyCall(tokenOutPool, 0, nameof(OpdexStandardPool.Swap), swapCrsToSrcParams, Times.Once);
         }
 
         [Theory]
@@ -749,11 +749,11 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
                 .Invoking(c => c.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0))
@@ -798,35 +798,35 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrsOut = (ulong)controller.GetAmountOut(amountSrcIn, reserveSrcOut, reserveCrsOut);
             var amountSrcOut = controller.GetAmountOut(amountCrsOut, reserveCrsIn, reserveSrcIn);
             
             // Transfer SRC for CRS
             var transferFromParams = new object[] { OtherAddress, tokenInPool, amountSrcIn };
-            SetupCall(tokenIn, 0ul, "TransferFrom", transferFromParams, TransferResult.Transferred(true));
+            SetupCall(tokenIn, 0ul, nameof(OpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
         
             // Call pool to swap src to crs
             var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, Controller, new byte[0]};
-            SetupCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
+            SetupCall(tokenInPool, 0, nameof(OpdexStandardPool.Swap), swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
             
             // Call pool to swap crs to src
             var swapCrsToSrcParams = new object[] { 0ul, amountSrcOut, OtherAddress, new byte[0]};
-            SetupCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, TransferResult.Transferred(true));
+            SetupCall(tokenOutPool, 0, nameof(OpdexStandardPool.Swap), swapCrsToSrcParams, TransferResult.Transferred(true));
             
             // Act
             controller.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0);
             
             // Assert
-            VerifyCall(tokenInPool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(tokenOutPool, 0, "get_Reserves", null, Times.Once);
-            VerifyCall(tokenInPool, 0, "Swap", swapSrcToCrsParams, Times.Once);
-            VerifyCall(tokenOutPool, 0, "Swap", swapCrsToSrcParams, Times.Once);
+            VerifyCall(tokenInPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(tokenOutPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(tokenInPool, 0, nameof(OpdexStandardPool.Swap), swapSrcToCrsParams, Times.Once);
+            VerifyCall(tokenOutPool, 0, nameof(OpdexStandardPool.Swap), swapCrsToSrcParams, Times.Once);
         }
 
         [Theory]
@@ -849,11 +849,11 @@ namespace OpdexCoreContracts.Tests
             
             // Call to get reserves from pool
             var expectedTokenInReserves = new [] { Serializer.Serialize(reserveCrsIn), Serializer.Serialize(reserveSrcIn) };
-            SetupCall(tokenInPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenInReserves));
+            SetupCall(tokenInPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
             var expectedTokenOutReserves = new [] { Serializer.Serialize(reserveCrsOut), Serializer.Serialize(reserveSrcOut) };
-            SetupCall(tokenOutPool, 0, "get_Reserves", null, TransferResult.Transferred(expectedTokenOutReserves));
+            SetupCall(tokenOutPool, 0, $"get_{nameof(OpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             controller
                 .Invoking(c => c.SwapExactSrcForSrc(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, OtherAddress, 0))

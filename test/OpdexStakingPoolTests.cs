@@ -715,7 +715,7 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
             VerifyCall(StakeToken, 0ul, "NominateLiquidityPool", null, Times.Once);
 
-            VerifyLog(new OpdexRewardEvent
+            VerifyLog(new OpdexCollectEvent
             {
                 Sender = Trader0,
                 Amount = currentStakerBalance,
@@ -731,7 +731,7 @@ namespace OpdexCoreContracts.Tests
         }
 
         [Fact]
-        public void WithdrawStakingRewards_Burn_Success()
+        public void Collect_Burn_Success()
         {
             const ulong reserveCrs = 2_343_485;
             UInt256 reserveSrc = 23_532_234_235;
@@ -764,7 +764,7 @@ namespace OpdexCoreContracts.Tests
             SetupTransfer(Trader0, expectedRewardCrs, TransferResult.Transferred(true));
             SetupCall(Token, 0, nameof(OpdexStakingPool.TransferTo), new object[] { Trader0, expectedRewardSrc }, TransferResult.Transferred(true));
             
-            pool.WithdrawStakingRewards(Trader0, true);
+            pool.Collect(Trader0, true);
             
             pool.TotalStaked.Should().Be(totalStaked);
             pool.TotalStakedApplicable.Should().Be(totalStaked - currentStakerBalance);
@@ -787,7 +787,7 @@ namespace OpdexCoreContracts.Tests
                 AmountSrc = expectedRewardSrc
             }, Times.Once);
             
-            VerifyLog(new OpdexRewardEvent
+            VerifyLog(new OpdexCollectEvent
             {
                 Sender = Trader0,
                 Amount = currentStakerBalance,
@@ -796,7 +796,7 @@ namespace OpdexCoreContracts.Tests
         }
         
         [Fact]
-        public void WithdrawStakingRewards_DontBurn_Success()
+        public void Collect_DontBurn_Success()
         {
             const ulong reserveCrs = 2_343_485;
             UInt256 reserveSrc = 23_532_234_235;
@@ -822,7 +822,7 @@ namespace OpdexCoreContracts.Tests
             
             SetupMessage(Pool, Trader0);
 
-            pool.WithdrawStakingRewards(Trader0, false);
+            pool.Collect(Trader0, false);
             
             pool.TotalStaked.Should().Be(totalStaked);
             pool.TotalStakedApplicable.Should().Be(totalStaked - currentStakerBalance);
@@ -830,7 +830,7 @@ namespace OpdexCoreContracts.Tests
             pool.GetStakedBalance(Trader0).Should().Be(currentStakerBalance);
             pool.GetBalance(Trader0).Should().Be(expectedReward);
             
-            VerifyLog(new OpdexRewardEvent
+            VerifyLog(new OpdexCollectEvent
             {
                 Sender = Trader0,
                 Amount = currentStakerBalance,
@@ -839,13 +839,13 @@ namespace OpdexCoreContracts.Tests
         }
 
         [Fact]
-        public void ExitStaking_AndBurn_Success()
+        public void Unstake_AndBurn_Success()
         {
             
         }
         
         [Fact]
-        public void ExitStaking_DontBurn_Success()
+        public void Unstake_DontBurn_Success()
         {
             const ulong reserveCrs = 2_343_485;
             UInt256 reserveSrc = 23_532_234_235;
@@ -873,7 +873,7 @@ namespace OpdexCoreContracts.Tests
             var transferToParams = new object[] {Trader0, totalStaked};
             SetupCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferTo), transferToParams, TransferResult.Transferred(true));
 
-            pool.ExitStaking(Trader0, false);
+            pool.Unstake(Trader0, false);
             
             pool.TotalStaked.Should().Be(totalStaked - currentStakerBalance);
             pool.TotalStakedApplicable.Should().Be(totalStaked - currentStakerBalance);
@@ -884,7 +884,7 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferTo), transferToParams, Times.Once);
             VerifyCall(StakeToken, 0ul, "NominateLiquidityPool", null, Times.Once);
             
-            VerifyLog(new OpdexRewardEvent
+            VerifyLog(new OpdexCollectEvent
             {
                 Sender = Trader0,
                 Amount = currentStakerBalance,

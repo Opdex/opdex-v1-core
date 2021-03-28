@@ -17,11 +17,11 @@ public class OpdexController : SmartContract, IOpdexController
     }
 
     /// <inheritdoc />
-    public Address GetPool(Address token) 
-        => State.GetAddress($"Pool:{token}");
+    public Address GetPool(Address token) => 
+        State.GetAddress($"Pool:{token}");
 
-    private void SetPool(Address token, Address contract) 
-        => State.SetAddress($"Pool:{token}", contract);
+    private void SetPool(Address token, Address contract) => 
+        State.SetAddress($"Pool:{token}", contract);
 
     /// <inheritdoc />
     public Address CreatePool(Address token)
@@ -54,7 +54,7 @@ public class OpdexController : SmartContract, IOpdexController
 
         SafeTransferFrom(token, Message.Sender, pool, amountSrc);
 
-        var liquidityResponse = Call(pool, amountCrs, "Mint", new object[] {to});
+        var liquidityResponse = Call(pool, amountCrs, nameof(IOpdexStandardPool.Mint), new object[] {to});
         Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
         
         SafeTransfer(Message.Sender, change);
@@ -71,7 +71,7 @@ public class OpdexController : SmartContract, IOpdexController
         
         SafeTransferFrom(pool, Message.Sender, pool, liquidity);
         
-        var burnDtoResponse = Call(pool, 0, "Burn", new object[] {to});
+        var burnDtoResponse = Call(pool, 0, nameof(IOpdexStandardPool.Burn), new object[] {to});
         var burnResponse = (UInt256[])burnDtoResponse.ReturnValue;
         var receivedCrs = (ulong)burnResponse[0];
         var receivedSrc = burnResponse[1];
@@ -275,14 +275,14 @@ public class OpdexController : SmartContract, IOpdexController
     
     private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pool, Address to, ulong amountCrsIn)
     {
-        var response = Call(pool, amountCrsIn, "Swap", new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
+        var response = Call(pool, amountCrsIn, nameof(IOpdexStandardPool.Swap), new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
         
         Assert(response.Success, "OPDEX: INVALID_SWAP_ATTEMPT");
     }
 
     private Reserves GetReserves(Address pool)
     {
-        var reservesResponse = Call(pool, 0, "get_Reserves");
+        var reservesResponse = Call(pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}");
         
         Assert(reservesResponse.Success, "OPDEX: INVALID_POOL");
         
@@ -318,7 +318,7 @@ public class OpdexController : SmartContract, IOpdexController
     {
         if (amount == 0) return;
         
-        var result = Call(token, 0, "TransferFrom", new object[] {from, to, amount});
+        var result = Call(token, 0, nameof(StandardToken.TransferFrom), new object[] {from, to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
     }
