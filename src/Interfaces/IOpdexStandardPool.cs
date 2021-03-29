@@ -1,6 +1,7 @@
 using Stratis.SmartContracts;
+using Stratis.SmartContracts.Standards;
 
-public interface IOpdexStandardPool
+public interface IOpdexStandardPool : IStandardToken256
 {
     /// <summary>
     /// The SRC token in the pool.
@@ -30,7 +31,7 @@ public interface IOpdexStandardPool
     /// <summary>
     /// List of reserve balances. (e.g. [ (ulong)AmountCrs, (UInt256)AmountSrc ])
     /// </summary>
-    byte[][] Reserves { get; }
+    object[] Reserves { get; }
     
     /// <summary>
     /// When adding liquidity, mints new liquidity pool tokens based on differences in reserves and balances.

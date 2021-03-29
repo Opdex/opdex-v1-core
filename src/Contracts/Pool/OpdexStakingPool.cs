@@ -1,12 +1,26 @@
 using Stratis.SmartContracts;
 
+/// <summary>
+/// Standard liquidity pool with added staking capabilities. Inflates liquidity pool token supply
+/// by .05% according to the difference between root K and root KLast. Stakers deposit the staking
+/// token and earn the inflated fees according to their weight staked.
+/// </summary>
 public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
 {
-    public OpdexStakingPool(ISmartContractState smartContractState, Address token, Address stakeToken) 
-        : base(smartContractState, token)
+    /// <summary>
+    /// Constructor initializing the staking pool.
+    /// </summary>
+    /// <param name="state">Smart contract state.</param>
+    /// <param name="token">The SRC token address in the liquidity pool.</param>
+    /// <param name="stakeToken">The SRC staking token address.</param>
+    public OpdexStakingPool(ISmartContractState state, Address token, Address stakeToken) 
+        : base(state, token)
     {
         StakeToken = stakeToken;
     }
+    
+    /// <inheritdoc cref="IOpdexStakingPool.Receive" />
+    public override void Receive() { }
 
     /// <inheritdoc />
     public Address StakeToken
@@ -35,24 +49,34 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         get => State.GetUInt256(nameof(StakingRewardsBalance));
         private set => State.SetUInt256(nameof(StakingRewardsBalance), value);
     }
-    
-    /// <inheritdoc />
-    public UInt256 GetStakedBalance(Address address) => 
-        State.GetUInt256($"StakedBalance:{address}");
-    
-    private void SetStakedBalance(Address address, UInt256 weight) => 
-        State.SetUInt256($"StakedBalance:{address}", weight);
-        
-    /// <inheritdoc />
-    public UInt256 GetStakedWeight(Address address) => 
-        State.GetUInt256($"StakedWeight:{address}");
 
-    private void SetStakedWeight(Address address, UInt256 weightK) => 
-        State.SetUInt256($"StakedWeight:{address}", weightK);
-    
     /// <inheritdoc />
-    public UInt256 GetStakingRewards(Address staker) => 
-        GetStakingRewardsExecute(staker, GetStakedBalance(staker));
+    public UInt256 GetStakedBalance(Address address)
+    {
+        return State.GetUInt256($"StakedBalance:{address}");
+    }
+
+    private void SetStakedBalance(Address address, UInt256 weight)
+    {
+        State.SetUInt256($"StakedBalance:{address}", weight);
+    }
+
+    /// <inheritdoc />
+    public UInt256 GetStakedWeight(Address address)
+    {
+        return State.GetUInt256($"StakedWeight:{address}");
+    }
+
+    private void SetStakedWeight(Address address, UInt256 weightK)
+    {
+        State.SetUInt256($"StakedWeight:{address}", weightK);
+    }
+
+    /// <inheritdoc />
+    public UInt256 GetStakingRewards(Address staker)
+    {
+        return GetStakingRewardsExecute(staker, GetStakedBalance(staker));
+    }
     
     /// <inheritdoc />
     public void Stake(UInt256 amount)

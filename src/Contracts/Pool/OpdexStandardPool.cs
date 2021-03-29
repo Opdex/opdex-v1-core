@@ -1,18 +1,28 @@
 using Stratis.SmartContracts;
 
-public class OpdexStandardPool : StandardToken, IOpdexStandardPool
+/// <summary>
+/// Standard liquidity pool including CRS and one SRC20 token. Methods in this contract should not be called directly
+/// unless integrated through a third party contract. The controller contract has safeguards and prerequisite
+/// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
+/// </summary>
+public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
 {
     private const ulong MinimumLiquidity = 1000;
 
-    public OpdexStandardPool(ISmartContractState contractState, Address token) 
-        : base(contractState)
+    /// <summary>
+    /// Constructor initializing the standard pool.
+    /// </summary>
+    /// <param name="state">Smart contract state.</param>
+    /// <param name="token">The address of the SRC token in the pool.</param>
+    public OpdexStandardPool(ISmartContractState state, Address token) 
+        : base(state)
     {
         Token = token;
     }
 
     /// <inheritdoc cref="IOpdexStandardPool.Receive" />
     public override void Receive() { }
-    
+
     /// <inheritdoc />
     public Address Token
     {
@@ -49,8 +59,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     }
     
     /// <inheritdoc />
-    public byte[][] Reserves => 
-        new [] { Serializer.Serialize(ReserveCrs), Serializer.Serialize(ReserveSrc) };
+    public object[] Reserves => new object[] { ReserveCrs, ReserveSrc };
         
     /// <inheritdoc />
     public virtual UInt256 Mint(Address to)
@@ -232,6 +241,14 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         return new [] {amountCrs, amountSrc};
     }
     
+    protected void UpdateReserves(ulong balanceCrs, UInt256 balanceSrc)
+    {
+        ReserveCrs = balanceCrs;
+        ReserveSrc = balanceSrc;
+        
+        Log(new OpdexSyncEvent { ReserveCrs = balanceCrs, ReserveSrc = balanceSrc });
+    }
+    
     protected static UInt256 Sqrt(UInt256 value)
     {
         if (value <= 3) return 1;
@@ -248,14 +265,6 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         return result;
     }
     
-    protected void EnsureUnlocked()
-    {
-        Assert(!Locked, "OPDEX: LOCKED");
-        Locked = true;
-    }
-
-    protected void Unlock() => Locked = false;
-    
     protected UInt256 GetSrcBalance(Address token, Address owner)
     {
         var balanceResponse = Call(token, 0, nameof(GetBalance), new object[] {owner});
@@ -264,19 +273,7 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
     
         return (UInt256)balanceResponse.ReturnValue;
     }
-    
-    protected void UpdateReserves(ulong balanceCrs, UInt256 balanceSrc)
-    {
-        ReserveCrs = balanceCrs;
-        ReserveSrc = balanceSrc;
-        
-        Log(new OpdexSyncEvent
-        {
-            ReserveCrs = balanceCrs, 
-            ReserveSrc = balanceSrc
-        });
-    }
-    
+
     protected void SafeTransferTo(Address token, Address to, UInt256 amount)
     {
         if (amount == 0) return;
@@ -301,4 +298,12 @@ public class OpdexStandardPool : StandardToken, IOpdexStandardPool
         
         Assert(Transfer(to, amount).Success, "OPDEX: INVALID_TRANSFER");
     }
+    
+    protected void EnsureUnlocked()
+    {
+        Assert(!Locked, "OPDEX: LOCKED");
+        Locked = true;
+    }
+
+    protected void Unlock() => Locked = false;
 }

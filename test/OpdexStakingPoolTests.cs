@@ -25,23 +25,23 @@ namespace OpdexCoreContracts.Tests
         public void Sync_Success()
         {
             const ulong expectedBalanceCrs = 100;
-            UInt256 expectedBalanceToken = 150;
+            UInt256 expectedBalanceSrc = 150;
 
             var pool = CreateNewOpdexStakingPool(expectedBalanceCrs);
             
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, nameof(OpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
+            SetupCall(Token, 0ul, nameof(IOpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceSrc));
 
             pool.Sync();
 
             pool.ReserveCrs.Should().Be(expectedBalanceCrs);
-            pool.ReserveSrc.Should().Be(expectedBalanceToken);
+            pool.ReserveSrc.Should().Be(expectedBalanceSrc);
 
-            VerifyCall(Token, 0ul, nameof(OpdexStakingPool.GetBalance), expectedSrcBalanceParams, Times.Once);
+            VerifyCall(Token, 0ul, nameof(IOpdexStakingPool.GetBalance), expectedSrcBalanceParams, Times.Once);
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = expectedBalanceCrs, 
-                ReserveSrc = expectedBalanceToken
+                ReserveSrc = expectedBalanceSrc
             }, Times.Once);
         }
 
@@ -49,27 +49,27 @@ namespace OpdexCoreContracts.Tests
         public void Skim_Success()
         {
             const ulong expectedBalanceCrs = 100;
-            UInt256 expectedBalanceToken = 150;
+            UInt256 expectedBalanceSrc = 150;
             const ulong currentReserveCrs = 50;
             UInt256 currentReserveSrc = 100;
 
             var pool = CreateNewOpdexStakingPool(expectedBalanceCrs);
             
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), currentReserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), currentReserveSrc);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), currentReserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
 
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, nameof(OpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
+            SetupCall(Token, 0ul, nameof(IOpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceSrc));
 
             var expectedTransferToParams = new object[] { Trader0, (UInt256)50 };
-            SetupCall(Token, 0ul, nameof(OpdexStakingPool.TransferTo), expectedTransferToParams, TransferResult.Transferred(true));
+            SetupCall(Token, 0ul, nameof(IOpdexStakingPool.TransferTo), expectedTransferToParams, TransferResult.Transferred(true));
 
             SetupTransfer(Trader0, 50ul, TransferResult.Transferred(true));
             
             pool.Skim(Trader0);
 
-            VerifyCall(Token, 0ul, nameof(OpdexStakingPool.GetBalance), expectedSrcBalanceParams, Times.Once);
-            VerifyCall( Token, 0ul, nameof(OpdexStakingPool.TransferTo), expectedTransferToParams, Times.Once);
+            VerifyCall(Token, 0ul, nameof(IOpdexStakingPool.GetBalance), expectedSrcBalanceParams, Times.Once);
+            VerifyCall(Token, 0ul, nameof(IOpdexStakingPool.TransferTo), expectedTransferToParams, Times.Once);
             VerifyTransfer(Trader0, 50ul, Times.Once);
         }
         
@@ -87,8 +87,8 @@ namespace OpdexCoreContracts.Tests
             UInt256 finalFromBalance = 125;
             UInt256 finalToBalance = 100;
          
-            PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
-            PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
+            State.SetUInt256($"Balance:{from}", initialFromBalance);
+            State.SetUInt256($"Balance:{to}", initialToBalance);
             SetupMessage(Pool, from);
 
             var success = pool.TransferTo(to, amount);
@@ -115,8 +115,8 @@ namespace OpdexCoreContracts.Tests
             UInt256 initialFromBalance = 100;
             UInt256 initialToBalance = 0;
          
-            PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
-            PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
+            State.SetUInt256($"Balance:{from}", initialFromBalance);
+            State.SetUInt256($"Balance:{to}", initialToBalance);
             SetupMessage(Pool, from);
             
             pool
@@ -134,8 +134,8 @@ namespace OpdexCoreContracts.Tests
             UInt256 initialFromBalance = 100;
             var initialToBalance = UInt256.MaxValue;
          
-            PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
-            PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
+            State.SetUInt256($"Balance:{from}", initialFromBalance);
+            State.SetUInt256($"Balance:{to}", initialToBalance);
             SetupMessage(Pool, from);
             
             pool
@@ -157,15 +157,15 @@ namespace OpdexCoreContracts.Tests
             UInt256 finalToBalance = 80;
             UInt256 finalSpenderAllowance = 70;
          
-            PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
-            PersistentState.SetUInt256($"Balance:{to}", initialToBalance);
-            PersistentState.SetUInt256($"Allowance:{from}:{to}", initialSpenderAllowance);
+            State.SetUInt256($"Balance:{from}", initialFromBalance);
+            State.SetUInt256($"Balance:{to}", initialToBalance);
+            State.SetUInt256($"Allowance:{from}:{to}", initialSpenderAllowance);
             SetupMessage(Pool, to);
 
             pool.TransferFrom(from, to, amount).Should().BeTrue();
             pool.GetBalance(from).Should().Be(finalFromBalance);
             pool.GetBalance(to).Should().Be(finalToBalance);
-            pool.GetAllowance(from, to).Should().Be(finalSpenderAllowance);
+            pool.Allowance(from, to).Should().Be(finalSpenderAllowance);
             
             VerifyLog(new OpdexTransferEvent
             {
@@ -185,8 +185,8 @@ namespace OpdexCoreContracts.Tests
             UInt256 initialFromBalance = 100;
             UInt256 spenderAllowance = 150;
          
-            PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
-            PersistentState.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
+            State.SetUInt256($"Balance:{from}", initialFromBalance);
+            State.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
             SetupMessage(Pool, to);
             
             pool
@@ -204,8 +204,8 @@ namespace OpdexCoreContracts.Tests
             UInt256 initialFromBalance = 1000;
             UInt256 spenderAllowance = 150;
          
-            PersistentState.SetUInt256($"Balance:{from}", initialFromBalance);
-            PersistentState.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
+            State.SetUInt256($"Balance:{from}", initialFromBalance);
+            State.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
             SetupMessage(Pool, to);
             
             pool
@@ -222,18 +222,14 @@ namespace OpdexCoreContracts.Tests
             var from = Trader0;
             var spender = Trader1;
             UInt256 amount = 100;
+            UInt256 allowance = 10;
             
             SetupMessage(Pool, from);
 
-            if (isIStandardContractImplementation)
-            {
-                var currentAmount = UInt256.MaxValue; // doesn't matter, unused
-                pool.Approve(spender, currentAmount, amount).Should().BeTrue();
-            }
-            else
-            {
-                pool.Approve(spender, amount).Should().BeTrue();
-            }
+            State.SetUInt256($"Allowance:{from}:{spender}", allowance);
+            
+            pool.Approve(spender, allowance, amount).Should().BeTrue();
+            pool.Allowance(from, spender).Should().Be(amount);
             
             VerifyLog(new OpdexApprovalEvent
             {
@@ -251,7 +247,7 @@ namespace OpdexCoreContracts.Tests
         public void MintInitialLiquidity_Success()
         {
             const ulong currentBalanceCrs = 100_000_000;
-            UInt256 currentBalanceToken = 1_900_000_000;
+            UInt256 currentBalanceSrc = 1_900_000_000;
             const ulong currentReserveCrs = 0;
             UInt256 currentReserveSrc = 0;
             UInt256 currentTotalSupply = 0;
@@ -266,14 +262,14 @@ namespace OpdexCoreContracts.Tests
             
             SetupMessage(Pool, Trader0);
             
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), currentReserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), currentReserveSrc);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), currentTotalSupply);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), currentKLast);
-            PersistentState.SetUInt256($"Balance:{trader}", currentTraderBalance);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), currentReserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), currentTotalSupply);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), currentKLast);
+            State.SetUInt256($"Balance:{trader}", currentTraderBalance);
             
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, nameof(OpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
+            SetupCall(Token, 0ul, nameof(IOpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceSrc));
 
             var mintedLiquidity = pool.Mint(trader);
             mintedLiquidity.Should().Be(expectedLiquidity);
@@ -281,7 +277,7 @@ namespace OpdexCoreContracts.Tests
             pool.KLast.Should().Be(expectedKLast);
             pool.TotalSupply.Should().Be(expectedLiquidity + expectedBurnAmount); // burned
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
-            pool.ReserveSrc.Should().Be(currentBalanceToken);
+            pool.ReserveSrc.Should().Be(currentBalanceSrc);
 
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
@@ -289,13 +285,13 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken
+                ReserveSrc = currentBalanceSrc
             }, Times.Once);
             
             VerifyLog(new OpdexMintEvent
             {
                 AmountCrs = currentBalanceCrs,
-                AmountSrc = currentBalanceToken,
+                AmountSrc = currentBalanceSrc,
                 Sender = trader
             }, Times.Once);
             
@@ -318,13 +314,13 @@ namespace OpdexCoreContracts.Tests
         public void MintWithExistingReserves_Success()
         {
             const ulong currentBalanceCrs = 5_500ul;
-            UInt256 currentBalanceToken = 11_000;
+            UInt256 currentBalanceSrc = 11_000;
             const ulong currentReserveCrs = 5_000;
             UInt256 currentReserveSrc = 10_000;
             UInt256 currentTotalSupply = 2500;
             UInt256 expectedLiquidity = 252;
             UInt256 expectedKLast = 45_000_000;
-            UInt256 expectedK = currentBalanceCrs * currentBalanceToken;
+            UInt256 expectedK = currentBalanceCrs * currentBalanceSrc;
             UInt256 currentTraderBalance = 0;
             UInt256 mintedFee = 21;
             var trader = Trader0;
@@ -332,16 +328,16 @@ namespace OpdexCoreContracts.Tests
             var pool = CreateNewOpdexStakingPool(currentBalanceCrs);
             SetupMessage(Pool, trader);
             
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), currentReserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), currentReserveSrc);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), currentTotalSupply);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), expectedKLast);
-            PersistentState.SetUInt256($"Balance:{Trader0}", currentTraderBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalStaked), 123);
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), currentReserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), currentTotalSupply);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), expectedKLast);
+            State.SetUInt256($"Balance:{Trader0}", currentTraderBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalStaked), 123);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
 
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, nameof(OpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
+            SetupCall(Token, 0ul, nameof(IOpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceSrc));
             
             var mintedLiquidity = pool.Mint(Trader0);
             mintedLiquidity.Should().Be(expectedLiquidity);
@@ -349,7 +345,7 @@ namespace OpdexCoreContracts.Tests
             pool.KLast.Should().Be(expectedK);
             pool.TotalSupply.Should().Be(currentTotalSupply + expectedLiquidity + mintedFee);
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
-            pool.ReserveSrc.Should().Be(currentBalanceToken);
+            pool.ReserveSrc.Should().Be(currentBalanceSrc);
 
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
@@ -357,7 +353,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new OpdexSyncEvent
             {
                 ReserveCrs = currentBalanceCrs,
-                ReserveSrc = currentBalanceToken
+                ReserveSrc = currentBalanceSrc
             }, Times.Once);
             
             VerifyLog(new OpdexMintEvent
@@ -386,7 +382,7 @@ namespace OpdexCoreContracts.Tests
         public void Mint_Throws_InsufficientLiquidity()
         {
             const ulong currentBalanceCrs = 1000;
-            UInt256 currentBalanceToken = 1000;
+            UInt256 currentBalanceSrc = 1000;
             const ulong currentReserveCrs = 0;
             UInt256 currentReserveSrc = 0;
             UInt256 currentTotalSupply = 0;
@@ -398,14 +394,14 @@ namespace OpdexCoreContracts.Tests
             
             SetupMessage(Pool, Trader0);
             
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), currentReserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), currentReserveSrc);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), currentTotalSupply);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), currentKLast);
-            PersistentState.SetUInt256($"Balance:{trader}", currentTraderBalance);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), currentReserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), currentTotalSupply);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), currentKLast);
+            State.SetUInt256($"Balance:{trader}", currentTraderBalance);
             
             var expectedSrcBalanceParams = new object[] {Pool};
-            SetupCall(Token, 0ul, nameof(OpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceToken));
+            SetupCall(Token, 0ul, nameof(IOpdexStakingPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(currentBalanceSrc));
             
             pool
                 .Invoking(p => p.Mint(trader))
@@ -420,7 +416,7 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetBool(nameof(OpdexStakingPool.Locked), true);
+            State.SetBool(nameof(IOpdexStakingPool.Locked), true);
 
             pool
                 .Invoking(p => p.Mint(Trader0))
@@ -447,19 +443,19 @@ namespace OpdexCoreContracts.Tests
 
             var pool = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), currentReserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), currentReserveSrc);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), currentTotalSupply);
-            PersistentState.SetUInt256($"Balance:{Pool}", burnAmount);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), currentKLast);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalStaked), 123);
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), currentReserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), currentTotalSupply);
+            State.SetUInt256($"Balance:{Pool}", burnAmount);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), currentKLast);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalStaked), 123);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
             
-            SetupCall(Token, 0, nameof(OpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
+            SetupCall(Token, 0, nameof(IOpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
             SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
-            SetupCall(Token, 0, nameof(OpdexStakingPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
+            SetupCall(Token, 0, nameof(IOpdexStakingPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, nameof(OpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
+                SetupCall(Token, 0, nameof(IOpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
             });
 
             var results = pool.Burn(to);
@@ -510,17 +506,17 @@ namespace OpdexCoreContracts.Tests
 
             var pool = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), currentReserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), currentReserveSrc);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), currentTotalSupply);
-            PersistentState.SetUInt256($"Balance:{Pool}", burnAmount);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), currentKLast);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), currentReserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), currentTotalSupply);
+            State.SetUInt256($"Balance:{Pool}", burnAmount);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), currentKLast);
             
-            SetupCall(Token, 0, nameof(OpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
+            SetupCall(Token, 0, nameof(IOpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
             SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
-            SetupCall(Token, 0, nameof(OpdexStakingPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
+            SetupCall(Token, 0, nameof(IOpdexStakingPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, nameof(OpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
+                SetupCall(Token, 0, nameof(IOpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
             });
 
             var results = pool.Burn(to);
@@ -560,13 +556,13 @@ namespace OpdexCoreContracts.Tests
 
             var pool = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pool, Controller);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), currentReserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), currentReserveSrc);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), currentTotalSupply);
-            PersistentState.SetUInt256($"Balance:{Pool}", burnAmount);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), currentKLast);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), currentReserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), currentTotalSupply);
+            State.SetUInt256($"Balance:{Pool}", burnAmount);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), currentKLast);
             
-            SetupCall(Token, 0, nameof(OpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
+            SetupCall(Token, 0, nameof(IOpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
 
             pool
                 .Invoking(p => p.Burn(to))
@@ -581,7 +577,7 @@ namespace OpdexCoreContracts.Tests
 
             SetupMessage(Pool, Controller);
             
-            PersistentState.SetBool(nameof(OpdexStakingPool.Locked), true);
+            State.SetBool(nameof(IOpdexStakingPool.Locked), true);
 
             pool
                 .Invoking(p => p.Burn(Trader0))
@@ -600,14 +596,14 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStakingPool();
             
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), UInt256.Zero);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), 0);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), 0);
-            PersistentState.SetUInt256($"StakedBalance:{Trader0}", 0);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), UInt256.Zero);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), 0);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), 0);
+            State.SetUInt256($"StakedBalance:{Trader0}", 0);
 
             var transferFromParameters = new object[] { Trader0, Pool, stakeAmount };
-            SetupCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferFrom), transferFromParameters, TransferResult.Transferred(true));
+            SetupCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, TransferResult.Transferred(true));
             
             SetupMessage(Pool, Trader0);
             
@@ -618,7 +614,7 @@ namespace OpdexCoreContracts.Tests
             pool.GetStakedWeight(Trader0).Should().Be(UInt256.Zero);
             pool.GetStakedBalance(Trader0).Should().Be(stakeAmount);
             
-            VerifyCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
+            VerifyCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
             VerifyCall(StakeToken, 0ul, "NominateLiquidityPool", null, Times.Once);
 
             VerifyLog(new OpdexStakeEvent
@@ -643,17 +639,17 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStakingPool();
             
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), reserveSrc);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), reserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), kLast);
-            PersistentState.SetUInt256($"StakedBalance:{Trader0}", 0);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalStaked), totalStaked);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), totalSupply);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), reserveSrc);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), reserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), kLast);
+            State.SetUInt256($"StakedBalance:{Trader0}", 0);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalStaked), totalStaked);
+            State.SetUInt256(nameof(IOpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), totalSupply);
 
             var transferFromParameters = new object[] { Trader0, Pool, stakeAmount };
-            SetupCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferFrom), transferFromParameters, TransferResult.Transferred(true));
+            SetupCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, TransferResult.Transferred(true));
             
             SetupMessage(Pool, Trader0);
             
@@ -664,7 +660,7 @@ namespace OpdexCoreContracts.Tests
             pool.GetStakedWeight(Trader0).Should().Be(expectedWeight);
             pool.GetStakedBalance(Trader0).Should().Be(stakeAmount);
             
-            VerifyCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
+            VerifyCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
             VerifyCall(StakeToken, 0ul, "NominateLiquidityPool", null, Times.Once);
 
             VerifyLog(new OpdexStakeEvent
@@ -690,18 +686,18 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStakingPool();
             
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), reserveSrc);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), reserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), kLast);
-            PersistentState.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalStaked), totalStaked);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
-            PersistentState.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), totalSupply);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), reserveSrc);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), reserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), kLast);
+            State.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalStaked), totalStaked);
+            State.SetUInt256(nameof(IOpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
+            State.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), totalSupply);
 
             var transferFromParameters = new object[] { Trader0, Pool, stakeAmount };
-            SetupCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferFrom), transferFromParameters, TransferResult.Transferred(true));
+            SetupCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, TransferResult.Transferred(true));
             
             SetupMessage(Pool, Trader0);
             
@@ -712,7 +708,7 @@ namespace OpdexCoreContracts.Tests
             pool.GetStakedWeight(Trader0).Should().Be(expectedWeight);
             pool.GetStakedBalance(Trader0).Should().Be(stakeAmount + currentStakerBalance);
             
-            VerifyCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
+            VerifyCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
             VerifyCall(StakeToken, 0ul, "NominateLiquidityPool", null, Times.Once);
 
             VerifyLog(new OpdexCollectEvent
@@ -747,22 +743,22 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStakingPool();
             
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), reserveSrc);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), reserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), kLast);
-            PersistentState.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalStaked), totalStaked);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
-            PersistentState.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), totalSupply);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), reserveSrc);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), reserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), kLast);
+            State.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalStaked), totalStaked);
+            State.SetUInt256(nameof(IOpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
+            State.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), totalSupply);
             
             SetupMessage(Pool, Trader0);
             SetupBalance(reserveCrs);
 
-            SetupCall(Token, 0, nameof(OpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(reserveSrc));
+            SetupCall(Token, 0, nameof(IOpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(reserveSrc));
             SetupTransfer(Trader0, expectedRewardCrs, TransferResult.Transferred(true));
-            SetupCall(Token, 0, nameof(OpdexStakingPool.TransferTo), new object[] { Trader0, expectedRewardSrc }, TransferResult.Transferred(true));
+            SetupCall(Token, 0, nameof(IOpdexStakingPool.TransferTo), new object[] { Trader0, expectedRewardSrc }, TransferResult.Transferred(true));
             
             pool.Collect(Trader0, true);
             
@@ -810,15 +806,15 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStakingPool();
             
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), reserveSrc);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), reserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), kLast);
-            PersistentState.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalStaked), totalStaked);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
-            PersistentState.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), totalSupply);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), reserveSrc);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), reserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), kLast);
+            State.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalStaked), totalStaked);
+            State.SetUInt256(nameof(IOpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
+            State.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), totalSupply);
             
             SetupMessage(Pool, Trader0);
 
@@ -858,20 +854,20 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStakingPool();
             
-            PersistentState.SetAddress(nameof(OpdexStakingPool.StakeToken), StakeToken);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.ReserveSrc), reserveSrc);
-            PersistentState.SetUInt64(nameof(OpdexStakingPool.ReserveCrs), reserveCrs);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.KLast), kLast);
-            PersistentState.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalStaked), totalStaked);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
-            PersistentState.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
-            PersistentState.SetUInt256(nameof(OpdexStakingPool.TotalSupply), totalSupply);
+            State.SetAddress(nameof(IOpdexStakingPool.StakeToken), StakeToken);
+            State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), reserveSrc);
+            State.SetUInt64(nameof(IOpdexStakingPool.ReserveCrs), reserveCrs);
+            State.SetUInt256(nameof(IOpdexStakingPool.KLast), kLast);
+            State.SetUInt256($"StakedBalance:{Trader0}", currentStakerBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalStaked), totalStaked);
+            State.SetUInt256(nameof(IOpdexStakingPool.StakingRewardsBalance), stakingRewardsBalance);
+            State.SetUInt256($"Balance:{Pool}", stakingRewardsBalance);
+            State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), totalSupply);
             
             SetupMessage(Pool, Trader0);
 
             var transferToParams = new object[] {Trader0, totalStaked};
-            SetupCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferTo), transferToParams, TransferResult.Transferred(true));
+            SetupCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferTo), transferToParams, TransferResult.Transferred(true));
 
             pool.Unstake(Trader0, false);
             
@@ -881,7 +877,7 @@ namespace OpdexCoreContracts.Tests
             pool.GetStakedBalance(Trader0).Should().Be(UInt256.Zero);
             pool.GetBalance(Trader0).Should().Be(expectedReward);
 
-            VerifyCall(StakeToken, 0ul, nameof(OpdexStakingPool.TransferTo), transferToParams, Times.Once);
+            VerifyCall(StakeToken, 0ul, nameof(IOpdexStakingPool.TransferTo), transferToParams, Times.Once);
             VerifyCall(StakeToken, 0ul, "NominateLiquidityPool", null, Times.Once);
             
             VerifyLog(new OpdexCollectEvent

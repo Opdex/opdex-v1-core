@@ -1,7 +1,6 @@
 using Stratis.SmartContracts;
-using Stratis.SmartContracts.Standards;
 
-public interface IOpdexStakingPool : IOpdexStandardPool, IStandardToken256
+public interface IOpdexStakingPool : IOpdexStandardPool
 {
     /// <summary>
     /// The address of the pools stake token.

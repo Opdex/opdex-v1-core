@@ -112,51 +112,56 @@ public interface IOpdexController
     void SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline);
     
     /// <summary>
-    /// 
+    /// Calculate the necessary amount to provide of TokenB in a pool by the TokenA's desired amount and the pool's
+    /// current reserves.
     /// </summary>
-    /// <param name="amountA"></param>
-    /// <param name="reserveA"></param>
-    /// <param name="reserveB"></param>
-    /// <returns></returns>
+    /// <param name="amountA">The amount of TokenA desired to provide.</param>
+    /// <param name="reserveA">The pool's reserve amount of TokenA's type.</param>
+    /// <param name="reserveB">The pool's reserve of the TokenB's type.</param>
+    /// <returns>Number of necessary tokens to provide.</returns>
     UInt256 GetLiquidityQuote(UInt256 amountA, UInt256 reserveA, UInt256 reserveB);
     
     /// <summary>
-    /// 
+    /// Calculate the amount returned after transaction fees based on the token input amount and the pool's reserves.
+    /// Used for CRS-SRC or SRC-CRS single pool transactions.
     /// </summary>
-    /// <param name="amountIn"></param>
-    /// <param name="reserveIn"></param>
-    /// <param name="reserveOut"></param>
-    /// <returns></returns>
+    /// <param name="amountIn">The amount of the token to deposit.</param>
+    /// <param name="reserveIn">The pool's reserve amount of the input token type.</param>
+    /// <param name="reserveOut">The pool's reserve amount of the output token type.</param>
+    /// <returns>Number of tokens to receive</returns>
     UInt256 GetAmountOut(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut);
     
     /// <summary>
-    /// 
+    /// Calculates the necessary deposit amount based on the amount to receive and the pool's reserves.
+    /// Used for CRS-SRC or SRC-CRS single pool transactions.
     /// </summary>
-    /// <param name="amountOut"></param>
-    /// <param name="reserveIn"></param>
-    /// <param name="reserveOut"></param>
-    /// <returns></returns>
+    /// <param name="amountOut">The amount of tokens to receive.</param>
+    /// <param name="reserveIn">The pool's reserve amount of the input token type.</param>
+    /// <param name="reserveOut">The pool's reserve amount of the output token type.</param>
+    /// <returns>Number of tokens to deposit</returns>
     UInt256 GetAmountIn(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut);
     
     /// <summary>
-    /// 
+    /// Calculates the necessary SRC deposit amount based on the amount to receive and the pool's reserves.
+    /// Used for SRC-SRC multi pool transactions.
     /// </summary>
-    /// <param name="amountSrcOut"></param>
-    /// <param name="srcOutReserveCrs"></param>
-    /// <param name="srcOutReserveSrc"></param>
-    /// <param name="crsInReserveSrc"></param>
-    /// <param name="crsInReserveCrs"></param>
-    /// <returns></returns>
-    UInt256[] GetAmountIn(UInt256 amountSrcOut, UInt256 srcOutReserveCrs, UInt256 srcOutReserveSrc, UInt256 crsInReserveSrc, UInt256 crsInReserveCrs);
+    /// <param name="tokenOutAmount">The amount of SRC tokens to receive.</param>
+    /// <param name="tokenOutReserveCrs">The pool's CRS reserve amount of the output token type.</param>
+    /// <param name="tokenOutReserveSrc">The pool's SRC reserve amount of the output token type.</param>
+    /// <param name="tokenInReserveCrs">The pool's CRS reserve amount of the input token type.</param>
+    /// <param name="tokenInReserveSrc">The pool's SRC reserve amount of the input token type.</param>
+    /// <returns>Number of SRC tokens necessary to deposit</returns>
+    UInt256 GetAmountIn(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc);
     
     /// <summary>
-    /// 
+    /// Calculates the amount of SRC tokens returned after transaction fees based on the token input amount and the pool's reserves.
+    /// Used for SRC-SRC multi pool transactions.
     /// </summary>
-    /// <param name="amountSrcIn"></param>
-    /// <param name="srcInReserveSrc"></param>
-    /// <param name="srcInReserveCrs"></param>
-    /// <param name="crsOutReserveCrs"></param>
-    /// <param name="crsOutReserveSrc"></param>
-    /// <returns></returns>
-    UInt256[] GetAmountOut(UInt256 amountSrcIn, UInt256 srcInReserveSrc, UInt256 srcInReserveCrs, UInt256 crsOutReserveCrs, UInt256 crsOutReserveSrc);
+    /// <param name="tokenInAmount">The amount of SRC tokens necessary to deposit.</param>
+    /// <param name="tokenInReserveCrs">The pool's CRS reserve amount of the input token type.</param>
+    /// <param name="tokenInReserveSrc">The pool's SRC reserve amount of the input token type.</param>
+    /// <param name="tokenOutReserveCrs">The pool's CRS reserve amount of the output token type.</param>
+    /// <param name="tokenOutReserveSrc">The pool's SRC reserve amount of the output token type.</param>
+    /// <returns>Number of SRC tokens to receive</returns>
+    UInt256 GetAmountOut(UInt256 tokenInAmount, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc);
 }

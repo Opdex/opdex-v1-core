@@ -24,16 +24,16 @@ namespace OpdexCoreContracts.Tests
         protected readonly Address StakeToken;
         protected readonly Address PoolTwo;
         protected readonly Address TokenTwo;
-        protected readonly InMemoryState PersistentState;
+        protected readonly InMemoryState State;
 
         protected BaseContractTest()
         {
-            PersistentState = new InMemoryState();
+            State = new InMemoryState();
             _mockContractLogger = new Mock<IContractLogger>();
             _mockContractState = new Mock<ISmartContractState>();
             _mockInternalExecutor = new Mock<IInternalTransactionExecutor>();
             Serializer = new Serializer(new ContractPrimitiveSerializer(new SmartContractsPoARegTest()));
-            _mockContractState.Setup(x => x.PersistentState).Returns(PersistentState);
+            _mockContractState.Setup(x => x.PersistentState).Returns(State);
             _mockContractState.Setup(x => x.ContractLogger).Returns(_mockContractLogger.Object);
             _mockContractState.Setup(x => x.InternalTransactionExecutor).Returns(_mockInternalExecutor.Object);
             _mockContractState.Setup(x => x.Serializer).Returns(Serializer);
@@ -53,7 +53,7 @@ namespace OpdexCoreContracts.Tests
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
             _mockContractState.Setup(x => x.Block.Number).Returns(() => 10);
-            PersistentState.SetContract(StakeToken, true);
+            State.SetContract(StakeToken, true);
             SetupBalance(balance);
             return new OpdexController(_mockContractState.Object, StakeToken);
         }
@@ -61,7 +61,7 @@ namespace OpdexCoreContracts.Tests
         protected OpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
-            PersistentState.SetContract(StakeToken, true);
+            State.SetContract(StakeToken, true);
             SetupBalance(balance);
             return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken);
         }

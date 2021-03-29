@@ -26,7 +26,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\Stratis.SmartContracts.TestChain\Stratis.SmartContracts.TestChain\Stratis.SmartContracts.TestChain.csproj" />
       <ProjectReference Include="..\src\OpdexCoreContracts.csproj" />
     </ItemGroup>
 

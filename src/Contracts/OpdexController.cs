@@ -1,10 +1,20 @@
 ﻿using Stratis.SmartContracts;
+using Stratis.SmartContracts.Standards;
 
+/// <summary>
+/// Controller contract used for managing available pools and routing transactions. Validates and completes prerequisite
+/// transactions necessary for adding or removing liquidity or swapping in liquidity pools.
+/// </summary>
 [Deploy]
 public class OpdexController : SmartContract, IOpdexController
 {
-    public OpdexController(ISmartContractState smartContractState, Address stakeToken) 
-        : base(smartContractState)
+    /// <summary>
+    /// Constructor to initialize the controller.
+    /// </summary>
+    /// <param name="state">Smart contract state.</param>
+    /// <param name="stakeToken">The address of the SRC token used for staking in pools.</param>
+    public OpdexController(ISmartContractState state, Address stakeToken) 
+        : base(state)
     {
         StakeToken = stakeToken;
     }
@@ -17,11 +27,15 @@ public class OpdexController : SmartContract, IOpdexController
     }
 
     /// <inheritdoc />
-    public Address GetPool(Address token) => 
-        State.GetAddress($"Pool:{token}");
+    public Address GetPool(Address token)
+    {
+        return State.GetAddress($"Pool:{token}");
+    }
 
-    private void SetPool(Address token, Address contract) => 
+    private void SetPool(Address token, Address contract)
+    {
         State.SetAddress($"Pool:{token}", contract);
+    }
 
     /// <inheritdoc />
     public Address CreatePool(Address token)
@@ -50,15 +64,13 @@ public class OpdexController : SmartContract, IOpdexController
         var amountCrs = (ulong)liquidityAmounts[0];
         var amountSrc = (UInt256)liquidityAmounts[1];
         var pool = (Address)liquidityAmounts[2];
-        var change = Message.Value - amountCrs;
 
+        SafeTransfer(Message.Sender, Message.Value - amountCrs);
         SafeTransferFrom(token, Message.Sender, pool, amountSrc);
 
         var liquidityResponse = Call(pool, amountCrs, nameof(IOpdexStandardPool.Mint), new object[] {to});
         Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
         
-        SafeTransfer(Message.Sender, change);
-
         return new [] { amountCrs, amountSrc, liquidityResponse.ReturnValue };
     }
     
@@ -73,13 +85,13 @@ public class OpdexController : SmartContract, IOpdexController
         
         var burnDtoResponse = Call(pool, 0, nameof(IOpdexStandardPool.Burn), new object[] {to});
         var burnResponse = (UInt256[])burnDtoResponse.ReturnValue;
-        var receivedCrs = (ulong)burnResponse[0];
-        var receivedSrc = burnResponse[1];
+        var amountCrs = (ulong)burnResponse[0];
+        var amountSrc = burnResponse[1];
+
+        Assert(amountCrs >= amountCrsMin, "OPDEX: INSUFFICIENT_CRS_AMOUNT");
+        Assert(amountSrc >= amountSrcMin, "OPDEX: INSUFFICIENT_SRC_AMOUNT");
         
-        Assert(receivedCrs >= amountCrsMin, "OPDEX: INSUFFICIENT_CRS_AMOUNT");
-        Assert(receivedSrc >= amountSrcMin, "OPDEX: INSUFFICIENT_SRC_AMOUNT");
-        
-        return new object[] { receivedCrs, receivedSrc };
+        return new object[] { (ulong)burnResponse[0], burnResponse[1] };
     }
     
     /// <inheritdoc />
@@ -134,12 +146,11 @@ public class OpdexController : SmartContract, IOpdexController
         var pool = GetValidatedPool(token);
         var reserves = GetReserves(pool);
         var amountIn = (ulong)GetAmountIn(amountSrcOut, reserves.ReserveCrs, reserves.ReserveSrc);
-        var change = Message.Value - amountIn;
-
+        
         Assert(amountIn <= Message.Value, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
         
+        SafeTransfer(Message.Sender, Message.Value - amountIn);
         Swap(0, amountSrcOut, pool, to, amountIn);
-        SafeTransfer(Message.Sender, change);
     }
 
     /// <inheritdoc />
@@ -151,14 +162,14 @@ public class OpdexController : SmartContract, IOpdexController
         var tokenOutPool = GetValidatedPool(tokenOut);
         var tokenInReserves = GetReserves(tokenInPool);
         var tokenOutReserves = GetReserves(tokenOutPool);
-        var amounts = GetAmountIn(amountSrcOut, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
-        var amountCrsOut = (ulong)amounts[0];
+        var amounts = GetAmountsIn(amountSrcOut, tokenOutReserves, tokenInReserves);
+        var amountCrs = (ulong)amounts[0];
         var amountSrcIn = amounts[1];
-
-        Assert(amountSrcIn <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+        
+        Assert(amounts[1] <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
 
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
-        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool, 0);
+        Swap(amountCrs, 0, tokenInPool, tokenOutPool, 0);
         Swap(0, amountSrcOut, tokenOutPool, to, 0);
     }
     
@@ -171,14 +182,14 @@ public class OpdexController : SmartContract, IOpdexController
         var tokenOutPool = GetValidatedPool(tokenOut);
         var tokenInReserves = GetReserves(tokenInPool);
         var tokenOutReserves = GetReserves(tokenOutPool);
-        var amounts = GetAmountOut(amountSrcIn, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
-        var amountCrsOut = (ulong)amounts[0];
+        var amounts = GetAmountsOut(amountSrcIn, tokenInReserves, tokenOutReserves);
+        var amountCrs = (ulong)amounts[0];
         var amountSrcOut = amounts[1];
         
         Assert(amountSrcOutMin <= amountSrcOut, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
         
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
-        Swap(amountCrsOut, 0, tokenInPool, tokenOutPool, 0);
+        Swap(amountCrs, 0, tokenInPool, tokenOutPool, 0);
         Swap(0, amountSrcOut, tokenOutPool, to, 0);
     }
     
@@ -205,6 +216,18 @@ public class OpdexController : SmartContract, IOpdexController
     }
 
     /// <inheritdoc />
+    public UInt256 GetAmountOut(UInt256 tokenInAmount, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc,
+        UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc)
+    {
+        var tokenInReserves = new Reserves {ReserveCrs = (ulong)tokenInReserveCrs, ReserveSrc = tokenInReserveSrc};
+        var tokenOutReserves = new Reserves {ReserveCrs = (ulong)tokenOutReserveCrs, ReserveSrc = tokenOutReserveSrc};
+
+        var amounts = GetAmountsOut(tokenInAmount, tokenInReserves, tokenOutReserves);
+        
+        return amounts[1];
+    }
+    
+    /// <inheritdoc />
     public UInt256 GetAmountIn(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
     {
         Assert(amountOut > 0, "OPDEX: INSUFFICIENT_OUTPUT_AMOUNT");
@@ -217,23 +240,31 @@ public class OpdexController : SmartContract, IOpdexController
     }
 
     /// <inheritdoc />
-    public UInt256[] GetAmountIn(UInt256 amountSrcOut, UInt256 srcOutReserveCrs, UInt256 srcOutReserveSrc, 
-        UInt256 crsInReserveSrc, UInt256 crsInReserveCrs)
+    public UInt256 GetAmountIn(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, 
+        UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc)
     {
-        var amountCrs = GetAmountIn(amountSrcOut, srcOutReserveCrs, srcOutReserveSrc) + 1;
-        var amountSrc = GetAmountOut(amountCrs, crsInReserveCrs, crsInReserveSrc);
+        var tokenInReserves = new Reserves {ReserveCrs = (ulong)tokenInReserveCrs, ReserveSrc = tokenInReserveSrc};
+        var tokenOutReserves = new Reserves {ReserveCrs = (ulong)tokenOutReserveCrs, ReserveSrc = tokenOutReserveSrc};
 
-        return new[] {amountCrs, amountSrc};
+        var amounts = GetAmountsIn(tokenOutAmount, tokenOutReserves, tokenInReserves);
+        
+        return amounts[1];
     }
     
-    /// <inheritdoc />
-    public UInt256[] GetAmountOut(UInt256 amountSrcIn, UInt256 srcInReserveSrc, UInt256 srcInReserveCrs,  
-        UInt256 crsOutReserveCrs, UInt256 crsOutReserveSrc)
+    private UInt256[] GetAmountsIn(UInt256 tokenOutAmount, Reserves tokenOutReserves, Reserves tokenInReserves)
     {
-        var amountCrs = GetAmountOut(amountSrcIn, srcInReserveSrc, srcInReserveCrs);
-        var amountSrc = GetAmountOut(amountCrs, crsOutReserveCrs, crsOutReserveSrc);
+        var amountCrs = GetAmountIn(tokenOutAmount, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
+        var amountSrcIn = GetAmountIn(amountCrs, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
 
-        return new[] {amountCrs, amountSrc};
+        return new[] {amountCrs, amountSrcIn};
+    }
+    
+    private UInt256[] GetAmountsOut(UInt256 tokenInAmount, Reserves tokenInReserves, Reserves tokenOutReserves)
+    {
+        var amountCrs = GetAmountOut(tokenInAmount, tokenInReserves.ReserveSrc, tokenInReserves.ReserveCrs);
+        var amountSrcOut = GetAmountOut(amountCrs, tokenOutReserves.ReserveCrs, tokenOutReserves.ReserveSrc);
+
+        return new[] {amountCrs, amountSrcOut};
     }
     
     private object[] CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
@@ -275,7 +306,8 @@ public class OpdexController : SmartContract, IOpdexController
     
     private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pool, Address to, ulong amountCrsIn)
     {
-        var response = Call(pool, amountCrsIn, nameof(IOpdexStandardPool.Swap), new object[] {amountCrsOut, amountSrcOut, to, new byte[0]});
+        var swapParams = new object[] {amountCrsOut, amountSrcOut, to, new byte[0]};
+        var response = Call(pool, amountCrsIn, nameof(IOpdexStandardPool.Swap), swapParams);
         
         Assert(response.Success, "OPDEX: INVALID_SWAP_ATTEMPT");
     }
@@ -286,12 +318,12 @@ public class OpdexController : SmartContract, IOpdexController
         
         Assert(reservesResponse.Success, "OPDEX: INVALID_POOL");
         
-        var reserves = (byte[][])reservesResponse.ReturnValue;
+        var reserves = (object[])reservesResponse.ReturnValue;
         
         return new Reserves
         {
-            ReserveCrs = Serializer.ToUInt64(reserves[0]),
-            ReserveSrc = Serializer.ToUInt256(reserves[1])
+            ReserveCrs = (ulong)reserves[0],
+            ReserveSrc = (UInt256)reserves[1]
         };
     }
     
@@ -304,8 +336,10 @@ public class OpdexController : SmartContract, IOpdexController
         return pool;
     }
 
-    private void ValidateDeadline(ulong deadline) 
-        => Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
+    private void ValidateDeadline(ulong deadline)
+    {
+        Assert(deadline == 0 || Block.Number <= deadline, "OPDEX: EXPIRED_DEADLINE");
+    }
     
     private void SafeTransfer(Address to, ulong amount)
     {
@@ -318,7 +352,7 @@ public class OpdexController : SmartContract, IOpdexController
     {
         if (amount == 0) return;
         
-        var result = Call(token, 0, nameof(StandardToken.TransferFrom), new object[] {from, to, amount});
+        var result = Call(token, 0, nameof(IStandardToken256.TransferFrom), new object[] {from, to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
     }
