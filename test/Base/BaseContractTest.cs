@@ -49,7 +49,7 @@ namespace OpdexCoreContracts.Tests
             TokenTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
         }
 
-        protected OpdexController CreateNewOpdexController(ulong balance = 0)
+        protected IOpdexController CreateNewOpdexController(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
             _mockContractState.Setup(x => x.Block.Number).Returns(() => 10);
@@ -58,7 +58,7 @@ namespace OpdexCoreContracts.Tests
             return new OpdexController(_mockContractState.Object, StakeToken);
         }
 
-        protected OpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0)
+        protected IOpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
             State.SetContract(StakeToken, true);
@@ -66,7 +66,7 @@ namespace OpdexCoreContracts.Tests
             return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken);
         }
         
-        protected OpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0)
+        protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
             SetupBalance(balance);

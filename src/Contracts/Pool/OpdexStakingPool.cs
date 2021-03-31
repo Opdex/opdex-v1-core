@@ -182,9 +182,11 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         Unlock();
     }
 
-    private void NominateLiquidityPool() => 
+    private void NominateLiquidityPool()
+    {
         Call(StakeToken, 0ul, nameof(NominateLiquidityPool));
-    
+    }
+
     private void SetStakingWeightExecute(UInt256 balance)
     {
         UInt256 weight = 0;
@@ -193,10 +195,8 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         {
             var totalStaked = TotalStaked;
             var stakingRewardsBalance = StakingRewardsBalance;
-            
-            weight = totalStaked > 0 && stakingRewardsBalance > 0
-                ? balance * stakingRewardsBalance / totalStaked
-                : 0;
+
+            weight = CalculateStakingWeight(balance, stakingRewardsBalance, totalStaked);
 
             TotalStaked += balance;
             
@@ -214,9 +214,18 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     private UInt256 GetStakingRewardsExecute(Address staker, UInt256 balance)
     {
         var stakedWeight = GetStakedWeight(staker);
-        var currentWeight = balance * StakingRewardsBalance / TotalStakedApplicable;
+        var stakingRewardsBalance = StakingRewardsBalance;
+        var totalStakedApplicable = TotalStakedApplicable;
+        var currentWeight = CalculateStakingWeight(balance, stakingRewardsBalance, totalStakedApplicable);
 
         return currentWeight <= stakedWeight ? 0 : currentWeight - stakedWeight;
+    }
+
+    private UInt256 CalculateStakingWeight(UInt256 stakedBalance, UInt256 rewardsBalance, UInt256 totalStaked)
+    {
+        return rewardsBalance > 0 && totalStaked > 0
+            ? stakedBalance * rewardsBalance / totalStaked
+            : 0;
     }
 
     private void CollectStakingRewardsExecute(Address to, UInt256 stakedBalance, bool liquidate)
