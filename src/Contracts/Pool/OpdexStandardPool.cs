@@ -10,12 +10,11 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
     private const ulong MinimumLiquidity = 1000;
 
     /// <summary>
-    /// Constructor initializing the standard pool.
+    /// Constructor initializing a standard pool contract.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The address of the SRC token in the pool.</param>
-    public OpdexStandardPool(ISmartContractState state, Address token) 
-        : base(state)
+    public OpdexStandardPool(ISmartContractState state, Address token) : base(state)
     {
         Token = token;
     }

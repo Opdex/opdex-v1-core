@@ -6,3 +6,5 @@ Each pool contains it's own token that is used to prove ownership and weight of 
 ## Standard Token
 
 Opdex liquidity pool tokens are standard SRC20 tokens that inherit from the same IStandardToken256 interface.
+See documentation and implementation of IStandardToken256 here: 
+https://github.com/stratisproject/Stratis.SmartContracts.Standards/blob/master/Stratis.SmartContracts.Standards/IStandardToken.cs

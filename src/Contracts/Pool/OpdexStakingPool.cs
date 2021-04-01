@@ -8,13 +8,12 @@ using Stratis.SmartContracts;
 public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
 {
     /// <summary>
-    /// Constructor initializing the staking pool.
+    /// Constructor initializing a staking pool contract.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The SRC token address in the liquidity pool.</param>
     /// <param name="stakeToken">The SRC staking token address.</param>
-    public OpdexStakingPool(ISmartContractState state, Address token, Address stakeToken) 
-        : base(state, token)
+    public OpdexStakingPool(ISmartContractState state, Address token, Address stakeToken) : base(state, token)
     {
         StakeToken = stakeToken;
     }

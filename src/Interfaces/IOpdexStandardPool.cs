@@ -68,10 +68,13 @@ public interface IOpdexStandardPool : IStandardToken256
     /// from an integrated smart contract. Token transfers to the pool and this method should be
     /// called in the same transaction to prevent arbitrage between separate transactions.
     /// </remarks>
-    /// <param name="amountCrsOut"></param>
-    /// <param name="amountSrcOut"></param>
-    /// <param name="to"></param>
-    /// <param name="data"></param>
+    /// <param name="amountCrsOut">The amount of CRS tokens to pull from the pool.</param>
+    /// <param name="amountSrcOut">The amount of SRC tokens to pull from the pool.</param>
+    /// <param name="to">The address to send the tokens to.</param>
+    /// <param name="data">
+    /// <see cref="CallbackData"/> bytes for a callback after tokens are pulled form the pool but before
+    /// validations enforcing the necessary input amount and fees.
+    /// </param>
     void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data);
     
     /// <summary>
