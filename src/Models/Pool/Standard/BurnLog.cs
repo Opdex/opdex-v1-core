@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct OpdexBurnEvent
+public struct BurnLog
 {
     [Index] public Address Sender;
     [Index] public Address To;

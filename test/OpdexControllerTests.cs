@@ -41,8 +41,8 @@ namespace OpdexCoreContracts.Tests
                 .Should().Be(pool)
                 .And.Be(Pool);
 
-            var expectedPoolCreatedEvent = new OpdexPoolCreatedEvent { Token = Token, Pool = Pool };
-            VerifyLog(expectedPoolCreatedEvent, Times.Once);
+            var expectedPoolCreatedLog = new LiquidityPoolCreatedLog { Token = Token, Pool = Pool };
+            VerifyLog(expectedPoolCreatedLog, Times.Once);
         }
         
         [Fact]
@@ -59,8 +59,8 @@ namespace OpdexCoreContracts.Tests
                 .Should().Be(pool)
                 .And.Be(Pool);
 
-            var expectedPoolCreatedEvent = new OpdexPoolCreatedEvent { Token = Token, Pool = Pool };
-            VerifyLog(expectedPoolCreatedEvent, Times.Once);
+            var expectedPoolCreatedLog = new LiquidityPoolCreatedLog { Token = Token, Pool = Pool };
+            VerifyLog(expectedPoolCreatedLog, Times.Once);
         }
 
         [Fact]

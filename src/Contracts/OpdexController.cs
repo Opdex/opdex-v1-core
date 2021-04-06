@@ -50,7 +50,7 @@ public class OpdexController : SmartContract, IOpdexController
         
         SetPool(token, pool);
         
-        Log(new OpdexPoolCreatedEvent { Token = token, Pool = pool });
+        Log(new LiquidityPoolCreatedLog { Token = token, Pool = pool });
         
         return pool;
     }

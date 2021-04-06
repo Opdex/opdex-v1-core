@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct OpdexSwapEvent
+public struct SwapLog
 {
     [Index] public Address Sender;
     [Index] public Address To;

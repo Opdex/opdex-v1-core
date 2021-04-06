@@ -199,9 +199,9 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
 
             TotalStaked += balance;
             
-            Log(new OpdexStakeEvent
+            Log(new EnterStakingPoolLog
             {
-                Sender = Message.Sender,
+                Staker = Message.Sender,
                 Amount = balance,
                 Weight = weight
             });
@@ -238,9 +238,9 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         if (liquidate) BurnExecute(to, rewards);
         else TransferTokensExecute(Address, to, rewards);
         
-        Log(new OpdexCollectEvent
+        Log(new CollectStakingRewardsLog
         {
-            Sender = Message.Sender,
+            Staker = Message.Sender,
             Amount = stakedBalance,
             Reward = rewards
         });
@@ -252,7 +252,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         {
             SafeTransferTo(StakeToken, to, stakedBalance);
             
-            Log(new OpdexUnstakeEvent
+            Log(new ExitStakingPoolLog
             {
                 Staker = Message.Sender,
                 Amount = stakedBalance

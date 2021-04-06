@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct OpdexMintEvent
+public struct MintLog
 {
     [Index] public Address Sender;
     public ulong AmountCrs;

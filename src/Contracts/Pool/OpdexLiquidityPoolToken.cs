@@ -67,7 +67,7 @@ public abstract class OpdexLiquidityPoolToken : SmartContract, IStandardToken256
 
         SetAllowance(Message.Sender, spender, amount);
         
-        Log(new OpdexApprovalEvent { Owner = Message.Sender, Spender = spender, Amount = amount});
+        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount});
         
         return true;
     }
@@ -87,7 +87,7 @@ public abstract class OpdexLiquidityPoolToken : SmartContract, IStandardToken256
         SetBalance(from, GetBalance(from) - amount);
         SetBalance(to, GetBalance(to) + amount);
         
-        Log(new OpdexTransferEvent { From = from,  To = to,  Amount = amount });
+        Log(new TransferLog { From = from,  To = to,  Amount = amount });
         
         return true;
     }
@@ -98,7 +98,7 @@ public abstract class OpdexLiquidityPoolToken : SmartContract, IStandardToken256
 
         SetBalance(to, GetBalance(to) + amount);
 
-        Log(new OpdexTransferEvent { From = Address.Zero,  To = to,  Amount = amount });
+        Log(new TransferLog { From = Address.Zero,  To = to,  Amount = amount });
     }
     
     protected void BurnTokensExecute(Address from, UInt256 amount)
@@ -107,6 +107,6 @@ public abstract class OpdexLiquidityPoolToken : SmartContract, IStandardToken256
 
         SetBalance(from, GetBalance(from) - amount);
         
-        Log(new OpdexTransferEvent{ From = from, To = Address.Zero,  Amount = amount });
+        Log(new TransferLog{ From = from, To = Address.Zero,  Amount = amount });
     }
 }

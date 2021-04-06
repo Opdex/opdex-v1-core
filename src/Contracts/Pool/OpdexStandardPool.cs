@@ -143,7 +143,7 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
     
         UpdateReserves(balanceCrs, balanceSrc);
         
-        Log(new OpdexSwapEvent 
+        Log(new SwapLog 
         { 
             AmountCrsIn = amountCrsIn, 
             AmountCrsOut = amountCrsOut, 
@@ -196,7 +196,7 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
     
         KLast = ReserveCrs * ReserveSrc;
 
-        Log(new OpdexMintEvent
+        Log(new MintLog
         {
             AmountCrs = amountCrs, 
             AmountSrc = amountSrc, 
@@ -229,7 +229,7 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
         
         KLast = ReserveCrs * ReserveSrc;
         
-        Log(new OpdexBurnEvent
+        Log(new BurnLog
         {
             AmountCrs = amountCrs, 
             AmountSrc = amountSrc, 
@@ -245,7 +245,7 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
         ReserveCrs = balanceCrs;
         ReserveSrc = balanceSrc;
         
-        Log(new OpdexSyncEvent { ReserveCrs = balanceCrs, ReserveSrc = balanceSrc });
+        Log(new ReservesLog { ReserveCrs = balanceCrs, ReserveSrc = balanceSrc });
     }
     
     protected static UInt256 Sqrt(UInt256 value)

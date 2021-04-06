@@ -1,8 +1,8 @@
 using Stratis.SmartContracts;
 
-public struct OpdexStakeEvent
+public struct EnterStakingPoolLog
 {
-    [Index] public Address Sender;
+    [Index] public Address Staker;
     public UInt256 Amount;
     public UInt256 Weight;
 }

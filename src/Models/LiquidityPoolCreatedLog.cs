@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct OpdexPoolCreatedEvent
+public struct LiquidityPoolCreatedLog
 {
     public Address Token;
     public Address Pool;

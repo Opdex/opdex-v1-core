@@ -78,7 +78,7 @@ namespace OpdexCoreContracts.Tests
             pool.ReserveSrc.Should().Be(expectedBalanceToken);
 
             VerifyCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = expectedBalanceCrs, 
                 ReserveSrc = expectedBalanceToken
@@ -137,7 +137,7 @@ namespace OpdexCoreContracts.Tests
             pool.GetBalance(from).Should().Be(finalFromBalance);
             pool.GetBalance(to).Should().Be(finalToBalance);
             
-            VerifyLog(new OpdexTransferEvent
+            VerifyLog(new TransferLog
             {
                 From = from, 
                 To = to, 
@@ -207,7 +207,7 @@ namespace OpdexCoreContracts.Tests
             pool.GetBalance(to).Should().Be(finalToBalance);
             pool.Allowance(from, to).Should().Be(finalSpenderAllowance);
             
-            VerifyLog(new OpdexTransferEvent
+            VerifyLog(new TransferLog
             {
                 From = from, 
                 To = to, 
@@ -269,7 +269,7 @@ namespace OpdexCoreContracts.Tests
             pool.Approve(spender, allowance, amount).Should().BeTrue();
             pool.Allowance(from, spender).Should().Be(amount);
             
-            VerifyLog(new OpdexApprovalEvent
+            VerifyLog(new ApprovalLog
             {
                 Owner = from, 
                 Spender = spender, 
@@ -320,27 +320,27 @@ namespace OpdexCoreContracts.Tests
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
 
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentBalanceCrs,
                 ReserveSrc = currentBalanceToken
             }, Times.Once);
             
-            VerifyLog(new OpdexMintEvent
+            VerifyLog(new MintLog
             {
                 AmountCrs = currentBalanceCrs,
                 AmountSrc = currentBalanceToken,
                 Sender = trader
             }, Times.Once);
             
-            VerifyLog(new OpdexTransferEvent
+            VerifyLog(new TransferLog
             {
                 From = Address.Zero,
                 To = Address.Zero,
                 Amount = expectedBurnAmount
             }, Times.Once);
 
-            VerifyLog(new OpdexTransferEvent
+            VerifyLog(new TransferLog
             {
                 From = Address.Zero,
                 To = trader,
@@ -385,20 +385,20 @@ namespace OpdexCoreContracts.Tests
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentBalanceCrs,
                 ReserveSrc = currentBalanceToken
             }, Times.Once);
             
-            VerifyLog(new OpdexMintEvent
+            VerifyLog(new MintLog
             {
                 AmountCrs = 500,
                 AmountSrc = 1000,
                 Sender = trader
             }, Times.Once);
 
-            VerifyLog(new OpdexTransferEvent
+            VerifyLog(new TransferLog
             {
                 From = Address.Zero,
                 To = trader,
@@ -491,15 +491,15 @@ namespace OpdexCoreContracts.Tests
             pool.TotalSupply.Should().Be(currentTotalSupply  - burnAmount);
 
             // Burn Tokens
-            VerifyLog(new OpdexTransferEvent
+            VerifyLog(new TransferLog
             {
                 From = Pool,
                 To = Address.Zero,
                 Amount = burnAmount
             }, Times.Once);
             
-            // Burn Event Summary
-            VerifyLog(new OpdexBurnEvent
+            // Burn Log Summary
+            VerifyLog(new BurnLog
             {
                 Sender = Controller,
                 To = to,
@@ -544,15 +544,15 @@ namespace OpdexCoreContracts.Tests
             pool.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
 
             // Burn Tokens
-            VerifyLog(new OpdexTransferEvent
+            VerifyLog(new TransferLog
             {
                 From = Pool,
                 To = Address.Zero,
                 Amount = burnAmount
             }, Times.Once);
             
-            // Burn Event Summary
-            VerifyLog(new OpdexBurnEvent
+            // Burn Log Summary
+            VerifyLog(new BurnLog
             {
                 Sender = Controller,
                 To = to,
@@ -632,13 +632,13 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), new object[] {to, expectedReceivedToken}, Times.Once);
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs + swapAmountCrs,
                 ReserveSrc = currentReserveSrc - expectedReceivedToken
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = swapAmountCrs,
                 AmountCrsOut = 0,
@@ -672,13 +672,13 @@ namespace OpdexCoreContracts.Tests
             pool.ReserveSrc.Should().Be(currentReserveSrc + swapAmountSrc);
             pool.Balance.Should().Be(currentReserveCrs - expectedCrsReceived);
 
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs - expectedCrsReceived,
                 ReserveSrc = currentReserveSrc + swapAmountSrc
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = expectedCrsReceived,
@@ -902,13 +902,13 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs,
                 ReserveSrc = (currentReserveSrc + expectedFee)
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = 0,
@@ -954,13 +954,13 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
                 ReserveSrc = (currentReserveSrc - borrowedSrc)
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = 0,
@@ -1006,13 +1006,13 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs + expectedCrsFee,
                 ReserveSrc = currentReserveSrc
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = borrowedCrs + expectedCrsFee,
                 AmountCrsOut = borrowedCrs,
@@ -1057,13 +1057,13 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs,
                 ReserveSrc = (currentReserveSrc + expectedSrcReceived)
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = 0,
                 AmountCrsOut = borrowedCrs,
@@ -1236,13 +1236,13 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs + expectedCrsReceived,
                 ReserveSrc = (currentReserveSrc + expectedSrcReceived)
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = borrowedCrs,
@@ -1289,13 +1289,13 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, Times.Once);
             VerifyCall(to, 0, callbackData.Method,  new object[] {callbackData.Data}, Times.Once);
             
-            VerifyLog(new OpdexSyncEvent
+            VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
                 ReserveSrc = (currentReserveSrc - borrowedSrc + expectedSrcReceived)
             }, Times.Once);
 
-            VerifyLog(new OpdexSwapEvent
+            VerifyLog(new SwapLog
             {
                 AmountCrsIn = expectedCrsReceived,
                 AmountCrsOut = 0,

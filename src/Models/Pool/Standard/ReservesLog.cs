@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct OpdexSyncEvent
+public struct ReservesLog
 {
     public ulong ReserveCrs;
     public UInt256 ReserveSrc;

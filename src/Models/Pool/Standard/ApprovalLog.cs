@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct OpdexApprovalEvent
+public struct ApprovalLog
 {
     [Index] public Address Owner;
     [Index] public Address Spender;
