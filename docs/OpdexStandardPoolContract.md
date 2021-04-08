@@ -102,3 +102,7 @@ Forces the reserves to equal the current token balances. In the event of a "dona
 /// </summary>
 void Sync();
 ```
+
+---
+
+Ported and adjusted based on https://github.com/Uniswap/uniswap-v2-core

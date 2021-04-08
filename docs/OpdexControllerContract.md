@@ -244,3 +244,7 @@ UInt256 GetAmountIn(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut);
 /// <returns>Number of SRC tokens necessary to deposit</returns>
 UInt256 GetAmountIn(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc);
 ```
+
+---
+
+Ported and adjusted based on https://github.com/Uniswap/uniswap-v2-periphery
