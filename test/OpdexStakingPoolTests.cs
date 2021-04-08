@@ -235,7 +235,8 @@ namespace OpdexCoreContracts.Tests
             {
                 Owner = from, 
                 Spender = spender, 
-                Amount = amount
+                Amount = amount,
+                OldAmount = allowance
             }, Times.Once);
         }
         

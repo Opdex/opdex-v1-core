@@ -67,7 +67,7 @@ public abstract class OpdexLiquidityPoolToken : SmartContract, IStandardToken256
 
         SetAllowance(Message.Sender, spender, amount);
         
-        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount});
+        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount, OldAmount = currentAmount});
         
         return true;
     }
