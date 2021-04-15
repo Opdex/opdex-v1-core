@@ -13,8 +13,7 @@ public class OpdexController : SmartContract, IOpdexController
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="stakeToken">The address of the SRC token used for staking in pools.</param>
-    public OpdexController(ISmartContractState state, Address stakeToken) 
-        : base(state)
+    public OpdexController(ISmartContractState state, Address stakeToken) : base(state)
     {
         StakeToken = stakeToken;
     }

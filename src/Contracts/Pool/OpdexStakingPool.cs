@@ -220,7 +220,7 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         return currentWeight <= stakedWeight ? 0 : currentWeight - stakedWeight;
     }
 
-    private UInt256 CalculateStakingWeight(UInt256 stakedBalance, UInt256 rewardsBalance, UInt256 totalStaked)
+    private static UInt256 CalculateStakingWeight(UInt256 stakedBalance, UInt256 rewardsBalance, UInt256 totalStaked)
     {
         return rewardsBalance > 0 && totalStaked > 0
             ? stakedBalance * rewardsBalance / totalStaked

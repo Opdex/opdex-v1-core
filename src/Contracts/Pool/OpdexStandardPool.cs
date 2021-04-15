@@ -200,7 +200,8 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
         {
             AmountCrs = amountCrs, 
             AmountSrc = amountSrc, 
-            Sender = Message.Sender
+            Sender = Message.Sender,
+            To = to
         });
 
         return liquidity;

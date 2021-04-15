@@ -331,7 +331,8 @@ namespace OpdexCoreContracts.Tests
             {
                 AmountCrs = currentBalanceCrs,
                 AmountSrc = currentBalanceToken,
-                Sender = trader
+                Sender = trader,
+                To = trader
             }, Times.Once);
             
             VerifyLog(new TransferLog
@@ -396,7 +397,8 @@ namespace OpdexCoreContracts.Tests
             {
                 AmountCrs = 500,
                 AmountSrc = 1000,
-                Sender = trader
+                Sender = trader,
+                To = trader
             }, Times.Once);
 
             VerifyLog(new TransferLog

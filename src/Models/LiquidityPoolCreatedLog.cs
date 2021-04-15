@@ -2,6 +2,6 @@ using Stratis.SmartContracts;
 
 public struct LiquidityPoolCreatedLog
 {
-    public Address Token;
-    public Address Pool;
+    [Index] public Address Token;
+    [Index] public Address Pool;
 }
