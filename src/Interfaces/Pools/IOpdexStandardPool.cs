@@ -24,4 +24,9 @@ public interface IOpdexStandardPool : IOpdexPool
     /// <param name="authorization"></param>
     /// <returns></returns>
     bool IsAuthorizedFor(Address address, byte authorization);
+    
+    /// <summary>
+    /// Allows direct transfers of CRS tokens through the standard Transfer method to this contract.
+    /// </summary>
+    void Receive();
 }

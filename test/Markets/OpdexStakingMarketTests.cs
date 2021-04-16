@@ -6,15 +6,15 @@ using Xunit;
 
 namespace OpdexCoreContracts.Tests
 {
-    public class OpdexStakingMarketTests : BaseContractTest
+    public class OpdexStakingMarketTests : TestBase
     {
         [Fact]
         public void CreatesNewStakingMarket_Success()
         {
-            var stakingMarket = CreateNewOpdexStakingMarket();
+            var market = CreateNewOpdexStakingMarket();
 
-            stakingMarket.StakeToken.Should().Be(StakeToken);
-            stakingMarket.Fee.Should().Be(3);
+            market.StakeToken.Should().Be(StakeToken);
+            market.Fee.Should().Be(3);
         }
 
         #region Pool
@@ -22,27 +22,26 @@ namespace OpdexCoreContracts.Tests
         [Fact]
         public void GetPool_Success()
         {
-            var controller = CreateNewOpdexStakingMarket();
+            var market = CreateNewOpdexStakingMarket();
             State.SetContract(Pool, true);
             State.SetAddress($"Pool:{Token}", Pool);
             
-            controller.GetPool(Token).Should().Be(Pool);
+            market.GetPool(Token).Should().Be(Pool);
         }
 
         [Fact]
         public void CreatesPoolWithStakeToken_Success()
         {
-            var controller = CreateNewOpdexStakingMarket();
+            var market = CreateNewOpdexStakingMarket();
+            
             State.SetContract(Token, true);
             State.SetAddress(nameof(StakeToken), StakeToken);
 
-            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakeToken, controller.Fee});
+            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakeToken, market.Fee});
 
-            var pool = controller.CreatePool(Token);
+            var pool = market.CreatePool(Token);
 
-            controller.GetPool(Token)
-                .Should().Be(pool)
-                .And.Be(Pool);
+            market.GetPool(Token).Should().Be(pool).And.Be(Pool);
 
             var expectedPoolCreatedLog = new LiquidityPoolCreatedLog { Token = Token, Pool = Pool };
             VerifyLog(expectedPoolCreatedLog, Times.Once);
@@ -52,9 +51,9 @@ namespace OpdexCoreContracts.Tests
         public void CreatesPool_Throws_ZeroAddress()
         {
             var token = Address.Zero;
-            var controller = CreateNewOpdexStakingMarket();
+            var market = CreateNewOpdexStakingMarket();
             
-            controller
+            market
                 .Invoking(c => c.CreatePool(token))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: ZERO_ADDRESS");
@@ -63,11 +62,11 @@ namespace OpdexCoreContracts.Tests
         [Fact]
         public void CreatesPool_Throws_PoolExists()
         {
-            var controller = CreateNewOpdexStakingMarket();
+            var market = CreateNewOpdexStakingMarket();
             State.SetContract(Token, true);
             State.SetAddress($"Pool:{Token}", Pool);
             
-            controller
+            market
                 .Invoking(c => c.CreatePool(Token))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: POOL_EXISTS");

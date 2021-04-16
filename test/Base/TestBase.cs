@@ -8,7 +8,7 @@ using Stratis.SmartContracts.Networks;
 
 namespace OpdexCoreContracts.Tests
 {
-    public class BaseContractTest
+    public class TestBase
     {
         private readonly Mock<ISmartContractState> _mockContractState;
         private readonly Mock<IContractLogger> _mockContractLogger;
@@ -27,7 +27,7 @@ namespace OpdexCoreContracts.Tests
         protected readonly Address TokenTwo;
         protected readonly Address StandardMarket;
 
-        protected BaseContractTest()
+        protected TestBase()
         {
             State = new InMemoryState();
             _mockContractLogger = new Mock<IContractLogger>();
@@ -73,7 +73,7 @@ namespace OpdexCoreContracts.Tests
 
         protected IOpdexStandardMarket CreateNewOpdexStandardMarket(bool authPoolCreators = false, bool authProviders = false, bool authTraders = false, uint fee = 3, ulong balance = 0)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
+            _mockContractState.Setup(x => x.Message).Returns(new Message(StandardMarket, Owner, 0));
             State.SetContract(StakeToken, true);
             SetupBlock(10);
             SetupBalance(balance);
@@ -90,7 +90,7 @@ namespace OpdexCoreContracts.Tests
         
         protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authorizeProviders = false, bool authorizeTraders = false, uint fee = 3)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
+            _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, StandardMarket, 0));
             SetupBalance(balance);
             return new OpdexStandardPool(_mockContractState.Object, Token, authorizeProviders, authorizeTraders, fee);
         }

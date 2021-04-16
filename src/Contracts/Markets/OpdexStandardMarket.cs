@@ -1,20 +1,21 @@
 ﻿using Stratis.SmartContracts;
 
 /// <summary>
-/// Controller contract used for managing available pools and routing transactions. Validates and completes prerequisite
-/// transactions necessary for adding or removing liquidity or swapping in liquidity pools.
+/// Standard market contract used for managing available pools and routing transactions. Validates and completes prerequisite
+/// transactions necessary for adding or removing liquidity or swapping in liquidity pools. Optionally requires a whitelist
+/// for liquidity providing, creating pools, or swaps.
 /// </summary>
 public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
 {
     /// <summary>
-    /// Constructor to initialize the controller.
+    /// Constructor to initialize a standard market.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
-    /// <param name="owner"></param>
-    /// <param name="authPoolCreators"></param>
-    /// <param name="authProviders"></param>
-    /// <param name="authTraders"></param>
-    /// <param name="fee"></param>
+    /// <param name="owner">The owner of the market.</param>
+    /// <param name="authPoolCreators">Flag to authorize liquidity pool creators.</param>
+    /// <param name="authProviders">Flag to authorize liquidity pool providers.</param>
+    /// <param name="authTraders">Flag to authorize traders.</param>
+    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
     public OpdexStandardMarket(
         ISmartContractState state, 
         Address owner,
@@ -23,31 +24,31 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         bool authTraders, 
         uint fee) : base(state, fee)
     {
-        AuthorizePoolCreators = authPoolCreators;
-        AuthorizeProviders = authProviders;
-        AuthorizeTraders = authTraders;
+        AuthPoolCreators = authPoolCreators;
+        AuthProviders = authProviders;
+        AuthTraders = authTraders;
         Owner = owner;
     }
     
     /// <inheritdoc />
-    public bool AuthorizeTraders
+    public bool AuthTraders
     {
-        get => State.GetBool(nameof(AuthorizeTraders));
-        private set => State.SetBool(nameof(AuthorizeTraders), value);
+        get => State.GetBool(nameof(AuthTraders));
+        private set => State.SetBool(nameof(AuthTraders), value);
     }
         
     /// <inheritdoc />
-    public bool AuthorizeProviders
+    public bool AuthProviders
     {
-        get => State.GetBool(nameof(AuthorizeProviders));
-        private set => State.SetBool(nameof(AuthorizeProviders), value);
+        get => State.GetBool(nameof(AuthProviders));
+        private set => State.SetBool(nameof(AuthProviders), value);
     }
     
     /// <inheritdoc />
-    public bool AuthorizePoolCreators
+    public bool AuthPoolCreators
     {
-        get => State.GetBool(nameof(AuthorizePoolCreators));
-        private set => State.SetBool(nameof(AuthorizePoolCreators), value);
+        get => State.GetBool(nameof(AuthPoolCreators));
+        private set => State.SetBool(nameof(AuthPoolCreators), value);
     }
 
     /// <inheritdoc />
@@ -62,12 +63,10 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     {
         switch ((Permissions)permission)
         {
-            case Permissions.Trade when !AuthorizeTraders:
-            case Permissions.Provide when !AuthorizeProviders:
-            case Permissions.CreatePool when !AuthorizePoolCreators:
-                return true;
-            default:
-                return address == Owner || State.GetBool($"AuthorizedFor:{permission}:{address}");
+            case Permissions.Trade when !AuthTraders:
+            case Permissions.Provide when !AuthProviders:
+            case Permissions.CreatePool when !AuthPoolCreators: return true;
+            default: return address == Owner || State.GetBool($"AuthorizedFor:{permission}:{address}");
         }
     }
     
@@ -76,7 +75,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         Assert(IsAuthorizedFor(address, (byte)permission), "OPDEX: UNAUTHORIZED");
     }
 
-    private void SetAuthorizationFor(Address address, Permissions permission, bool isAuthorized)
+    private void SetAuthorizationFor(Address address, byte permission, bool isAuthorized)
     {
         State.SetBool($"AuthorizedFor:{permission}:{address}", isAuthorized);
     }
@@ -88,7 +87,14 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         Assert((Permissions)permission != Permissions.Unknown);
         
-        SetAuthorizationFor(address, (Permissions)permission, isAuthorized);
+        SetAuthorizationFor(address, permission, isAuthorized);
+        
+        Log(new PermissionsChangeLog
+        {
+            Address = address,
+            Permission = permission,
+            IsAuthorized = isAuthorized
+        });
     }
 
     /// <inheritdoc />
@@ -112,7 +118,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         Assert(pool == Address.Zero, "OPDEX: POOL_EXISTS");
         
-        var poolResponse = Create<OpdexStandardPool>(0, new object[] {token, AuthorizeProviders, AuthorizeTraders, Fee});
+        var poolResponse = Create<OpdexStandardPool>(0, new object[] {token, AuthProviders, AuthTraders, Fee});
 
         Assert(poolResponse.Success, "OPDEX: INVALID_POOL");
 
@@ -144,44 +150,44 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     }
     
     /// <inheritdoc />
-    public override void SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
+    public override UInt256 SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        SwapExactCrsForSrcExecute(amountSrcOutMin, token, to, deadline);
+        return SwapExactCrsForSrcExecute(amountSrcOutMin, token, to, deadline);
     }
     
     /// <inheritdoc />
-    public override void SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
+    public override UInt256 SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        SwapSrcForExactCrsExecute(amountCrsOut, amountSrcInMax, token, to, deadline);
+        return SwapSrcForExactCrsExecute(amountCrsOut, amountSrcInMax, token, to, deadline);
     }
     
     /// <inheritdoc />
-    public override void SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
+    public override ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        SwapExactSrcForCrsExecute(amountSrcIn, amountCrsOutMin, token, to, deadline);
+        return SwapExactSrcForCrsExecute(amountSrcIn, amountCrsOutMin, token, to, deadline);
     }
     
     /// <inheritdoc />
-    public override void SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
+    public override ulong SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        SwapCrsForExactSrcExecute(amountSrcOut, token, to, deadline);
+        return SwapCrsForExactSrcExecute(amountSrcOut, token, to, deadline);
     }
 
     /// <inheritdoc />
-    public override void SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
+    public override UInt256 SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        SwapSrcForExactSrcExecute(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, to, deadline);
+        return SwapSrcForExactSrcExecute(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, to, deadline);
     }
     
     /// <inheritdoc />
-    public override void SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
+    public override UInt256 SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        SwapExactSrcForSrcExecute(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, to, deadline);
+        return SwapExactSrcForSrcExecute(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, to, deadline);
     }
 }

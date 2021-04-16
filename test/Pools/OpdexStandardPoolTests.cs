@@ -7,7 +7,7 @@ using Xunit;
 
 namespace OpdexCoreContracts.Tests
 {
-    public class OpdexStandardPoolTests : BaseContractTest
+    public class OpdexStandardPoolTests : TestBase
     {
         [Fact]
         public void CreatesNewPool_Success()
@@ -62,23 +62,41 @@ namespace OpdexCoreContracts.Tests
             reserveToken.Should().Be(expectedToken);
         }
 
-        [Fact]
-        public void Sync_Success()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Sync_Success(bool authorize)
         {
+            var sender = Trader0;
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
 
-            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs);
+            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs, authorizeProviders: authorize);
+
+            var authParams = new object[] {sender, (byte)Permissions.Provide};
+            if (authorize)
+            {
+                SetupCall(StandardMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams,
+                    TransferResult.Transferred(true));
+            }
             
             var expectedSrcBalanceParams = new object[] {Pool};
             SetupCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
-
+            
+            SetupMessage(StandardMarket, sender);
+            
             pool.Sync();
 
             pool.ReserveCrs.Should().Be(expectedBalanceCrs);
             pool.ReserveSrc.Should().Be(expectedBalanceToken);
 
             VerifyCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);
+            
+            if (authorize)
+            {
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, Times.Once);
+            }
+            
             VerifyLog(new ReservesLog
             {
                 ReserveCrs = expectedBalanceCrs, 
@@ -86,15 +104,25 @@ namespace OpdexCoreContracts.Tests
             }, Times.Once);
         }
 
-        [Fact]
-        public void Skim_Success()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Skim_Success(bool authorize)
         {
+            var sender = Trader0;
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
             const ulong currentReserveCrs = 50;
             UInt256 currentReserveSrc = 100;
 
-            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs);
+            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs, authorizeProviders: authorize);
+            
+            var authParams = new object[] {sender, (byte)Permissions.Provide};
+            if (authorize)
+            {
+                SetupCall(StandardMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams,
+                    TransferResult.Transferred(true));
+            }
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -102,16 +130,23 @@ namespace OpdexCoreContracts.Tests
             var expectedSrcBalanceParams = new object[] {Pool};
             SetupCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
 
-            var expectedTransferToParams = new object[] { Trader0, (UInt256)50 };
+            var expectedTransferToParams = new object[] { sender, (UInt256)50 };
             SetupCall(Token, 0ul, nameof(IOpdexStandardPool.TransferTo), expectedTransferToParams, TransferResult.Transferred(true));
 
-            SetupTransfer(Trader0, 50ul, TransferResult.Transferred(true));
+            SetupTransfer(sender, 50ul, TransferResult.Transferred(true));
+
+            SetupMessage(Pool, sender);
             
-            pool.Skim(Trader0);
+            pool.Skim(sender);
+            
+            if (authorize)
+            {
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, Times.Once);
+            }
 
             VerifyCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);
             VerifyCall( Token, 0ul, nameof(IOpdexStandardPool.TransferTo), expectedTransferToParams, Times.Once);
-            VerifyTransfer(Trader0, 50ul, Times.Once);
+            VerifyTransfer(sender, 50ul, Times.Once);
         }
         
         #region Liquidity Pool Token Tests

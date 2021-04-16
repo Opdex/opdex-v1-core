@@ -64,4 +64,9 @@ public interface IOpdexStakingPool : IOpdexPool
     /// <param name="to">The address to send rewards to.</param>
     /// <param name="liquidate">Boolean value to liquidate rewards.</param>
     void Unstake(Address to, bool liquidate);
+    
+    /// <summary>
+    /// Allows direct transfers of CRS tokens through the standard Transfer method to this contract.
+    /// </summary>
+    void Receive();
 }

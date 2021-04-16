@@ -14,18 +14,13 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The address of the SRC token in the pool.</param>
-    /// <param name="fee">Min 0, max 10 equal to 0% to 1d%.</param>
-    protected OpdexPool(ISmartContractState state, Address token, uint fee) 
-        : base(state)
+    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
+    protected OpdexPool(ISmartContractState state, Address token, uint fee) : base(state)
     {
         Assert(fee <= 10);
-        
         Token = token;
         Fee = fee;
     }
-
-    /// <inheritdoc cref="IOpdexStandardPool.Receive" />
-    public override void Receive() { }
     
     /// <inheritdoc />
     public uint Fee
@@ -74,16 +69,85 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
 
     /// <inheritdoc />
     public abstract UInt256 Mint(Address to);
+    
+    protected UInt256 MintExecute(Address to)
+    {
+        var reserveCrs = ReserveCrs;
+        var reserveSrc = ReserveSrc;
+        var balanceCrs = Balance;
+        var balanceSrc = GetSrcBalance(Token, Address);
+        var amountCrs = balanceCrs - reserveCrs;
+        var amountSrc = balanceSrc - reserveSrc;
+        var totalSupply = TotalSupply;
+
+        UInt256 liquidity;
+        if (totalSupply == 0)
+        {
+            liquidity = Sqrt(amountCrs * amountSrc) - MinimumLiquidity;
+            MintTokensExecute(Address.Zero, MinimumLiquidity);
+        }
+        else
+        {
+            var amountCrsLiquidity = amountCrs * totalSupply / reserveCrs;
+            var amountSrcLiquidity = amountSrc * totalSupply / reserveSrc;
+            liquidity = amountCrsLiquidity > amountSrcLiquidity ? amountSrcLiquidity : amountCrsLiquidity;
+        }
+    
+        Assert(liquidity > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
+    
+        MintTokensExecute(to, liquidity);
+        UpdateReserves(balanceCrs, balanceSrc);
+    
+        KLast = ReserveCrs * ReserveSrc;
+
+        Log(new MintLog
+        {
+            AmountCrs = amountCrs, 
+            AmountSrc = amountSrc, 
+            Sender = Message.Sender,
+            To = to
+        });
+
+        return liquidity;
+    }
 
     /// <inheritdoc />
     public abstract UInt256[] Burn(Address to);
-
-    /// <inheritdoc />
-    public abstract void Skim(Address to);
-
-    /// <inheritdoc />
-    public abstract void Sync();
-
+    
+    protected UInt256[] BurnExecute(Address to, UInt256 liquidity)
+    {
+        var address = Address;
+        var token = Token;
+        var balanceCrs = Balance;
+        var balanceSrc = GetSrcBalance(token, address);
+        var totalSupply = TotalSupply;
+        var amountCrs = (ulong)(liquidity * balanceCrs / totalSupply);
+        var amountSrc = liquidity * balanceSrc / totalSupply;
+        
+        Assert(amountCrs > 0 && amountSrc > 0, "OPDEX: INSUFFICIENT_LIQUIDITY_BURNED");
+        
+        BurnTokensExecute(address, liquidity);
+        SafeTransfer(to, amountCrs);
+        SafeTransferTo(token, to, amountSrc);
+        
+        balanceCrs = Balance;
+        balanceSrc = GetSrcBalance(token, address);
+        
+        UpdateReserves(balanceCrs, balanceSrc);
+        
+        KLast = ReserveCrs * ReserveSrc;
+        
+        Log(new BurnLog
+        {
+            AmountCrs = amountCrs, 
+            AmountSrc = amountSrc, 
+            Sender = Message.Sender, 
+            To = to
+        });
+        
+        return new [] {amountCrs, amountSrc};
+    }
+    
     /// <inheritdoc />
     public abstract void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data);
 
@@ -137,6 +201,9 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
         });
     }
 
+    /// <inheritdoc />
+    public abstract void Skim(Address to);
+    
     protected void SkimExecute(Address to)
     {
         var token = Token;
@@ -147,81 +214,9 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
         SafeTransferTo(token, to, balanceSrc);
     }
 
-    protected UInt256 MintExecute(Address to)
-    {
-        var reserveCrs = ReserveCrs;
-        var reserveSrc = ReserveSrc;
-        var balanceCrs = Balance;
-        var balanceSrc = GetSrcBalance(Token, Address);
-        var amountCrs = balanceCrs - reserveCrs;
-        var amountSrc = balanceSrc - reserveSrc;
-        var totalSupply = TotalSupply;
+    /// <inheritdoc />
+    public abstract void Sync();
 
-        UInt256 liquidity;
-        if (totalSupply == 0)
-        {
-            liquidity = Sqrt(amountCrs * amountSrc) - MinimumLiquidity;
-            MintTokensExecute(Address.Zero, MinimumLiquidity);
-        }
-        else
-        {
-            var amountCrsLiquidity = amountCrs * totalSupply / reserveCrs;
-            var amountSrcLiquidity = amountSrc * totalSupply / reserveSrc;
-            liquidity = amountCrsLiquidity > amountSrcLiquidity ? amountSrcLiquidity : amountCrsLiquidity;
-        }
-    
-        Assert(liquidity > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
-    
-        MintTokensExecute(to, liquidity);
-        UpdateReserves(balanceCrs, balanceSrc);
-    
-        KLast = ReserveCrs * ReserveSrc;
-
-        Log(new MintLog
-        {
-            AmountCrs = amountCrs, 
-            AmountSrc = amountSrc, 
-            Sender = Message.Sender,
-            To = to
-        });
-
-        return liquidity;
-    }
-    
-    protected UInt256[] BurnExecute(Address to, UInt256 liquidity)
-    {
-        var address = Address;
-        var token = Token;
-        var balanceCrs = Balance;
-        var balanceSrc = GetSrcBalance(token, address);
-        var totalSupply = TotalSupply;
-        var amountCrs = (ulong)(liquidity * balanceCrs / totalSupply);
-        var amountSrc = liquidity * balanceSrc / totalSupply;
-        
-        Assert(amountCrs > 0 && amountSrc > 0, "OPDEX: INSUFFICIENT_LIQUIDITY_BURNED");
-        
-        BurnTokensExecute(address, liquidity);
-        SafeTransfer(to, amountCrs);
-        SafeTransferTo(token, to, amountSrc);
-        
-        balanceCrs = Balance;
-        balanceSrc = GetSrcBalance(token, address);
-        
-        UpdateReserves(balanceCrs, balanceSrc);
-        
-        KLast = ReserveCrs * ReserveSrc;
-        
-        Log(new BurnLog
-        {
-            AmountCrs = amountCrs, 
-            AmountSrc = amountSrc, 
-            Sender = Message.Sender, 
-            To = to
-        });
-        
-        return new [] {amountCrs, amountSrc};
-    }
-    
     protected void UpdateReserves(ulong balanceCrs, UInt256 balanceSrc)
     {
         ReserveCrs = balanceCrs;

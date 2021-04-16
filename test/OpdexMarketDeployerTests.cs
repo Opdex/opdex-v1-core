@@ -5,7 +5,7 @@ using Xunit;
 
 namespace OpdexCoreContracts.Tests
 {
-    public class OpdexMarketDeployerTests : BaseContractTest
+    public class OpdexMarketDeployerTests : TestBase
     {
         [Fact]
         public void CreatesOpdexMarketDeployer_Success()

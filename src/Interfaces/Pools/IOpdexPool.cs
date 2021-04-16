@@ -49,7 +49,7 @@ public interface IOpdexPool : IStandardToken256
     ulong Balance { get; }
     
     /// <summary>
-    /// The transaction fee for swaps. Min 0 Max 10, each is equal to .1%. Min fee is 0%. Max fee is 1%;
+    /// The market transaction fee, 0-10 equal to 0-1%.
     /// </summary>
     uint Fee { get; }
     
@@ -104,9 +104,4 @@ public interface IOpdexPool : IStandardToken256
     /// Updates the pools reserves to equal match the pools current token balances.
     /// </summary>
     void Sync();
-
-    /// <summary>
-    /// Allows direct transfers of CRS tokens through the standard Transfer method to this contract.
-    /// </summary>
-    void Receive();
 }

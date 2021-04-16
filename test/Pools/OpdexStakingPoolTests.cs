@@ -7,7 +7,7 @@ using Xunit;
 
 namespace OpdexCoreContracts.Tests
 {
-    public class OpdexStakingPoolTests : BaseContractTest
+    public class OpdexStakingPoolTests : TestBase
     {
         [Fact]
         public void CreateNewOpdexStakingPool_Success()

@@ -3,7 +3,7 @@ using Stratis.SmartContracts;
 public interface IOpdexMarket
 {
     /// <summary>
-    /// 
+    /// The market transaction fee, 0-10 equal to 0-1%.
     /// </summary>
     uint Fee { get; }
     
@@ -54,7 +54,7 @@ public interface IOpdexMarket
     /// <param name="token">The SRC token address to lookup its pool by.</param>
     /// <param name="to">The address to send the SRC tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
-    void SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline);
+    UInt256 SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline);
     
     /// <summary>
     /// Swaps a maximum set amount of SRC tokens for an exact amount of CRS tokens. SRC tokens must have
@@ -65,7 +65,7 @@ public interface IOpdexMarket
     /// <param name="token">The SRC token address to lookup its pool by.</param>
     /// <param name="to">The address to send the CRS tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
-    void SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline);
+    UInt256 SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline);
     
     /// <summary>
     /// Swaps an exact amount of SRC tokes for a minimum amount of CRS tokens. Swapped SRC tokens must have
@@ -76,7 +76,7 @@ public interface IOpdexMarket
     /// <param name="token">The SRC token address to lookup its pool by.</param>
     /// <param name="to">The address to send the CRS tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
-    void SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline);
+    ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline);
     
     /// <summary>
     /// Swaps CRS tokens for an exact amount of SRC tokens.
@@ -85,7 +85,7 @@ public interface IOpdexMarket
     /// <param name="token">The SRC token address to lookup its pool by.</param>
     /// <param name="to">The address to send the SRC tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
-    void SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline);
+    ulong SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline);
     
     /// <summary>
     /// Swaps a maximum amount of SRC tokens for an exact amount of SRC tokens. SRC tokens being swapped must
@@ -97,7 +97,7 @@ public interface IOpdexMarket
     /// <param name="tokenOut">The address of the SRC token being received.</param>
     /// <param name="to">The address to send the SRC tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
-    void SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline);
+    UInt256 SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline);
     
     /// <summary>
     /// Swaps an exact amount of SRC tokens for a minimum amount of SRC tokens. SRC tokens being swapped must
@@ -109,7 +109,7 @@ public interface IOpdexMarket
     /// <param name="tokenOut">The address of the SRC token being received.</param>
     /// <param name="to">The address to send the SRC tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
-    void SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline);
+    UInt256 SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline);
     
     /// <summary>
     /// Calculate the necessary amount to provide of TokenB in a pool by the TokenA's desired amount and the pool's

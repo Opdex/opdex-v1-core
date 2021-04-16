@@ -13,7 +13,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The SRC token address in the liquidity pool.</param>
     /// <param name="stakeToken">The SRC staking token address.</param>
-    /// <param name="fee"></param>
+    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
     public OpdexStakingPool(ISmartContractState state, Address token, Address stakeToken, uint fee) 
         : base(state, token, fee) 
     {

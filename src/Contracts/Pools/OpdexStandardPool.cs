@@ -14,7 +14,7 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     /// <param name="token">The address of the SRC token in the pool.</param>
     /// <param name="authProviders"></param>
     /// <param name="authTraders"></param>
-    /// <param name="fee"></param>
+    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
     public OpdexStandardPool(ISmartContractState state, Address token, bool authProviders, bool authTraders, uint fee) 
         : base(state, token, fee)
     {
@@ -48,27 +48,15 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     }
 
     /// <inheritdoc />
-    public bool IsAuthorizedFor(Address address, byte permission)
-    {
-        switch ((Permissions)permission)
-        {
-            case Permissions.Provide when !AuthProviders:
-            case Permissions.Trade when !AuthTraders:
-                return true;
-            default:
-            {
-                if (address == Market) return true;
-                
-                return (bool)Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), new object[] {address, permission}).ReturnValue;
-            }
-        }
-    }
-        
-    /// <inheritdoc />
     public override UInt256 Mint(Address to)
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
+        
+        if (Message.Sender != to)
+        {
+            EnsureAuthorizationFor(to, Permissions.Provide);
+        }
 
         var liquidity = MintExecute(to);
         
@@ -83,11 +71,35 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
         
+        if (Message.Sender != to)
+        {
+            EnsureAuthorizationFor(to, Permissions.Provide);
+        }
+        
         var amounts = BurnExecute(to,  GetBalance(Address));
     
         Unlock();
 
         return amounts;
+    }
+    
+    /// <inheritdoc />
+    public override void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
+    {
+        EnsureUnlocked();
+        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
+        
+        if (Message.Sender != to)
+        {
+            EnsureAuthorizationFor(to, Permissions.Trade);
+        }
+    
+        // Todo: Should callbacks be allowed with private trading?
+        // - Yes? They can arbitrage other exchanges but can't be arbitraged
+        // - No? Verified pool trades only please, no borrowing or arbitrage
+        SwapExecute(amountCrsOut, amountSrcOut, to, data);
+    
+        Unlock();
     }
         
     /// <inheritdoc />
@@ -95,6 +107,11 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
+
+        if (Message.Sender != to)
+        {
+            EnsureAuthorizationFor(to, Permissions.Provide);
+        }
     
         SkimExecute(to);
     
@@ -111,16 +128,18 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     
         Unlock();
     }
-        
+    
     /// <inheritdoc />
-    public override void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
+    public bool IsAuthorizedFor(Address address, byte permission)
     {
-        EnsureUnlocked();
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-    
-        SwapExecute(amountCrsOut, amountSrcOut, to, data);
-    
-        Unlock();
+        switch ((Permissions)permission)
+        {
+            case Permissions.Provide when !AuthProviders:
+            case Permissions.Trade when !AuthTraders: return true;
+            default:
+                return address == Market || 
+                       (bool)Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), new object[] {address, permission}).ReturnValue;
+        }
     }
     
     private void EnsureAuthorizationFor(Address address, Permissions permission)
