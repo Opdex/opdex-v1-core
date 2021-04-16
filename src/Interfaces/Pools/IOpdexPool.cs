@@ -1,7 +1,7 @@
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.Standards;
 
-public interface IOpdexStandardPool : IStandardToken256
+public interface IOpdexPool : IStandardToken256
 {
     /// <summary>
     /// The liquidity pool token's name.
@@ -47,6 +47,11 @@ public interface IOpdexStandardPool : IStandardToken256
     /// Returns the CRS balance of the pool.
     /// </summary>
     ulong Balance { get; }
+    
+    /// <summary>
+    /// The transaction fee for swaps. Min 0 Max 10, each is equal to .1%. Min fee is 0%. Max fee is 1%;
+    /// </summary>
+    uint Fee { get; }
     
     /// <summary>
     /// When adding liquidity, mints new liquidity pool tokens based on differences in reserves and balances.

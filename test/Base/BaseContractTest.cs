@@ -14,6 +14,7 @@ namespace OpdexCoreContracts.Tests
         private readonly Mock<IContractLogger> _mockContractLogger;
         private readonly Mock<IInternalTransactionExecutor> _mockInternalExecutor;
         protected readonly ISerializer Serializer;
+        protected readonly InMemoryState State;
         protected readonly Address Controller;
         protected readonly Address Pool;
         protected readonly Address Owner;
@@ -24,7 +25,7 @@ namespace OpdexCoreContracts.Tests
         protected readonly Address StakeToken;
         protected readonly Address PoolTwo;
         protected readonly Address TokenTwo;
-        protected readonly InMemoryState State;
+        protected readonly Address StandardMarket;
 
         protected BaseContractTest()
         {
@@ -47,30 +48,51 @@ namespace OpdexCoreContracts.Tests
             StakeToken = "0x0000000000000000000000000000000000000008".HexToAddress();
             PoolTwo = "0x0000000000000000000000000000000000000009".HexToAddress();
             TokenTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
+            StandardMarket = "0x0000000000000000000000000000000000000011".HexToAddress();
         }
 
-        protected IOpdexController CreateNewOpdexController(ulong balance = 0)
+        protected IOpdexMarketDeployer CreateNewOpdexMarketDeployer()
+        {
+            _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
+            SetupBalance(0);
+            SetupBlock(10);
+            SetupCreate<OpdexStakingMarket>(CreateResult.Succeeded(Controller), 0ul, new object[] { StakeToken, (uint)3 });
+
+            return new OpdexMarketDeployer(_mockContractState.Object, StakeToken);
+        }
+
+        protected IOpdexStakingMarket CreateNewOpdexStakingMarket(ulong balance = 0)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
             _mockContractState.Setup(x => x.Block.Number).Returns(() => 10);
-            State.SetContract(StakeToken, true);
+
             SetupBalance(balance);
-            return new OpdexController(_mockContractState.Object, StakeToken);
+            
+            return new OpdexStakingMarket(_mockContractState.Object, StakeToken, 3);
         }
 
-        protected IOpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0)
+        protected IOpdexStandardMarket CreateNewOpdexStandardMarket(bool authPoolCreators = false, bool authProviders = false, bool authTraders = false, uint fee = 3, ulong balance = 0)
+        {
+            _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
+            State.SetContract(StakeToken, true);
+            SetupBlock(10);
+            SetupBalance(balance);
+            return new OpdexStandardMarket(_mockContractState.Object, Owner, authPoolCreators, authProviders, authTraders, fee);
+        }
+
+        protected IOpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0, uint fee = 3)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
             State.SetContract(StakeToken, true);
             SetupBalance(balance);
-            return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken);
+            return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken, fee);
         }
         
-        protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0)
+        protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authorizeProviders = false, bool authorizeTraders = false, uint fee = 3)
         {
             _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
             SetupBalance(balance);
-            return new OpdexStandardPool(_mockContractState.Object, Token);
+            return new OpdexStandardPool(_mockContractState.Object, Token, authorizeProviders, authorizeTraders, fee);
         }
 
         protected void SetupMessage(Address contractAddress, Address sender, ulong value = 0)
@@ -83,6 +105,11 @@ namespace OpdexCoreContracts.Tests
         protected void SetupBalance(ulong balance)
         {
             _mockContractState.Setup(x => x.GetBalance).Returns(() => balance);
+        }
+        
+        protected void SetupBlock(ulong block)
+        {
+            _mockContractState.Setup(x => x.Block.Number).Returns(() => block);
         }
 
         protected void SetupCall(Address to, ulong amountToTransfer, string methodName, object[] parameters, TransferResult result, Action callback = null)

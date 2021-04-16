@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 /// unless integrated through a third party contract. The controller contract has safeguards and prerequisite
 /// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
 /// </summary>
-public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
+public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
 {
     private const ulong MinimumLiquidity = 1000;
 
@@ -14,13 +14,25 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The address of the SRC token in the pool.</param>
-    public OpdexStandardPool(ISmartContractState state, Address token) : base(state)
+    /// <param name="fee">Min 0, max 10 equal to 0% to 1d%.</param>
+    protected OpdexPool(ISmartContractState state, Address token, uint fee) 
+        : base(state)
     {
+        Assert(fee <= 10);
+        
         Token = token;
+        Fee = fee;
     }
 
     /// <inheritdoc cref="IOpdexStandardPool.Receive" />
     public override void Receive() { }
+    
+    /// <inheritdoc />
+    public uint Fee
+    {
+        get => State.GetUInt32(nameof(Fee));
+        private set => State.SetUInt32(nameof(Fee), value);
+    }
 
     /// <inheritdoc />
     public Address Token
@@ -59,56 +71,24 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
     
     /// <inheritdoc />
     public object[] Reserves => new object[] { ReserveCrs, ReserveSrc };
-        
-    /// <inheritdoc />
-    public virtual UInt256 Mint(Address to)
-    {
-        EnsureUnlocked();
 
-        var liquidity = MintExecute(to);
-        
-        Unlock();
-    
-        return liquidity;
-    }
-        
     /// <inheritdoc />
-    public virtual UInt256[] Burn(Address to)
-    {
-        EnsureUnlocked();
-        
-        var amounts = BurnExecute(to,  GetBalance(Address));
-    
-        Unlock();
+    public abstract UInt256 Mint(Address to);
 
-        return amounts;
-    }
-        
     /// <inheritdoc />
-    public virtual void Skim(Address to)
-    {
-        EnsureUnlocked();
-    
-        SkimExecute(to);
-    
-        Unlock();
-    }
-    
+    public abstract UInt256[] Burn(Address to);
+
     /// <inheritdoc />
-    public virtual void Sync()
-    {
-        EnsureUnlocked();
-    
-        UpdateReserves(Balance, GetSrcBalance(Token, Address));
-    
-        Unlock();
-    }
-        
+    public abstract void Skim(Address to);
+
     /// <inheritdoc />
-    public void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
+    public abstract void Sync();
+
+    /// <inheritdoc />
+    public abstract void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data);
+
+    protected void SwapExecute(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
     {
-        EnsureUnlocked();
-    
         var reserveCrs = ReserveCrs;
         var reserveSrc = ReserveSrc;
         var token = Token;
@@ -135,12 +115,15 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
         var amountSrcIn = balanceSrc > srcDifference ? balanceSrc - srcDifference : 0;
     
         Assert(amountCrsIn > 0 || amountSrcIn > 0, "OPDEX: ZERO_INPUT_AMOUNT");
-    
-        var balanceCrsAdjusted = (balanceCrs * 1_000) - (amountCrsIn * 3);
-        var balanceSrcAdjusted = (balanceSrc * 1_000) - (amountSrcIn * 3);
-    
-        Assert(balanceCrsAdjusted * balanceSrcAdjusted >= reserveCrs * reserveSrc * 1_000_000, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
-    
+
+        var fee = Fee;
+        const uint feeOffset = 1_000;
+
+        var balanceCrsAdjusted = (balanceCrs * feeOffset) - (amountCrsIn * fee);
+        var balanceSrcAdjusted = (balanceSrc * feeOffset) - (amountSrcIn * fee);
+        
+        Assert(balanceCrsAdjusted * balanceSrcAdjusted >= reserveCrs * reserveSrc * (feeOffset * feeOffset), "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+
         UpdateReserves(balanceCrs, balanceSrc);
         
         Log(new SwapLog 
@@ -152,8 +135,6 @@ public class OpdexStandardPool : OpdexLiquidityPoolToken, IOpdexStandardPool
             Sender = Message.Sender, 
             To = to
         });
-    
-        Unlock();
     }
 
     protected void SkimExecute(Address to)

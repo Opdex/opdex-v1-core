@@ -18,6 +18,7 @@ namespace OpdexCoreContracts.Tests
             pool.Decimals.Should().Be(8);
             pool.Name.Should().Be("Opdex Liquidity Pool Token");
             pool.Symbol.Should().Be("OLPT");
+            pool.Fee.Should().Be(3);
         }
 
         [Fact]

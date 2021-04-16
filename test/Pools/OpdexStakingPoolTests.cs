@@ -10,7 +10,7 @@ namespace OpdexCoreContracts.Tests
     public class OpdexStakingPoolTests : BaseContractTest
     {
         [Fact]
-        public void CreatesNewPool_Success()
+        public void CreateNewOpdexStakingPool_Success()
         {
             var pool = CreateNewOpdexStakingPool();
 

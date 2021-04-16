@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 /// by .05% according to the difference between root K and root KLast. Stakers deposit the staking
 /// token and earn the inflated fees according to their weight staked.
 /// </summary>
-public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
+public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
 {
     /// <summary>
     /// Constructor initializing a staking pool contract.
@@ -13,7 +13,9 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The SRC token address in the liquidity pool.</param>
     /// <param name="stakeToken">The SRC staking token address.</param>
-    public OpdexStakingPool(ISmartContractState state, Address token, Address stakeToken) : base(state, token)
+    /// <param name="fee"></param>
+    public OpdexStakingPool(ISmartContractState state, Address token, Address stakeToken, uint fee) 
+        : base(state, token, fee) 
     {
         StakeToken = stakeToken;
     }
@@ -155,6 +157,16 @@ public class OpdexStakingPool : OpdexStandardPool, IOpdexStakingPool
         Unlock();
 
         return amounts;
+    }
+
+    /// <inheritdoc />
+    public override void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
+    {
+        EnsureUnlocked();
+    
+        SwapExecute(amountCrsOut, amountSrcOut, to, data);
+    
+        Unlock();
     }
         
     /// <inheritdoc />

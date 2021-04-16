@@ -1,12 +1,12 @@
 using Stratis.SmartContracts;
 
-public interface IOpdexController
+public interface IOpdexMarket
 {
     /// <summary>
-    /// The address of the staking token.
+    /// 
     /// </summary>
-    Address StakeToken { get; }
-
+    uint Fee { get; }
+    
     /// <summary>
     /// Retrieve a pool's contract address by the SRC token associated.
     /// </summary>

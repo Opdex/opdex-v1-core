@@ -3,93 +3,87 @@ using Moq;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
+using Xunit.Sdk;
 
 namespace OpdexCoreContracts.Tests
 {
-    public class OpdexControllerTests : BaseContractTest
+    public class OpdexStandardMarketTests : BaseContractTest
     {
-        [Fact]
-        public void CreatesNewController_Success()
+        [Theory]
+        [InlineData(false, false, false, 3)]
+        [InlineData(true, false, false, 10)]
+        [InlineData(false, true, false, 9)]
+        [InlineData(false, true, true, 8)]
+        [InlineData(true, true, false, 0)]
+        [InlineData(true, true, true, 1)]
+        public void CreatesNewStandardMarket_Success(bool authPoolCreators, bool authProviders, bool authTraders, uint fee)
         {
-            CreateNewOpdexController();
+            var market = CreateNewOpdexStandardMarket(authPoolCreators, authProviders, authTraders, fee);
+
+            market.AuthorizePoolCreators.Should().Be(authPoolCreators);
+            market.AuthorizeProviders.Should().Be(authProviders);
+            market.AuthorizeTraders.Should().Be(authTraders);
+            market.Fee.Should().Be(fee);
         }
+        
+        #region Pools
 
-        #region Pool
-
-        [Fact]
-        public void GetPool_Success()
+        [Theory]
+        [InlineData(false, false, 3)]
+        [InlineData(false, true, 10)]
+        [InlineData(true, false, 9)]
+        [InlineData(false, true, 8)]
+        [InlineData(true, false, 0)]
+        [InlineData(true, true, 1)]
+        public void CreateStandardPool_Success(bool authProviders, bool authTraders, uint fee)
         {
-            var controller = CreateNewOpdexController();
-            State.SetContract(Pool, true);
-            State.SetAddress($"Pool:{Token}", Pool);
+            const bool authPoolCreators = false;
             
-            controller.GetPool(Token).Should().Be(Pool);
-        }
-
-        [Fact]
-        public void CreatesPoolWithStakeToken_Success()
-        {
-            var controller = CreateNewOpdexController();
+            var market = CreateNewOpdexStandardMarket(authPoolCreators, authProviders, authTraders, fee);
+            
             State.SetContract(Token, true);
-            State.SetAddress(nameof(StakeToken), StakeToken);
 
-            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakeToken});
+            var parameters = new object[] { Token, market.AuthorizeProviders, market.AuthorizeTraders, market.Fee };
+            
+            SetupCreate<OpdexStandardPool>(CreateResult.Succeeded(Pool), parameters: parameters);
 
-            var pool = controller.CreatePool(Token);
+            var pool = market.CreatePool(Token);
 
-            controller.GetPool(Token)
-                .Should().Be(pool)
-                .And.Be(Pool);
+            market.GetPool(Token).Should().Be(pool).And.Be(Pool);
+            market.AuthorizeProviders.Should().Be(authProviders);
+            market.AuthorizeTraders.Should().Be(authTraders);
+            market.Fee.Should().Be(fee);
+            market.Owner.Should().Be(Owner);
 
             var expectedPoolCreatedLog = new LiquidityPoolCreatedLog { Token = Token, Pool = Pool };
+            
             VerifyLog(expectedPoolCreatedLog, Times.Once);
         }
         
         [Fact]
-        public void CreatesPoolWithoutStakeToken_Success()
+        public void CreatesNewStandardPool_Throws_Unauthorized()
         {
-            var controller = CreateNewOpdexController();
+            var unauthorizedUser = Trader0;
+            
+            var market = CreateNewOpdexStandardMarket(authPoolCreators: true);
+            
             State.SetContract(Token, true);
 
-            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakeToken});
-
-            var pool = controller.CreatePool(Token);
-
-            controller.GetPool(Token)
-                .Should().Be(pool)
-                .And.Be(Pool);
-
-            var expectedPoolCreatedLog = new LiquidityPoolCreatedLog { Token = Token, Pool = Pool };
-            VerifyLog(expectedPoolCreatedLog, Times.Once);
-        }
-
-        [Fact]
-        public void CreatesPool_Throws_ZeroAddress()
-        {
-            var token = Address.Zero;
-            var controller = CreateNewOpdexController();
+            var parameters = new object[] { Token, false, false, market.Fee };
             
-            controller
-                .Invoking(c => c.CreatePool(token))
-                .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: ZERO_ADDRESS");
-        }
-        
-        [Fact]
-        public void CreatesPool_Throws_PoolExists()
-        {
-            var controller = CreateNewOpdexController();
-            State.SetContract(Token, true);
-            State.SetAddress($"Pool:{Token}", Pool);
+            SetupCreate<OpdexStandardPool>(CreateResult.Succeeded(Pool), parameters: parameters);
+
+            SetupMessage(Controller, unauthorizedUser);
             
-            controller
-                .Invoking(c => c.CreatePool(Token))
-                .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: POOL_EXISTS");
+            market
+                .Invoking(p => p.CreatePool(Token))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
         #endregion
-
+        
         #region Add Liquidity
 
         [Theory]
@@ -103,7 +97,7 @@ namespace OpdexCoreContracts.Tests
             const ulong expectedReserveCrs = 0;
             var expectedReserveSrc = UInt256.MinValue;
             
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -142,7 +136,7 @@ namespace OpdexCoreContracts.Tests
         {
             var to = OtherAddress;
             
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -175,6 +169,47 @@ namespace OpdexCoreContracts.Tests
         }
         
         [Theory]
+        [InlineData(1_000, 1_500, 500, 750, 100_000, 150_000)]
+        [InlineData(25_000, 75_000, 20_000, 60_000, 2_500_000, 7_500_000)]
+        public void AddLiquidity_Success_ExistingReserves_TokenOptimal_WithAuthorization(ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, 
+            UInt256 amountSrcMin, ulong reserveCrs, UInt256 reserveSrc)
+        {
+            var to = Trader0;
+            
+            var controller = CreateNewOpdexStandardMarket(authProviders: true);
+
+            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{to}", true);
+
+            SetupMessage(Controller, Trader0, amountCrsDesired);
+
+            // Call to get reserves from pool
+            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
+            
+            // Transfer SRC to Pool
+            var expectedAmountSrcOptimal = controller.GetLiquidityQuote(amountCrsDesired, reserveCrs, reserveSrc);
+            var transferFromParams = new object[] {Trader0, Pool, expectedAmountSrcOptimal};
+            SetupCall(Token, 0, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
+
+            // Mint Liquidity Src
+            var mintParams = new object[] {to};
+            // It is not this tests responsibility to validate the minted liquidity tokens amounts
+            SetupCall(Pool, amountCrsDesired, nameof(IOpdexStandardPool.Mint), mintParams, TransferResult.Transferred(It.IsAny<UInt256>()));
+            
+            var addLiquidityResponse = controller.AddLiquidity(Token, amountSrcDesired, amountCrsMin, amountSrcMin, to, 0ul);
+
+            addLiquidityResponse[0].Should().Be(amountCrsDesired);
+            addLiquidityResponse[1].Should().Be(expectedAmountSrcOptimal);
+            // It is not this tests responsibility to validate the returned minted liquidity tokens
+            addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
+            
+            VerifyCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, Times.Once);
+            VerifyCall(Token, 0, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
+            VerifyCall(Pool, amountCrsDesired, nameof(IOpdexStandardPool.Mint), mintParams, Times.Once);
+        }
+        
+        [Theory]
         [InlineData(1_500, 900, 750, 500, 150_000, 100_000)]
         [InlineData(75_000, 24_000, 60_000, 20_000, 7_500_000, 2_500_000)]
         public void AddLiquidity_Success_ExistingReserves_CrsOptimal(ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, 
@@ -182,7 +217,7 @@ namespace OpdexCoreContracts.Tests
         {
             var to = OtherAddress;
             
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -225,12 +260,25 @@ namespace OpdexCoreContracts.Tests
         public void AddLiquidity_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
+        [Fact]
+        public void AddLiquidity_Throws_UnauthorizedProvider()
+        {
+            var market = CreateNewOpdexStandardMarket(authProviders: true);
+
+            SetupMessage(Pool, Trader0);
+            
+            market
+                .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, Trader0, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
         #endregion
@@ -241,7 +289,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(100, 1_000, 1_000)]
         public void RemoveLiquidity_Success(UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -268,7 +316,7 @@ namespace OpdexCoreContracts.Tests
         [Fact]
         public void RemoveLiquidity_Throws_InvalidPool()
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             SetupMessage(Controller, OtherAddress);
             
@@ -284,7 +332,7 @@ namespace OpdexCoreContracts.Tests
             UInt256 liquidity = 100;
             const ulong amountCrsMin = 1000;
             UInt256 amountSrcMin = 1000;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -312,7 +360,7 @@ namespace OpdexCoreContracts.Tests
             UInt256 liquidity = 100;
             const ulong amountCrsMin = 1000;
             UInt256 amountSrcMin = 1000;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -338,7 +386,7 @@ namespace OpdexCoreContracts.Tests
         public void RemoveLiquidity_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.RemoveLiquidity(Token, UInt256.MaxValue, ulong.MaxValue, UInt256.MaxValue, Trader0, deadline))
@@ -355,7 +403,7 @@ namespace OpdexCoreContracts.Tests
         public void SwapExactCrsForSrc_Success(UInt256 amountSrcOutMin, ulong amountCrsIn, UInt256 reserveSrc, ulong reserveCrs)
         {
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -379,11 +427,24 @@ namespace OpdexCoreContracts.Tests
             VerifyCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, Times.Once);
             VerifyCall(Pool, amountCrsIn, nameof(IOpdexStandardPool.Swap), swapParams, Times.Once);
         }
+        
+        [Fact]
+        public void SwapExactCrsForSrc_Throws_UnauthorizedTrader()
+        {
+            var market = CreateNewOpdexStandardMarket(authTraders: true);
+
+            SetupMessage(Pool, Trader0);
+            
+            market
+                .Invoking(c => c.SwapExactCrsForSrc(1000, Token, OtherAddress, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
+        }
 
         [Fact]
         public void SwapExactCrsForSrc_Throws_InvalidPool()
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             controller
                 .Invoking(c => c.SwapExactCrsForSrc(1000, Token, OtherAddress, 0))
@@ -395,7 +456,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(6500, 14625, 200_000, 450_000)]
         public void SwapExactCrsForSrc_Throws_InsufficientOutputAmount(UInt256 amountSrcOutMin, ulong amountCrsIn, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -415,14 +476,14 @@ namespace OpdexCoreContracts.Tests
         public void SwapExactCrsForSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.SwapExactCrsForSrc(10ul, Token, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
         }
-        
+
         #endregion
 
         #region Swap Src for Exact CRS
@@ -432,7 +493,7 @@ namespace OpdexCoreContracts.Tests
         public void SwapSrcForExactCrs_Success(ulong amountCrsOut, UInt256 amountSrcInMax, UInt256 reserveSrc, ulong reserveCrs)
         {
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -465,7 +526,7 @@ namespace OpdexCoreContracts.Tests
         [Fact]
         public void SwapSrcForExactCrs_Throws_InvalidPool()
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             controller
                 .Invoking(c => c.SwapSrcForExactCrs(1000, 1000, Token, OtherAddress, 0))
@@ -477,7 +538,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(6500, 2000, 200_000, 450_000)]
         public void SwapSrcForExactCrs_Throws_ExcessiveInputAmount(ulong amountCrsOut, UInt256 amountSrcInMax, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -497,12 +558,25 @@ namespace OpdexCoreContracts.Tests
         public void SwapSrcForExactCrs_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.SwapSrcForExactCrs(10ul, UInt256.MaxValue, Token, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
+        [Fact]
+        public void SwapSrcForExactCrs_Throws_UnauthorizedTrader()
+        {
+            var market = CreateNewOpdexStandardMarket(authTraders: true);
+
+            SetupMessage(Pool, Trader0);
+            
+            market
+                .Invoking(c => c.SwapSrcForExactCrs(10ul, UInt256.MaxValue, Token, Trader0, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
         #endregion
@@ -514,7 +588,7 @@ namespace OpdexCoreContracts.Tests
         public void SwapExactSrcForCrs_Success(UInt256 amountSrcIn, ulong amountCrsOutMin, UInt256 reserveSrc, ulong reserveCrs)
         {
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -547,7 +621,7 @@ namespace OpdexCoreContracts.Tests
         [Fact]
         public void SwapExactSrcForCrs_Throws_InvalidPool()
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             controller
                 .Invoking(c => c.SwapExactSrcForCrs(1000, 1000, Token, OtherAddress, 0))
@@ -559,7 +633,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(6500, 20000, 200_000, 450_000)]
         public void SwapExactSrcForCrs_Throws_InsufficientOutputAmount(UInt256 amountSrcIn, ulong amountCrsOutMin, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -579,12 +653,25 @@ namespace OpdexCoreContracts.Tests
         public void SwapExactSrcForCrs_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.SwapExactSrcForCrs(10ul, 10ul, Token, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
+        [Fact]
+        public void SwapExactSrcForCrs_Throws_UnAuthorizedTrader()
+        {
+            var market = CreateNewOpdexStandardMarket(authTraders: true);
+
+            SetupMessage(Pool, Trader0);
+            
+            market
+                .Invoking(c => c.SwapExactSrcForCrs(10ul, 10ul, Token, Trader0, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
         #endregion
@@ -596,7 +683,7 @@ namespace OpdexCoreContracts.Tests
         public void SwapCrsForExactSrc_Success(ulong amountCrsIn, UInt256 amountSrcOut, UInt256 reserveSrc, ulong reserveCrs)
         {
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -635,7 +722,7 @@ namespace OpdexCoreContracts.Tests
         [Fact]
         public void SwapCrsForExactSrc_Throws_InvalidPool()
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             controller
                 .Invoking(c => c.SwapCrsForExactSrc(1000, Token, OtherAddress, 0))
@@ -647,7 +734,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(2000, 200_000, 450_000)]
         public void SwapCrsForExactSrc_Throws_ExcessiveInputAmount(UInt256 amountSrcOut, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -666,12 +753,25 @@ namespace OpdexCoreContracts.Tests
         public void SwapCrsForExactSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.SwapCrsForExactSrc(UInt256.MaxValue, Token, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
+        [Fact]
+        public void SwapCrsForExactSrc_Throws_UnauthorizedTrader()
+        {
+            var market = CreateNewOpdexStandardMarket(authTraders: true);
+
+            SetupMessage(Pool, Trader0);
+            
+            market
+                .Invoking(c => c.SwapCrsForExactSrc(UInt256.MaxValue, Token, Trader0, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
 
         #endregion
@@ -690,7 +790,7 @@ namespace OpdexCoreContracts.Tests
             var tokenOutPool = PoolTwo;
             
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -741,7 +841,7 @@ namespace OpdexCoreContracts.Tests
             var tokenOutPool = PoolTwo;
             
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -766,12 +866,25 @@ namespace OpdexCoreContracts.Tests
         public void SwapSrcForExactSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.SwapSrcForExactSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
+        [Fact]
+        public void SwapSrcForExactSrc_Throws_UnauthorizedTrader()
+        {
+            var market = CreateNewOpdexStandardMarket(authTraders: true);
+
+            SetupMessage(Pool, Trader0);
+            
+            market
+                .Invoking(c => c.SwapSrcForExactSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
         #endregion
@@ -790,7 +903,7 @@ namespace OpdexCoreContracts.Tests
             var tokenOutPool = PoolTwo;
             
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -841,7 +954,7 @@ namespace OpdexCoreContracts.Tests
             var tokenOutPool = PoolTwo;
             
             // Arrange
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -866,12 +979,25 @@ namespace OpdexCoreContracts.Tests
         public void SwapExactSrcForSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.SwapExactSrcForSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
+        [Fact]
+        public void SwapExactSrcForSrc_Throws_UnauthorizedTrader()
+        {
+            var market = CreateNewOpdexStandardMarket(authTraders: true);
+            
+            SetupMessage(Pool, Trader0);
+            
+            market
+                .Invoking(c => c.SwapExactSrcForSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
         #endregion
@@ -885,7 +1011,7 @@ namespace OpdexCoreContracts.Tests
         // Todo: Add more scenarios with precalculated expected results
         public void GetLiquidityQuote_Success(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             var expected = amountA * reserveB / reserveA;
             var quote = controller.GetLiquidityQuote(amountA, reserveA, reserveB);
 
@@ -895,7 +1021,7 @@ namespace OpdexCoreContracts.Tests
         [Fact]
         public void GetLiquidityQuote_Throws_InsufficientAmount()
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             controller
                 .Invoking(c => c.GetLiquidityQuote(0, 10, 100))
@@ -908,7 +1034,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(10, 0, 1000)]
         public void GetLiquidityQuote_Throws_InsufficientLiquidity(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
             
             controller
                 .Invoking(c => c.GetLiquidityQuote(amountA, reserveA, reserveB))
@@ -921,7 +1047,7 @@ namespace OpdexCoreContracts.Tests
         // Todo: Add more scenarios with precalculated expected results
         public void GetAmountOut_Success(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             var amountOut = controller.GetAmountOut(amountIn, reserveIn, reserveOut);
 
@@ -932,7 +1058,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(0, 10_000, 100_000)]
         public void GetAmountOut_Throws_InsufficientInputAmount(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.GetAmountOut(amountIn, reserveIn, reserveOut))
@@ -945,7 +1071,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(1_000, 10_000, 0)]
         public void GetAmountOut_Throws_InsufficientLiquidity(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.GetAmountOut(amountIn, reserveIn, reserveOut))
@@ -958,7 +1084,7 @@ namespace OpdexCoreContracts.Tests
         // Todo: Add more scenarios with precalculated expected results
         public void GetAmountIn_Success(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             var amountIn = controller.GetAmountIn(amountOut, reserveIn, reserveOut);
 
@@ -969,7 +1095,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(0, 10_000, 100_000)]
         public void GetAmountIn_Throws_InsufficientInputAmount(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.GetAmountIn(amountOut, reserveIn, reserveOut))
@@ -982,7 +1108,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(1_000, 10_000, 0)]
         public void GetAmountIn_Throws_InsufficientLiquidity(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var controller = CreateNewOpdexController();
+            var controller = CreateNewOpdexStandardMarket();
 
             controller
                 .Invoking(c => c.GetAmountIn(amountOut, reserveIn, reserveOut))
