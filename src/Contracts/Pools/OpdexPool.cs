@@ -65,7 +65,7 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
     }
     
     /// <inheritdoc />
-    public object[] Reserves => new object[] { ReserveCrs, ReserveSrc };
+    public UInt256[] Reserves => new [] { ReserveCrs, ReserveSrc };
 
     /// <inheritdoc />
     public abstract UInt256 Mint(Address to);
@@ -104,6 +104,7 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
         {
             AmountCrs = amountCrs, 
             AmountSrc = amountSrc, 
+            AmountLpt = liquidity,
             Sender = Message.Sender,
             To = to
         });
@@ -141,6 +142,7 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
         {
             AmountCrs = amountCrs, 
             AmountSrc = amountSrc, 
+            AmountLpt = liquidity,
             Sender = Message.Sender, 
             To = to
         });

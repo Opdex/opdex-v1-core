@@ -12,22 +12,21 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The SRC token address in the liquidity pool.</param>
-    /// <param name="stakeToken">The SRC staking token address.</param>
+    /// <param name="stakingToken">The SRC staking token address.</param>
     /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
-    public OpdexStakingPool(ISmartContractState state, Address token, Address stakeToken, uint fee) 
-        : base(state, token, fee) 
+    public OpdexStakingPool(ISmartContractState state, Address token, Address stakingToken, uint fee) : base(state, token, fee) 
     {
-        StakeToken = stakeToken;
+        StakingToken = stakingToken;
     }
     
-    /// <inheritdoc cref="IOpdexStakingPool.Receive" />
+    /// <inheritdoc />
     public override void Receive() { }
 
     /// <inheritdoc />
-    public Address StakeToken
+    public Address StakingToken
     {
-        get => State.GetAddress(nameof(StakeToken));
-        private set => State.SetAddress(nameof(StakeToken), value);
+        get => State.GetAddress(nameof(StakingToken));
+        private set => State.SetAddress(nameof(StakingToken), value);
     }
         
     /// <inheritdoc />
@@ -84,8 +83,9 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
+        
         MintStakingRewards(ReserveCrs, ReserveSrc);
-
+        
         var stakedBalance = GetStakedBalance(Message.Sender);
         if (stakedBalance > 0)
         {
@@ -94,11 +94,14 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         }
         
         stakedBalance += amount;
-
-        SafeTransferFrom(StakeToken, Message.Sender, Address, amount);
+        
+        SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
+        
         SetStakedBalance(Message.Sender, stakedBalance);
         SetStakingWeightExecute(stakedBalance);
+        
         NominateLiquidityPool();
+        
         Unlock();
     }
     
@@ -107,12 +110,15 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
+        
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
         var stakedBalance = GetStakedBalance(Message.Sender);
         
         CollectStakingRewardsExecute(to, stakedBalance, liquidate);
+        
         SetStakingWeightExecute(stakedBalance);
+        
         Unlock();
     }
         
@@ -121,13 +127,17 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
+        
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
         var stakedBalance = GetStakedBalance(Message.Sender);
         
         CollectStakingRewardsExecute(to, stakedBalance, liquidate);
+        
         UnstakeExecute(to, stakedBalance, true);
+        
         NominateLiquidityPool();
+        
         Unlock();
     }
         
@@ -137,11 +147,11 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         EnsureUnlocked();
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
-
+        
         var liquidity = MintExecute(to);
         
         Unlock();
-
+        
         return liquidity;
     }
     
@@ -155,7 +165,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
         
         Unlock();
-
+        
         return amounts;
     }
 
@@ -163,9 +173,9 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     public override void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
     {
         EnsureUnlocked();
-    
+        
         SwapExecute(amountCrsOut, amountSrcOut, to, data);
-    
+        
         Unlock();
     }
         
@@ -173,11 +183,11 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     public override void Skim(Address to)
     {
         EnsureUnlocked();
-    
+        
         SkimExecute(to);
-
+        
         TransferTokensExecute(Address, to, GetBalance(Address) - StakingRewardsBalance);
-    
+        
         Unlock();
     }
     
@@ -185,17 +195,17 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     public override void Sync()
     {
         EnsureUnlocked();
-
+        
         UpdateReserves(Balance, GetSrcBalance(Token, Address));
         
         StakingRewardsBalance = GetBalance(Address);
-    
+        
         Unlock();
     }
 
     private void NominateLiquidityPool()
     {
-        Call(StakeToken, 0ul, nameof(NominateLiquidityPool));
+        Call(StakingToken, 0ul, nameof(NominateLiquidityPool));
     }
 
     private void SetStakingWeightExecute(UInt256 balance)
@@ -214,8 +224,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
             Log(new EnterStakingPoolLog
             {
                 Staker = Message.Sender,
-                Amount = balance,
-                Weight = weight
+                Amount = balance
             });
         }
         
@@ -253,7 +262,6 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         Log(new CollectStakingRewardsLog
         {
             Staker = Message.Sender,
-            Amount = stakedBalance,
             Reward = rewards
         });
     }
@@ -262,7 +270,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     {
         if (transfer)
         {
-            SafeTransferTo(StakeToken, to, stakedBalance);
+            SafeTransferTo(StakingToken, to, stakedBalance);
             
             Log(new ExitStakingPoolLog
             {
@@ -277,9 +285,9 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
 
     private void EnsureStakingEnabled()
     {
-        var stakeToken = StakeToken;
+        var stakingToken = StakingToken;
 
-        var enabled = stakeToken != Token && stakeToken != Address.Zero;
+        var enabled = stakingToken != Token && stakingToken != Address.Zero;
         
         Assert(enabled, "OPDEX: STAKING_UNAVAILABLE");
     }

@@ -12,8 +12,8 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The address of the SRC token in the pool.</param>
-    /// <param name="authProviders"></param>
-    /// <param name="authTraders"></param>
+    /// <param name="authProviders">Flag to authorize liquidity providers or not.</param>
+    /// <param name="authTraders">Flag to authorize traders or not.</param>
     /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
     public OpdexStandardPool(ISmartContractState state, Address token, bool authProviders, bool authTraders, uint fee) 
         : base(state, token, fee)
@@ -23,7 +23,7 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
         AuthTraders = authTraders;
     }
 
-    /// <inheritdoc cref="IOpdexStandardPool.Receive" />
+    /// <inheritdoc />
     public override void Receive() { }
     
     /// <inheritdoc />
@@ -53,15 +53,10 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
         
-        if (Message.Sender != to)
-        {
-            EnsureAuthorizationFor(to, Permissions.Provide);
-        }
-
         var liquidity = MintExecute(to);
         
         Unlock();
-    
+        
         return liquidity;
     }
         
@@ -71,15 +66,10 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
         
-        if (Message.Sender != to)
-        {
-            EnsureAuthorizationFor(to, Permissions.Provide);
-        }
-        
         var amounts = BurnExecute(to,  GetBalance(Address));
-    
+        
         Unlock();
-
+        
         return amounts;
     }
     
@@ -89,16 +79,8 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
         
-        if (Message.Sender != to)
-        {
-            EnsureAuthorizationFor(to, Permissions.Trade);
-        }
-    
-        // Todo: Should callbacks be allowed with private trading?
-        // - Yes? They can arbitrage other exchanges but can't be arbitraged
-        // - No? Verified pool trades only please, no borrowing or arbitrage
         SwapExecute(amountCrsOut, amountSrcOut, to, data);
-    
+        
         Unlock();
     }
         
@@ -107,14 +89,9 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
-
-        if (Message.Sender != to)
-        {
-            EnsureAuthorizationFor(to, Permissions.Provide);
-        }
-    
+        
         SkimExecute(to);
-    
+        
         Unlock();
     }
     
@@ -123,9 +100,9 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
-    
+        
         UpdateReserves(Balance, GetSrcBalance(Token, Address));
-    
+        
         Unlock();
     }
     
@@ -136,10 +113,21 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
         {
             case Permissions.Provide when !AuthProviders:
             case Permissions.Trade when !AuthTraders: return true;
+            case Permissions.Unknown: return false;
             default:
                 return address == Market || 
                        (bool)Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), new object[] {address, permission}).ReturnValue;
         }
+    }
+
+    /// <inheritdoc />
+    public void SetMarket(Address address)
+    {
+        Assert(Message.Sender == Market, "OPDEX: UNAUTHORIZED");
+
+        Market = address;
+        
+        Log(new MarketChangeLog { From = Message.Sender, To = address });
     }
     
     private void EnsureAuthorizationFor(Address address, Permissions permission)

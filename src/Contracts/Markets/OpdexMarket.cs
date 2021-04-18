@@ -39,19 +39,19 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
     public abstract Address CreatePool(Address token);
 
     /// <inheritdoc />
-    public virtual object[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    public virtual UInt256[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         return AddLiquidityExecute(token, amountSrcDesired, amountCrsMin, amountSrcMin, to, deadline);
     }
     
-    protected object[] AddLiquidityExecute(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    protected UInt256[] AddLiquidityExecute(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
-        var liquidityAmounts = CalculateLiquidityAmounts(token, Message.Value, amountSrcDesired, amountCrsMin, amountSrcMin);
-        var amountCrs = (ulong)liquidityAmounts[0];
-        var amountSrc = (UInt256)liquidityAmounts[1];
-        var pool = (Address)liquidityAmounts[2];
+        var pool = GetValidatedPool(token);
+        var amounts = CalculateLiquidityAmounts(pool, Message.Value, amountSrcDesired, amountCrsMin, amountSrcMin);
+        var amountCrs = (ulong)amounts[0];
+        var amountSrc = amounts[1];
 
         SafeTransfer(Message.Sender, Message.Value - amountCrs);
         SafeTransferFrom(token, Message.Sender, pool, amountSrc);
@@ -59,16 +59,16 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         var liquidityResponse = Call(pool, amountCrs, nameof(IOpdexStandardPool.Mint), new object[] {to});
         Assert(liquidityResponse.Success, "OPDEX: INVALID_MINT_RESPONSE");
         
-        return new [] { amountCrs, amountSrc, liquidityResponse.ReturnValue };
+        return new [] { amountCrs, amountSrc, (UInt256)liquidityResponse.ReturnValue };
     }
 
     /// <inheritdoc />
-    public virtual object[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    public virtual UInt256[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         return RemoveLiquidityExecute(token, liquidity, amountCrsMin, amountSrcMin, to, deadline);
     }
     
-    protected object[] RemoveLiquidityExecute(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    protected UInt256[] RemoveLiquidityExecute(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -83,8 +83,8 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
 
         Assert(amountCrs >= amountCrsMin, "OPDEX: INSUFFICIENT_CRS_AMOUNT");
         Assert(amountSrc >= amountSrcMin, "OPDEX: INSUFFICIENT_SRC_AMOUNT");
-        
-        return new object[] { (ulong)burnResponse[0], burnResponse[1] };
+
+        return burnResponse;
     }
 
     /// <inheritdoc />
@@ -243,10 +243,11 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         Assert(amountIn > 0, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
         Assert(reserveIn > 0 && reserveOut > 0, "OPDEX: INSUFFICIENT_LIQUIDITY");
         
-        var amountInWithFee = amountIn * 997;
+        const uint offset = 1_000;
+        var amountInWithFee = amountIn * (offset - Fee);
         var numerator = amountInWithFee * reserveOut;
-        var denominator = reserveIn * 1000 + amountInWithFee;
-        
+        var denominator = reserveIn * offset + amountInWithFee;
+
         return numerator / denominator;
     }
 
@@ -271,7 +272,7 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         const uint offset = 1_000;
         var numerator = reserveIn * amountOut * offset;
         var denominator = (reserveOut - amountOut) * (offset - Fee);
-        
+
         return numerator / denominator + 1;
     }
 
@@ -303,9 +304,8 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         return new[] {amountCrs, amountSrcOut};
     }
     
-    private object[] CalculateLiquidityAmounts(Address token, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
+    private UInt256[] CalculateLiquidityAmounts(Address pool, ulong amountCrsDesired, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin)
     {
-        var pool = GetValidatedPool(token);
         var reserves = GetReserves(pool);
 
         ulong amountCrs;
@@ -334,7 +334,7 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
             }
         }
         
-        return new object[] { amountCrs, amountSrc, pool };
+        return new [] { amountCrs, amountSrc };
     }
     
     private void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address pool, Address to, ulong amountCrsIn)
@@ -344,6 +344,15 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         
         Assert(response.Success, "OPDEX: INVALID_SWAP_ATTEMPT");
     }
+    
+    protected Address GetValidatedPool(Address token)
+    {
+        var pool = GetPool(token);
+        
+        Assert(pool != Address.Zero, "OPDEX: INVALID_POOL");
+        
+        return pool;
+    }
 
     private Reserves GetReserves(Address pool)
     {
@@ -351,22 +360,13 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         
         Assert(reservesResponse.Success, "OPDEX: INVALID_POOL");
         
-        var reserves = (object[])reservesResponse.ReturnValue;
+        var reserves = (UInt256[])reservesResponse.ReturnValue;
         
         return new Reserves
         {
             ReserveCrs = (ulong)reserves[0],
-            ReserveSrc = (UInt256)reserves[1]
+            ReserveSrc = reserves[1]
         };
-    }
-    
-    private Address GetValidatedPool(Address token)
-    {
-        var pool = GetPool(token);
-        
-        Assert(pool != Address.Zero, "OPDEX: INVALID_POOL");
-        
-        return pool;
     }
 
     private void ValidateDeadline(ulong deadline)

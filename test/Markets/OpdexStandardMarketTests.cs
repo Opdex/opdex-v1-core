@@ -3,7 +3,6 @@ using Moq;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
-using Xunit.Sdk;
 
 namespace OpdexCoreContracts.Tests
 {
@@ -35,11 +34,7 @@ namespace OpdexCoreContracts.Tests
 
             market.Owner.Should().Be(OtherAddress);
 
-            VerifyLog(new MarketOwnerChangeLog
-            {
-                From = Owner,
-                To = OtherAddress
-            }, Times.Once);
+            VerifyLog(new MarketOwnerChangeLog { From = Owner, To = OtherAddress }, Times.Once);
         }
         
         [Fact]
@@ -141,6 +136,50 @@ namespace OpdexCoreContracts.Tests
                 .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
+        [Fact]
+        public void SetAuthorization_Throws_InvalidPermission()
+        {
+            var market = CreateNewOpdexStandardMarket(true, true, true);
+
+            SetupMessage(StandardMarket, Owner);
+            
+            market
+                .Invoking(m => m.Authorize(Trader0, (byte)Permissions.Unknown, true))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_PERMISSION");
+        }
+
+        [Fact]
+        public void SetPoolMarket_Success()
+        {
+            var market = CreateNewOpdexStandardMarket(true, true, true);
+            
+            State.SetAddress($"Pool:{Token}", Pool);
+
+            var setMarketParams = new object[] {OtherAddress};
+            
+            SetupCall(Pool, 0ul, nameof(IOpdexStandardPool.SetMarket), setMarketParams, TransferResult.Transferred(null));
+            
+            market.SetPoolMarket(Token, OtherAddress);
+
+            VerifyCall(Pool, 0ul, nameof(IOpdexStandardPool.SetMarket), setMarketParams, Times.Once);
+        }
+
+        [Fact]
+        public void SetPoolMarket_Throws_Unauthorized()
+        {
+            var market = CreateNewOpdexStandardMarket(true, true, true);
+
+            SetupMessage(StandardMarket, Trader0);
+            
+            market
+                .Invoking(m => m.SetPoolMarket(Token, OtherAddress))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
+        }
+        
         #region Pools
 
         [Theory]
@@ -188,7 +227,7 @@ namespace OpdexCoreContracts.Tests
             
             SetupCreate<OpdexStandardPool>(CreateResult.Succeeded(Pool), parameters: parameters);
 
-            SetupMessage(Controller, unauthorizedUser);
+            SetupMessage(StandardMarket, unauthorizedUser);
             
             market
                 .Invoking(p => p.CreatePool(Token))
@@ -216,10 +255,10 @@ namespace OpdexCoreContracts.Tests
 
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress, amountCrsDesired);
+            SetupMessage(StandardMarket, OtherAddress, amountCrsDesired);
 
             // Call to get reserves from pool
-            var expectedReserves = new object[] { expectedReserveCrs, expectedReserveSrc };
+            var expectedReserves = new[] { expectedReserveCrs, expectedReserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pool
@@ -233,7 +272,7 @@ namespace OpdexCoreContracts.Tests
 
             var addLiquidityResponse = market.AddLiquidity(Token, amountSrcDesired, amountCrsMin, amountSrcMin, to, 0ul);
 
-            addLiquidityResponse[0].Should().Be(amountCrsDesired);
+            addLiquidityResponse[0].Should().Be((UInt256)amountCrsDesired);
             addLiquidityResponse[1].Should().Be(amountSrcDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
@@ -262,10 +301,10 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{to}", true);
             }
             
-            SetupMessage(Controller, sender, amountCrsDesired);
+            SetupMessage(StandardMarket, sender, amountCrsDesired);
 
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pool
@@ -280,7 +319,7 @@ namespace OpdexCoreContracts.Tests
             
             var addLiquidityResponse = market.AddLiquidity(Token, amountSrcDesired, amountCrsMin, amountSrcMin, to, 0ul);
 
-            addLiquidityResponse[0].Should().Be(amountCrsDesired);
+            addLiquidityResponse[0].Should().Be((UInt256)amountCrsDesired);
             addLiquidityResponse[1].Should().Be(expectedAmountSrcOptimal);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
@@ -302,10 +341,10 @@ namespace OpdexCoreContracts.Tests
 
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress, amountCrsDesired);
+            SetupMessage(StandardMarket, OtherAddress, amountCrsDesired);
 
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Transfer SRC to Pool
@@ -326,7 +365,7 @@ namespace OpdexCoreContracts.Tests
 
             var addLiquidityResponse = market.AddLiquidity(Token, amountSrcDesired, amountCrsMin, amountSrcMin, to, 0ul);
 
-            addLiquidityResponse[0].Should().Be(expectedAmountCrsOptimal);
+            addLiquidityResponse[0].Should().Be((UInt256)expectedAmountCrsOptimal);
             addLiquidityResponse[1].Should().Be(amountSrcDesired);
             // It is not this tests responsibility to validate the returned minted liquidity tokens
             addLiquidityResponse[2].Should().Be(It.IsAny<UInt256>());
@@ -366,23 +405,6 @@ namespace OpdexCoreContracts.Tests
                 .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
-        [Fact]
-        public void AddLiquidity_Throws_UnauthorizedProvider_Receiver()
-        {
-            var sender = Trader0;
-            var receiver = OtherAddress;
-            var market = CreateNewOpdexStandardMarket(authProviders: true);
-
-            SetupMessage(Pool, sender);
-            
-            State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{sender}", true);
-
-            market
-                .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, receiver, 0))
-                .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: UNAUTHORIZED");
-        }
-        
         #endregion
 
         #region Remove Liquidity
@@ -404,7 +426,7 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{receiver}", true);
             }
 
-            SetupMessage(Controller, sender);
+            SetupMessage(StandardMarket, sender);
             
             // Transfer Liquidity tokens to pool
             var transferFromParams = new object[] {sender, Pool, liquidity};
@@ -412,12 +434,12 @@ namespace OpdexCoreContracts.Tests
             
             // Burn liquidity tokens
             var burnParams = new object[] {receiver};
-            var expectedBurnResponse = new [] { amountCrsMin, amountSrcMin };
+            var expectedBurnResponse = new[] { amountCrsMin, amountSrcMin };
             SetupCall(Pool, 0, nameof(IOpdexStandardPool.Burn), burnParams, TransferResult.Transferred(expectedBurnResponse));
 
             var removeLiquidityResponse = market.RemoveLiquidity(Token, liquidity, amountCrsMin, amountCrsMin, receiver, 0ul);
 
-            removeLiquidityResponse[0].Should().Be(amountCrsMin);
+            removeLiquidityResponse[0].Should().Be((UInt256)amountCrsMin);
             removeLiquidityResponse[1].Should().Be(amountSrcMin);
             
             VerifyCall(Pool, 0, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
@@ -429,7 +451,7 @@ namespace OpdexCoreContracts.Tests
         {
             var market = CreateNewOpdexStandardMarket();
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
             market
                 .Invoking(c => c.RemoveLiquidity(Token, 100, 1000, 1000, OtherAddress, 0))
@@ -447,7 +469,7 @@ namespace OpdexCoreContracts.Tests
 
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
             // Transfer Liquidity tokens to pool
             var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
@@ -475,7 +497,7 @@ namespace OpdexCoreContracts.Tests
 
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
             // Transfer Liquidity tokens to pool
             var transferFromParams = new object[] {OtherAddress, Pool, liquidity};
@@ -522,35 +544,27 @@ namespace OpdexCoreContracts.Tests
                 .WithMessage("OPDEX: UNAUTHORIZED");
         }
         
-        [Fact]
-        public void RemoveLiquidity_Throws_UnauthorizedProvider_Receiver()
-        {
-            var sender = Trader0;
-            var receiver = OtherAddress;
-            var market = CreateNewOpdexStandardMarket(authProviders: true);
-
-            SetupMessage(Pool, sender);
-            
-            State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{sender}", true);
-
-            market
-                .Invoking(c => c.RemoveLiquidity(Token, 10, 10, 10, receiver, 0))
-                .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: UNAUTHORIZED");
-        }
-        
         #endregion
 
         #region Swap Exact CRS for Src
 
         [Theory]
-        [InlineData(6500, 17_000, 200_000, 450_000, true)]
-        [InlineData(6500, 17_000, 200_000, 450_000, false)]
-        public void SwapExactCrsForSrc_Success(UInt256 amountSrcOutMin, ulong amountCrsIn, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth)
+        [InlineData(7280, 17_000, 200_000, 450_000, true, 0)]
+        [InlineData(7273, 17_000, 200_000, 450_000, false, 1)]
+        [InlineData(7266, 17_000, 200_000, 450_000, true, 2)]
+        [InlineData(7259, 17_000, 200_000, 450_000, false, 3)]
+        [InlineData(7252, 17_000, 200_000, 450_000, true, 4)]
+        [InlineData(7245, 17_000, 200_000, 450_000, false, 5)]
+        [InlineData(7238, 17_000, 200_000, 450_000, true, 6)] 
+        [InlineData(7231, 17_000, 200_000, 450_000, false, 7)]
+        [InlineData(7224, 17_000, 200_000, 450_000, true, 8)] 
+        [InlineData(7217, 17_000, 200_000, 450_000, false, 9)]
+        [InlineData(7210, 17_000, 200_000, 450_000, true, 10)]
+        public void SwapExactCrsForSrc_Success(UInt256 amountSrcOutMin, ulong amountCrsIn, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             // Arrange
             var sender = Trader0;
-            var market = CreateNewOpdexStandardMarket(authTraders: requireAuth);
+            var market = CreateNewOpdexStandardMarket(authTraders: requireAuth, fee: fee);
             
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -559,10 +573,10 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
             }
             
-            SetupMessage(Controller, sender, amountCrsIn);
+            SetupMessage(StandardMarket, sender, amountCrsIn);
             
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
@@ -613,10 +627,10 @@ namespace OpdexCoreContracts.Tests
             
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress, amountCrsIn);
+            SetupMessage(StandardMarket, OtherAddress, amountCrsIn);
             
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             market
@@ -642,13 +656,22 @@ namespace OpdexCoreContracts.Tests
         #region Swap Src for Exact CRS
 
         [Theory]
-        [InlineData(6500, 17_000, 200_000, 450_000, false)]
-        [InlineData(6500, 17_000, 200_000, 450_000, true)]
-        public void SwapSrcForExactCrs_Success(ulong amountCrsOut, UInt256 amountSrcInMax, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth)
+        [InlineData(6500, 2932, 200_000, 450_000, false, 0)]
+        [InlineData(6500, 2935, 200_000, 450_000, true, 1)]
+        [InlineData(6500, 2938, 200_000, 450_000, false, 2)]
+        [InlineData(6500, 2941, 200_000, 450_000, true, 3)]
+        [InlineData(6500, 2944, 200_000, 450_000, false, 4)]
+        [InlineData(6500, 2946, 200_000, 450_000, true, 5)]
+        [InlineData(6500, 2949, 200_000, 450_000, false, 6)]
+        [InlineData(6500, 2952, 200_000, 450_000, true, 7)] 
+        [InlineData(6500, 2955, 200_000, 450_000, false, 8)]
+        [InlineData(6500, 2958, 200_000, 450_000, true, 9)]
+        [InlineData(6500, 2961, 200_000, 450_000, false, 10)]
+        public void SwapSrcForExactCrs_Success(ulong amountCrsOut, UInt256 expectedSrcIn, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             // Arrange
             var sender = Trader0;
-            var market = CreateNewOpdexStandardMarket();
+            var market = CreateNewOpdexStandardMarket(fee: fee);
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -657,17 +680,14 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
             }
             
-            SetupMessage(Controller, sender);
+            SetupMessage(StandardMarket, sender);
             
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
 
-            // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
-            var amountIn = market.GetAmountIn(amountCrsOut, reserveSrc, reserveCrs);
-            
             // Call token to Transfer from caller to Pool
-            var transferFromParams = new object[] { sender, Pool, amountIn };
+            var transferFromParams = new object[] { sender, Pool, expectedSrcIn };
             SetupCall(Token, 0, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Call pool to swap
@@ -675,8 +695,8 @@ namespace OpdexCoreContracts.Tests
             SetupCall(Pool, 0, nameof(IOpdexStandardPool.Swap), swapParams, TransferResult.Transferred(true));
             
             // Act
-            var response = market.SwapSrcForExactCrs(amountCrsOut, amountIn, Token, sender, 0);
-            response.Should().Be(amountIn);
+            var response = market.SwapSrcForExactCrs(amountCrsOut, expectedSrcIn, Token, sender, 0);
+            response.Should().Be(expectedSrcIn);
             
             // Assert
             VerifyCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, Times.Once);
@@ -696,17 +716,17 @@ namespace OpdexCoreContracts.Tests
         }
         
         [Theory]
-        [InlineData(6500, 2000, 200_000, 450_000)]
+        [InlineData(ulong.MaxValue - 1, 2000, 200_000, ulong.MaxValue)]
         public void SwapSrcForExactCrs_Throws_ExcessiveInputAmount(ulong amountCrsOut, UInt256 amountSrcInMax, UInt256 reserveSrc, ulong reserveCrs)
         {
             var market = CreateNewOpdexStandardMarket();
             
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             market
@@ -745,13 +765,22 @@ namespace OpdexCoreContracts.Tests
         #region Swap Exact Src for CRS
 
         [Theory]
-        [InlineData(8000, 17_000, 200_000, 450_000, false)]
-        [InlineData(8000, 17_000, 200_000, 450_000, true)]
-        public void SwapExactSrcForCrs_Success(UInt256 amountSrcIn, ulong amountCrsOutMin, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth)
+        [InlineData(8000, 17307, 200_000, 450_000, true, 0)]
+        [InlineData(8000, 17291, 200_000, 450_000, false, 1)]
+        [InlineData(8000, 17274, 200_000, 450_000, true, 2)]
+        [InlineData(8000, 17257, 200_000, 450_000, false, 3)]
+        [InlineData(8000, 17241, 200_000, 450_000, true, 4)]
+        [InlineData(8000, 17224, 200_000, 450_000, false, 5)]
+        [InlineData(8000, 17207, 200_000, 450_000, true, 6)]
+        [InlineData(8000, 17191, 200_000, 450_000, false, 7)]
+        [InlineData(8000, 17174, 200_000, 450_000, true, 8)]
+        [InlineData(8000, 17157, 200_000, 450_000, false, 9)]
+        [InlineData(8000, 17141, 200_000, 450_000, true, 10)]
+        public void SwapExactSrcForCrs_Success(UInt256 amountSrcIn, ulong amountCrsOutMin, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             // Arrange
             var sender = Trader0;
-            var market = CreateNewOpdexStandardMarket();
+            var market = CreateNewOpdexStandardMarket(fee: fee);
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -760,10 +789,10 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
             }
             
-            SetupMessage(Controller, sender);
+            SetupMessage(StandardMarket, sender);
             
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
 
             // Calculate actual amount out based on the provided input amount of crs - separate tests for accuracy for this method specifically
@@ -806,10 +835,10 @@ namespace OpdexCoreContracts.Tests
 
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             market
@@ -848,13 +877,23 @@ namespace OpdexCoreContracts.Tests
         #region Swap CRS for Exact Src
 
         [Theory]
-        [InlineData(24_000, 10_000, 200_000, 450_000, false)]
-        [InlineData(24_000, 10_000, 200_000, 450_000, true)]
-        public void SwapCrsForExactSrc_Success(ulong amountCrsIn, UInt256 amountSrcOut, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth)
+        [InlineData(23_685, 10_000, 200_000, 450_000, false, 0)]
+        [InlineData(23_708, 10_000, 200_000, 450_000, true, 1)]
+        [InlineData(23_732, 10_000, 200_000, 450_000, false, 2)]
+        [InlineData(23_756, 10_000, 200_000, 450_000, true, 3)]
+        [InlineData(23_780, 10_000, 200_000, 450_000, false, 4)]
+        [InlineData(23_804, 10_000, 200_000, 450_000, true, 5)]
+        [InlineData(23_828, 10_000, 200_000, 450_000, false, 6)]
+        [InlineData(23_852, 10_000, 200_000, 450_000, true, 7)]
+        [InlineData(23_876, 10_000, 200_000, 450_000, false, 8)]
+        [InlineData(23_900, 10_000, 200_000, 450_000, true, 9)]
+        [InlineData(23_924, 10_000, 200_000, 450_000, true, 10)]
+        [InlineData(100_000, 10_000, 200_000, 450_000, true, 10)]
+        public void SwapCrsForExactSrc_Success(ulong amountCrsIn, UInt256 amountSrcOut, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             // Arrange
             var sender = Trader0;
-            var market = CreateNewOpdexStandardMarket();
+            var market = CreateNewOpdexStandardMarket(fee: fee);
             
             State.SetAddress($"Pool:{Token}", Pool);
             
@@ -863,32 +902,33 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
             }
             
-            SetupMessage(Controller, sender, amountCrsIn);
+            SetupMessage(StandardMarket, sender, amountCrsIn);
             
             // Call to get reserves from pool
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
 
-            var amountIn = (ulong)market.GetAmountIn(amountSrcOut, reserveCrs, reserveSrc);
+            var expectedAmountIn = (ulong)market.GetAmountIn(amountSrcOut, reserveCrs, reserveSrc);
 
-            var change = amountCrsIn - amountIn;
+            ulong change = amountCrsIn - expectedAmountIn;
             
-            // Call pool to swap
-            var swapParams = new object[] {0ul, amountSrcOut, sender, new byte[0]};
-            SetupCall(Pool, amountIn, nameof(IOpdexStandardPool.Swap), swapParams, TransferResult.Transferred(true));
-
             if (change > 0)
             {
                 SetupTransfer(sender, change, TransferResult.Transferred(true));
+                amountCrsIn = expectedAmountIn;
             }
+            
+            // Call pool to swap
+            var swapParams = new object[] {0ul, amountSrcOut, sender, new byte[0]};
+            SetupCall(Pool, amountCrsIn, nameof(IOpdexStandardPool.Swap), swapParams, TransferResult.Transferred(true));
             
             // Act
             var response = market.SwapCrsForExactSrc(amountSrcOut, Token, sender, 0);
-            response.Should().Be(amountIn);
+            response.Should().Be(amountCrsIn).And.Be(expectedAmountIn);
             
             // Assert
             VerifyCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, Times.Once);
-            VerifyCall(Pool, amountIn, nameof(IOpdexStandardPool.Swap), swapParams, Times.Once);
+            VerifyCall(Pool, amountCrsIn, nameof(IOpdexStandardPool.Swap), swapParams, Times.Once);
 
             if (change > 0)
             {
@@ -915,9 +955,9 @@ namespace OpdexCoreContracts.Tests
             
             State.SetAddress($"Pool:{Token}", Pool);
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
-            var expectedReserves = new object[] { reserveCrs, reserveSrc };
+            var expectedReserves = new[] { reserveCrs, reserveSrc };
             SetupCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedReserves));
             
             market
@@ -976,14 +1016,14 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
             }
             
-            SetupMessage(Controller, sender);
+            SetupMessage(StandardMarket, sender);
             
             // Call to get reserves from pool
-            var expectedTokenInReserves = new object[] { reserveCrsIn, reserveSrcIn };
+            var expectedTokenInReserves = new[] { reserveCrsIn, reserveSrcIn };
             SetupCall(tokenInPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
-            var expectedTokenOutReserves = new object[] { reserveCrsOut, reserveSrcOut };
+            var expectedTokenOutReserves = new[] { reserveCrsOut, reserveSrcOut };
             SetupCall(tokenOutPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrs = (ulong)market.GetAmountIn(amountSrcOut, reserveCrsOut, reserveSrcOut);
@@ -994,7 +1034,7 @@ namespace OpdexCoreContracts.Tests
             SetupCall(tokenIn, 0ul, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Call pool to swap src to crs
-            var swapSrcToCrsParams = new object[] {amountCrs, UInt256.MinValue, Controller, new byte[0]};
+            var swapSrcToCrsParams = new object[] {amountCrs, UInt256.MinValue, StandardMarket, new byte[0]};
             SetupCall(tokenInPool, 0, nameof(IOpdexStandardPool.Swap), swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrs));
             
             // Call pool to swap crs to src
@@ -1028,14 +1068,14 @@ namespace OpdexCoreContracts.Tests
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
             // Call to get reserves from pool
-            var expectedTokenInReserves = new object[] {reserveCrsIn, reserveSrcIn};
+            var expectedTokenInReserves = new[] {reserveCrsIn, reserveSrcIn};
             SetupCall(tokenInPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
-            var expectedTokenOutReserves = new object[] { reserveCrsOut, reserveSrcOut };
+            var expectedTokenOutReserves = new[] { reserveCrsOut, reserveSrcOut };
             SetupCall(tokenOutPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             market
@@ -1094,14 +1134,14 @@ namespace OpdexCoreContracts.Tests
                 State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
             }
             
-            SetupMessage(Controller, sender);
+            SetupMessage(StandardMarket, sender);
             
             // Call to get reserves from pool
-            var expectedTokenInReserves = new object[] { reserveCrsIn, reserveSrcIn };
+            var expectedTokenInReserves = new[] { reserveCrsIn, reserveSrcIn };
             SetupCall(tokenInPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
-            var expectedTokenOutReserves = new object[] { reserveCrsOut, reserveSrcOut };
+            var expectedTokenOutReserves = new[] { reserveCrsOut, reserveSrcOut };
             SetupCall(tokenOutPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
         
             var amountCrsOut = (ulong)market.GetAmountOut(amountSrcIn, reserveSrcOut, reserveCrsOut);
@@ -1112,7 +1152,7 @@ namespace OpdexCoreContracts.Tests
             SetupCall(tokenIn, 0ul, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
         
             // Call pool to swap src to crs
-            var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, Controller, new byte[0]};
+            var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, StandardMarket, new byte[0]};
             SetupCall(tokenInPool, 0, nameof(IOpdexStandardPool.Swap), swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
             
             // Call pool to swap crs to src
@@ -1146,14 +1186,14 @@ namespace OpdexCoreContracts.Tests
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
             
-            SetupMessage(Controller, OtherAddress);
+            SetupMessage(StandardMarket, OtherAddress);
             
             // Call to get reserves from pool
-            var expectedTokenInReserves = new object[] { reserveCrsIn, reserveSrcIn };
+            var expectedTokenInReserves = new[] { reserveCrsIn, reserveSrcIn };
             SetupCall(tokenInPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenInReserves));
             
             // Call to get reserves from pool
-            var expectedTokenOutReserves = new object[] { reserveCrsOut, reserveSrcOut };
+            var expectedTokenOutReserves = new[] { reserveCrsOut, reserveSrcOut };
             SetupCall(tokenOutPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, TransferResult.Transferred(expectedTokenOutReserves));
             
             market
@@ -1191,15 +1231,14 @@ namespace OpdexCoreContracts.Tests
 
         # region Public Helpers
 
+        // expected = amountA * reserveB / reserveA;
         [Theory]
-        [InlineData(1, 2, 3)]
-        [InlineData(243, 345, 847)]
-        // Todo: Precalculate expected results
-        // Todo: Add more scenarios with precalculated expected results
-        public void GetLiquidityQuote_Success(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
+        [InlineData(1, 2, 3, 1)]
+        [InlineData(10, 50, 25, 5)]
+        [InlineData(10, 3, 25, 83)]
+        public void GetLiquidityQuote_Success(UInt256 amountA, UInt256 reserveA, UInt256 reserveB, UInt256 expected)
         {
             var market = CreateNewOpdexStandardMarket();
-            var expected = amountA * reserveB / reserveA;
             var quote = market.GetLiquidityQuote(amountA, reserveA, reserveB);
 
             quote.Should().Be(expected);
@@ -1229,12 +1268,33 @@ namespace OpdexCoreContracts.Tests
                 .WithMessage("OPDEX: INSUFFICIENT_LIQUIDITY");
         }
 
+        // expected = (amountIn * (1000 - Fee) * reserveOut) / (reserveIn * 1000 * (amountIn * (1000 - Fee)))
         [Theory]
-        [InlineData(1_000, 10_000, 100_000, 9_066)]
-        // Todo: Add more scenarios with precalculated expected results
-        public void GetAmountOut_Success(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected)
+        [InlineData(100, 1_000, 10_000, 909, 0)]
+        [InlineData(100, 1_000, 10_000, 908, 1)]
+        [InlineData(100, 1_000, 10_000, 907, 2)]
+        [InlineData(100, 1_000, 10_000, 906, 3)]
+        [InlineData(100, 1_000, 10_000, 905, 4)]
+        [InlineData(100, 1_000, 10_000, 904, 5)]
+        [InlineData(100, 1_000, 10_000, 904, 6)]
+        [InlineData(100, 1_000, 10_000, 903, 7)]
+        [InlineData(100, 1_000, 10_000, 902, 8)]
+        [InlineData(100, 1_000, 10_000, 901, 9)]
+        [InlineData(100, 1_000, 10_000, 900, 10)]
+        [InlineData(500, 2_500, 5_000, 833, 0)]
+        [InlineData(500, 2_500, 5_000, 832, 1)]
+        [InlineData(500, 2_500, 5_000, 831, 2)]
+        [InlineData(500, 2_500, 5_000, 831, 3)]
+        [InlineData(500, 2_500, 5_000, 830, 4)]
+        [InlineData(500, 2_500, 5_000, 829, 5)]
+        [InlineData(500, 2_500, 5_000, 829, 6)]
+        [InlineData(500, 2_500, 5_000, 828, 7)]
+        [InlineData(500, 2_500, 5_000, 827, 8)]
+        [InlineData(500, 2_500, 5_000, 827, 9)]
+        [InlineData(500, 2_500, 5_000, 826, 10)]
+        public void GetAmountOut_Success(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected, uint fee)
         {
-            var market = CreateNewOpdexStandardMarket();
+            var market = CreateNewOpdexStandardMarket(fee: fee);
 
             var amountOut = market.GetAmountOut(amountIn, reserveIn, reserveOut);
 
@@ -1266,12 +1326,33 @@ namespace OpdexCoreContracts.Tests
                 .WithMessage("OPDEX: INSUFFICIENT_LIQUIDITY");
         }
         
+        // expected = (reserveIn * amountOut * 1000) / ((reserveOut - amountOut) * (1000 - Fee)) + 1
         [Theory]
-        [InlineData(10_000, 10_000, 100_000, 1_115)]
-        // Todo: Add more scenarios with precalculated expected results
-        public void GetAmountIn_Success(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected)
+        [InlineData(2_000, 1_000, 10_000, 251, 0)]
+        [InlineData(2_000, 1_000, 10_000, 251, 1)]
+        [InlineData(2_000, 1_000, 10_000, 251, 2)]
+        [InlineData(2_000, 1_000, 10_000, 251, 3)]
+        [InlineData(2_000, 1_000, 10_000, 252, 4)]
+        [InlineData(2_000, 1_000, 10_000, 252, 5)]
+        [InlineData(2_000, 1_000, 10_000, 252, 6)]
+        [InlineData(2_000, 1_000, 10_000, 252, 7)]
+        [InlineData(2_000, 1_000, 10_000, 253, 8)]
+        [InlineData(2_000, 1_000, 10_000, 253, 9)]
+        [InlineData(2_000, 1_000, 10_000, 253, 10)]
+        [InlineData(50_000, 250_000, 500_000, 27_778, 0)]
+        [InlineData(50_000, 250_000, 500_000, 27_806, 1)]
+        [InlineData(50_000, 250_000, 500_000, 27_834, 2)]
+        [InlineData(50_000, 250_000, 500_000, 27_862, 3)]
+        [InlineData(50_000, 250_000, 500_000, 27_890, 4)]
+        [InlineData(50_000, 250_000, 500_000, 27_918, 5)]
+        [InlineData(50_000, 250_000, 500_000, 27_946, 6)]
+        [InlineData(50_000, 250_000, 500_000, 27_974, 7)]
+        [InlineData(50_000, 250_000, 500_000, 28_002, 8)]
+        [InlineData(50_000, 250_000, 500_000, 28_031, 9)]
+        [InlineData(50_000, 250_000, 500_000, 28_059, 10)]
+        public void GetAmountIn_Success(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected, uint fee)
         {
-            var market = CreateNewOpdexStandardMarket();
+            var market = CreateNewOpdexStandardMarket(fee: fee);
 
             var amountIn = market.GetAmountIn(amountOut, reserveIn, reserveOut);
 

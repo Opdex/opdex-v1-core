@@ -1,16 +1,17 @@
 using Stratis.SmartContracts;
 
 /// <summary>
-/// 
+/// Deploys Opdex markets, a single staking market at the time this contract is created and
+/// any number of standard, configurable markets.
 /// </summary>
 [Deploy]
 public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
 {
     /// <summary>
-    /// 
+    /// Constructor initializing the contract.
     /// </summary>
-    /// <param name="state"></param>
-    /// <param name="stakingToken"></param>
+    /// <param name="state">Smart contract state.</param>
+    /// <param name="stakingToken">The address of the staking market's designated staking token which should be of IOpdexToken type.</param>
     public OpdexMarketDeployer(ISmartContractState state, Address stakingToken) : base(state)
     {
         CreateStakingMarket(stakingToken);
@@ -18,7 +19,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         
     public Address CreateStandardMarket(bool authPoolCreators, bool authProviders, bool authTraders, uint fee)
     {
-        var response = Create<OpdexStandardMarket>(0ul, new object[] {authPoolCreators, authProviders, authTraders, fee});
+        var response = Create<OpdexStandardMarket>(0, new object[] {Message.Sender, authPoolCreators, authProviders, authTraders, fee});
         
         Assert(response.Success, "OPDEX: INVALID_MARKET");
         
@@ -31,9 +32,9 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         
     private void CreateStakingMarket(Address stakingToken)
     {
-        const uint transactionFee = 3; // .3%
+        const uint transactionFee = 3; // .3% for the staking market
 
-        var response = Create<OpdexStakingMarket>(0ul, new object[] {stakingToken, transactionFee});
+        var response = Create<OpdexStakingMarket>(0, new object[] {stakingToken, transactionFee});
         
         Assert(response.Success, "OPDEX: INVALID_MARKET");
 

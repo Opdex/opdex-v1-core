@@ -18,15 +18,16 @@ public interface IOpdexStandardPool : IOpdexPool
     bool AuthTraders { get; }
 
     /// <summary>
-    /// Checks if 
+    /// Checks if an address is authorized for the requested permission.
     /// </summary>s
-    /// <param name="address"></param>
-    /// <param name="authorization"></param>
-    /// <returns></returns>
-    bool IsAuthorizedFor(Address address, byte authorization);
-    
+    /// <param name="address">The address to check a permission authorization for.</param>
+    /// <param name="permission">The permission to check authorization of. (1 - Create Pool, 2 - Trade, 3 - Provide, 4 - Set Permissions)</param>
+    /// <returns>Flag describing if the address is authorized for the requested permission.</returns>
+    bool IsAuthorizedFor(Address address, byte permission);
+
     /// <summary>
-    /// Allows direct transfers of CRS tokens through the standard Transfer method to this contract.
+    /// Allows the current set market to assign the pool to a new market.
     /// </summary>
-    void Receive();
+    /// <param name="address">The new market smart contract address.</param>
+    void SetMarket(Address address);
 }

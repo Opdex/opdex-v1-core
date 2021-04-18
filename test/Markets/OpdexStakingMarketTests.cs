@@ -13,7 +13,7 @@ namespace OpdexCoreContracts.Tests
         {
             var market = CreateNewOpdexStakingMarket();
 
-            market.StakeToken.Should().Be(StakeToken);
+            market.StakingToken.Should().Be(StakingToken);
             market.Fee.Should().Be(3);
         }
 
@@ -30,14 +30,14 @@ namespace OpdexCoreContracts.Tests
         }
 
         [Fact]
-        public void CreatesPoolWithStakeToken_Success()
+        public void CreatesPoolWithStakingToken_Success()
         {
             var market = CreateNewOpdexStakingMarket();
             
             State.SetContract(Token, true);
-            State.SetAddress(nameof(StakeToken), StakeToken);
+            State.SetAddress(nameof(StakingToken), StakingToken);
 
-            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakeToken, market.Fee});
+            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakingToken, market.Fee});
 
             var pool = market.CreatePool(Token);
 
@@ -48,7 +48,7 @@ namespace OpdexCoreContracts.Tests
         }
 
         [Fact]
-        public void CreatesPool_Throws_ZeroAddress()
+        public void CreatesPool_Throws_InvalidToken()
         {
             var token = Address.Zero;
             var market = CreateNewOpdexStakingMarket();
@@ -56,7 +56,7 @@ namespace OpdexCoreContracts.Tests
             market
                 .Invoking(c => c.CreatePool(token))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: ZERO_ADDRESS");
+                .WithMessage("OPDEX: INVALID_TOKEN");
         }
         
         [Fact]

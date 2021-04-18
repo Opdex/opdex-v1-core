@@ -9,16 +9,101 @@ namespace OpdexCoreContracts.Tests
 {
     public class OpdexStandardPoolTests : TestBase
     {
-        [Fact]
-        public void CreatesNewPool_Success()
+        [Theory]
+        [InlineData(true, false, 0)]
+        [InlineData(true, true, 1)]
+        [InlineData(true, false, 2)]
+        [InlineData(true, false, 3)]
+        [InlineData(false, false, 4)]
+        [InlineData(true, true, 5)]
+        [InlineData(true, false, 6)]
+        [InlineData(false, false, 7)]
+        [InlineData(true, false, 8)]
+        [InlineData(false, true, 9)]
+        [InlineData(true, true, 10)]
+        public void CreatesNewPool_Success(bool authProviders, bool authTraders, uint fee)
         {
-            var pool = CreateNewOpdexStandardPool();
-
+            var pool = CreateNewOpdexStandardPool(authProviders: authProviders, authTraders: authTraders, fee: fee);
+            
             pool.Token.Should().Be(Token);
             pool.Decimals.Should().Be(8);
             pool.Name.Should().Be("Opdex Liquidity Pool Token");
             pool.Symbol.Should().Be("OLPT");
-            pool.Fee.Should().Be(3);
+            pool.AuthProviders.Should().Be(authProviders);
+            pool.AuthTraders.Should().Be(authTraders);
+            pool.Fee.Should().Be(fee);
+            pool.Market.Should().Be(StandardMarket);
+        }
+        
+        [Fact]
+        public void CreatesPool_Throws_InvalidToken()
+        {
+            var token = Address.Zero;
+            var market = CreateNewOpdexStandardMarket();
+            
+            market
+                .Invoking(c => c.CreatePool(token))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_TOKEN");
+        }
+
+        [Theory]
+        [InlineData(true, true, (byte)Permissions.Trade, true)]
+        [InlineData(false, false, (byte)Permissions.Trade, true)]
+        [InlineData(true, false, (byte)Permissions.Trade, true)]
+        [InlineData(false, true, (byte)Permissions.Trade, true)]
+        [InlineData(true, false, (byte)Permissions.Trade, false)]
+        [InlineData(true, true, (byte)Permissions.Provide, true)]
+        [InlineData(false, false, (byte)Permissions.Provide, true)]
+        [InlineData(true, false, (byte)Permissions.Provide, true)]
+        [InlineData(false, true, (byte)Permissions.Provide, true)]
+        [InlineData(true, false, (byte)Permissions.Provide, false)]
+        public void IsAuthorized_Success(bool shouldAuth, bool isMarketCaller, byte permission, bool expectedResult)
+        {
+            var pool = CreateNewOpdexStandardPool(authProviders: shouldAuth, authTraders: shouldAuth);
+
+            var sender = isMarketCaller ? StandardMarket : Trader0;
+            var authParams = new object[] { sender, permission };
+            
+            if (shouldAuth && !isMarketCaller)
+            {
+                SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, TransferResult.Transferred(expectedResult));
+            }
+
+            var isAuthorized = pool.IsAuthorizedFor(sender, permission);
+
+            isAuthorized.Should().Be(expectedResult);
+            
+            if (shouldAuth && !isMarketCaller)
+            {
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, Times.Once);
+            }
+        }
+
+        [Fact]
+        public void SetMarket_Success()
+        {
+            var pool = CreateNewOpdexStandardPool();
+            
+            pool.SetMarket(OtherAddress);
+
+            pool.Market.Should().Be(OtherAddress);
+
+            VerifyLog(new MarketChangeLog {From = StandardMarket, To = OtherAddress}, Times.Once);
+        }
+
+        [Fact]
+        public void SetMarket_Throws_Unauthorized()
+        {
+            var pool = CreateNewOpdexStandardPool();
+            
+            SetupMessage(Pool, Trader0);
+
+            pool
+                .Invoking(p => p.SetMarket(StandardMarket))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
 
         [Fact]
@@ -71,7 +156,7 @@ namespace OpdexCoreContracts.Tests
             const ulong expectedBalanceCrs = 100;
             UInt256 expectedBalanceToken = 150;
 
-            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs, authorizeProviders: authorize);
+            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs, authProviders: authorize);
 
             var authParams = new object[] {sender, (byte)Permissions.Provide};
             if (authorize)
@@ -115,7 +200,7 @@ namespace OpdexCoreContracts.Tests
             const ulong currentReserveCrs = 50;
             UInt256 currentReserveSrc = 100;
 
-            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs, authorizeProviders: authorize);
+            var pool = CreateNewOpdexStandardPool(expectedBalanceCrs, authProviders: authorize);
             
             var authParams = new object[] {sender, (byte)Permissions.Provide};
             if (authorize)
@@ -368,7 +453,8 @@ namespace OpdexCoreContracts.Tests
                 AmountCrs = currentBalanceCrs,
                 AmountSrc = currentBalanceToken,
                 Sender = trader,
-                To = trader
+                To = trader,
+                AmountLpt = expectedLiquidity
             }, Times.Once);
             
             VerifyLog(new TransferLog
@@ -434,7 +520,8 @@ namespace OpdexCoreContracts.Tests
                 AmountCrs = 500,
                 AmountSrc = 1000,
                 Sender = trader,
-                To = trader
+                To = trader,
+                AmountLpt = expectedLiquidity
             }, Times.Once);
 
             VerifyLog(new TransferLog
@@ -481,7 +568,7 @@ namespace OpdexCoreContracts.Tests
         {
             var pool = CreateNewOpdexStandardPool();
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetBool(nameof(IOpdexStandardPool.Locked), true);
 
@@ -508,7 +595,7 @@ namespace OpdexCoreContracts.Tests
             var to = Trader0;
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
             State.SetUInt256(nameof(IOpdexStandardPool.TotalSupply), currentTotalSupply);
@@ -540,10 +627,11 @@ namespace OpdexCoreContracts.Tests
             // Burn Log Summary
             VerifyLog(new BurnLog
             {
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc
+                AmountSrc = expectedReceivedSrc,
+                AmountLpt = burnAmount
             }, Times.Once);
         }
         
@@ -561,7 +649,7 @@ namespace OpdexCoreContracts.Tests
             var to = Trader0;
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
             State.SetUInt256(nameof(IOpdexStandardPool.TotalSupply), currentTotalSupply);
@@ -593,10 +681,11 @@ namespace OpdexCoreContracts.Tests
             // Burn Log Summary
             VerifyLog(new BurnLog
             {
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to,
                 AmountCrs = expectedReceivedCrs,
-                AmountSrc = expectedReceivedSrc
+                AmountSrc = expectedReceivedSrc,
+                AmountLpt = burnAmount
             }, Times.Once);
         }
 
@@ -611,7 +700,7 @@ namespace OpdexCoreContracts.Tests
             var to = Trader0;
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
             State.SetUInt256(nameof(IOpdexStandardPool.TotalSupply), currentTotalSupply);
@@ -631,7 +720,7 @@ namespace OpdexCoreContracts.Tests
         {
             var pool = CreateNewOpdexStandardPool();
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetBool(nameof(IOpdexStandardPool.Locked), true);
 
@@ -654,7 +743,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller, swapAmountCrs);
+            SetupMessage(Pool, StandardMarket, swapAmountCrs);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -683,7 +772,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = 0,
                 AmountSrcIn = 0,
                 AmountSrcOut = expectedReceivedToken,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }
@@ -697,7 +786,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -723,7 +812,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = expectedCrsReceived,
                 AmountSrcIn = swapAmountSrc,
                 AmountSrcOut = 0,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }
@@ -737,7 +826,7 @@ namespace OpdexCoreContracts.Tests
             UInt256 currentReserveSrc = 200_000;
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -757,7 +846,7 @@ namespace OpdexCoreContracts.Tests
             UInt256 currentReserveSrc = 200_000;
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -776,7 +865,7 @@ namespace OpdexCoreContracts.Tests
             var addresses = new[] {Pool, Token};
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -802,7 +891,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -826,7 +915,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -850,7 +939,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller, 1);
+            SetupMessage(Pool, StandardMarket, 1);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -874,7 +963,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -893,7 +982,7 @@ namespace OpdexCoreContracts.Tests
         {
             var pool = CreateNewOpdexStandardPool();
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
             
             State.SetBool(nameof(IOpdexStandardPool.Locked), true);
 
@@ -918,7 +1007,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -953,7 +1042,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = 0,
                 AmountSrcIn = 17_052,
                 AmountSrcOut = 17_000,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }
@@ -969,7 +1058,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1005,7 +1094,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = 0,
                 AmountSrcIn = 0,
                 AmountSrcOut = borrowedSrc,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }
@@ -1021,7 +1110,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1057,7 +1146,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = borrowedCrs,
                 AmountSrcIn = 0,
                 AmountSrcOut = 0,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }
@@ -1073,7 +1162,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1108,7 +1197,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = borrowedCrs,
                 AmountSrcIn = expectedSrcReceived,
                 AmountSrcOut = 0,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }
@@ -1124,7 +1213,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1155,7 +1244,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1187,7 +1276,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1218,7 +1307,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1251,7 +1340,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1287,7 +1376,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = borrowedCrs,
                 AmountSrcIn = expectedSrcReceived,
                 AmountSrcOut = 0,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }
@@ -1304,7 +1393,7 @@ namespace OpdexCoreContracts.Tests
             
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
 
-            SetupMessage(Pool, Controller);
+            SetupMessage(Pool, StandardMarket);
 
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -1331,7 +1420,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
-                ReserveSrc = (currentReserveSrc - borrowedSrc + expectedSrcReceived)
+                ReserveSrc = currentReserveSrc - borrowedSrc + expectedSrcReceived
             }, Times.Once);
 
             VerifyLog(new SwapLog
@@ -1340,7 +1429,7 @@ namespace OpdexCoreContracts.Tests
                 AmountCrsOut = 0,
                 AmountSrcIn = expectedSrcReceived,
                 AmountSrcOut = borrowedSrc,
-                Sender = Controller,
+                Sender = StandardMarket,
                 To = to
             }, Times.Once);
         }

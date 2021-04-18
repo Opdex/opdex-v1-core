@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Moq;
+using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
@@ -12,7 +13,7 @@ namespace OpdexCoreContracts.Tests
         {
             CreateNewOpdexMarketDeployer();
             
-            VerifyLog(new MarketCreatedLog { Market = Controller }, Times.Once);
+            VerifyLog(new MarketCreatedLog { Market = StakingMarket }, Times.Once);
         }
 
         [Theory]
@@ -24,7 +25,7 @@ namespace OpdexCoreContracts.Tests
         [InlineData(true, true, true, 1)]
         public void CreateStandardMarket_Success(bool authPoolCreators, bool authProviders, bool authTraders, uint fee)
         {
-            var createParams = new object[] {authPoolCreators, authProviders, authTraders, fee};
+            var createParams = new object[] {Owner, authPoolCreators, authProviders, authTraders, fee};
             SetupCreate<OpdexStandardMarket>(CreateResult.Succeeded(StandardMarket), 0, createParams);
             
             var deployer = CreateNewOpdexMarketDeployer();
@@ -34,6 +35,20 @@ namespace OpdexCoreContracts.Tests
             market.Should().Be(StandardMarket);
             
             VerifyLog(new MarketCreatedLog {Market = StandardMarket}, Times.Once);
+        }
+        
+        [Fact]
+        public void CreateStandardMarket_Throws_InvalidMarket()
+        {
+            var createParams = new object[] { Owner, true, true, true, 3U };
+            SetupCreate<OpdexStandardMarket>(CreateResult.Failed(), 0, createParams);
+            
+            var deployer = CreateNewOpdexMarketDeployer();
+
+            deployer
+                .Invoking(d => d.CreateStandardMarket(true, true, true, 3))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_MARKET");
         }
     }
 }

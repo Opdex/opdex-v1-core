@@ -32,7 +32,7 @@ public interface IOpdexMarket
     /// <param name="to">The address to deposit the liquidity pool tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns></returns>
-    object[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline);
+    UInt256[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline);
     
     /// <summary>
     /// Remove liquidity from a specified pool. Liquidity Pool tokens being removed and burned must
@@ -45,7 +45,7 @@ public interface IOpdexMarket
     /// <param name="to">The address to send the CRS and SRC tokens to.</param>
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns></returns>
-    object[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline);
+    UInt256[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline);
     
     /// <summary>
     /// Swaps an exact amount of CRS tokens for a set minimum amount of SRC tokens. 

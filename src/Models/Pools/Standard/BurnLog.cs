@@ -6,4 +6,5 @@ public struct BurnLog
     [Index] public Address To;
     public ulong AmountCrs;
     public UInt256 AmountSrc;
+    public UInt256 AmountLpt;
 }

@@ -39,9 +39,9 @@ public interface IOpdexPool : IStandardToken256
     bool Locked { get; }
     
     /// <summary>
-    /// List of reserve balances. (e.g. [ (ulong)AmountCrs, (UInt256)AmountSrc ])
+    /// List of reserve balances. (e.g. [AmountCrs, AmountSrc])
     /// </summary>
-    object[] Reserves { get; }
+    UInt256[] Reserves { get; }
     
     /// <summary>
     /// Returns the CRS balance of the pool.

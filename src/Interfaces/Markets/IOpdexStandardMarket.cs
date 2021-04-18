@@ -37,12 +37,26 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// </summary>
     /// <param name="address">The address to set permissions for.</param>
     /// <param name="permission">The permission being updated. See <see cref="Permissions"/> for list of available options.</param>
-    /// <param name="isAuthorized">Flag describing if the user should be authorized or not.</param>
-    void Authorize(Address address, byte permission, bool isAuthorized);
+    /// <param name="authorize">Flag describing if the user should be authorized or not.</param>
+    void Authorize(Address address, byte permission, bool authorize);
 
     /// <summary>
     /// Allows the existing market owner to assign a new market owner.
     /// </summary>
     /// <param name="address">The new market owner to promote.</param>
     void SetOwner(Address address);
+
+    /// <summary>
+    /// Allows the owner to change the persisted market contract address for a pool.
+    /// </summary>
+    /// <remarks>
+    /// Allows for market contracts to migrate to updated versions and carry existing pools.
+    /// </remarks>
+    /// <param name="token">The SRC token to lookup the pool being updated.</param>
+    /// <param name="newMarket">
+    /// The new market's smart contract address.
+    /// CRITICAL: An error here for a private market that authorizes providers and traders
+    /// would lock all liquidity in that pool.
+    /// </param>
+    void SetPoolMarket(Address token, Address newMarket);
 }

@@ -3,9 +3,9 @@ using Stratis.SmartContracts;
 public interface IOpdexStakingPool : IOpdexPool
 {
     /// <summary>
-    /// The address of the pools stake token.
+    /// The address of the pools staking token.
     /// </summary>
-    Address StakeToken { get; }
+    Address StakingToken { get; }
     
     /// <summary>
     /// The total amount of staked tokens.
@@ -64,9 +64,4 @@ public interface IOpdexStakingPool : IOpdexPool
     /// <param name="to">The address to send rewards to.</param>
     /// <param name="liquidate">Boolean value to liquidate rewards.</param>
     void Unstake(Address to, bool liquidate);
-    
-    /// <summary>
-    /// Allows direct transfers of CRS tokens through the standard Transfer method to this contract.
-    /// </summary>
-    void Receive();
 }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using NBitcoin;
 using Stratis.SmartContracts;
 
-
 namespace OpdexCoreContracts.Tests
 {
     public class InMemoryState : IPersistentState
@@ -45,6 +44,7 @@ namespace OpdexCoreContracts.Tests
         public uint GetUInt32(string key) => GetValue<uint>(key);
 
         public ulong GetUInt64(string key) => GetValue<ulong>(key);
+        
         public UInt128 GetUInt128(string key) => GetValue<UInt128>(key);
 
         public bool IsContract(Address address) => IsContractExecute(address);
@@ -74,6 +74,7 @@ namespace OpdexCoreContracts.Tests
         public void SetUInt32(string key, uint value) => _storage.AddOrReplace(key, value);
 
         public void SetUInt64(string key, ulong value) => _storage.AddOrReplace(key, value);
+        
         public void SetUInt128(string key, UInt128 value) => _storage.AddOrReplace(key, value);
     }
 } 

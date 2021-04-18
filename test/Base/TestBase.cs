@@ -15,84 +15,91 @@ namespace OpdexCoreContracts.Tests
         private readonly Mock<IInternalTransactionExecutor> _mockInternalExecutor;
         protected readonly ISerializer Serializer;
         protected readonly InMemoryState State;
-        protected readonly Address Controller;
-        protected readonly Address Pool;
+        protected readonly Address Deployer;
+        protected readonly Address StandardMarket;
+        protected readonly Address StakingMarket;
+        protected readonly Address StakingToken;
         protected readonly Address Owner;
+        protected readonly Address Pool;
+        protected readonly Address PoolTwo;
         protected readonly Address Token;
+        protected readonly Address TokenTwo;
         protected readonly Address Trader0;
         protected readonly Address Trader1;
         protected readonly Address OtherAddress;
-        protected readonly Address StakeToken;
-        protected readonly Address PoolTwo;
-        protected readonly Address TokenTwo;
-        protected readonly Address StandardMarket;
 
         protected TestBase()
         {
             State = new InMemoryState();
+            Serializer = new Serializer(new ContractPrimitiveSerializer(new SmartContractsPoARegTest()));
             _mockContractLogger = new Mock<IContractLogger>();
             _mockContractState = new Mock<ISmartContractState>();
             _mockInternalExecutor = new Mock<IInternalTransactionExecutor>();
-            Serializer = new Serializer(new ContractPrimitiveSerializer(new SmartContractsPoARegTest()));
             _mockContractState.Setup(x => x.PersistentState).Returns(State);
             _mockContractState.Setup(x => x.ContractLogger).Returns(_mockContractLogger.Object);
             _mockContractState.Setup(x => x.InternalTransactionExecutor).Returns(_mockInternalExecutor.Object);
             _mockContractState.Setup(x => x.Serializer).Returns(Serializer);
-            Controller = "0x0000000000000000000000000000000000000001".HexToAddress();
-            Pool = "0x0000000000000000000000000000000000000002".HexToAddress();
-            Owner = "0x0000000000000000000000000000000000000003".HexToAddress();
-            Token = "0x0000000000000000000000000000000000000004".HexToAddress();
-            Trader0 = "0x0000000000000000000000000000000000000005".HexToAddress();
-            Trader1 = "0x0000000000000000000000000000000000000006".HexToAddress();
-            OtherAddress = "0x0000000000000000000000000000000000000007".HexToAddress();
-            StakeToken = "0x0000000000000000000000000000000000000008".HexToAddress();
-            PoolTwo = "0x0000000000000000000000000000000000000009".HexToAddress();
-            TokenTwo = "0x0000000000000000000000000000000000000010".HexToAddress();
-            StandardMarket = "0x0000000000000000000000000000000000000011".HexToAddress();
+            Deployer = "0x0000000000000000000000000000000000000001".HexToAddress();
+            StandardMarket = "0x0000000000000000000000000000000000000002".HexToAddress();
+            StakingMarket = "0x0000000000000000000000000000000000000003".HexToAddress();
+            StakingToken = "0x0000000000000000000000000000000000000004".HexToAddress();
+            Owner = "0x0000000000000000000000000000000000000005".HexToAddress();
+            Pool = "0x0000000000000000000000000000000000000006".HexToAddress();
+            PoolTwo = "0x0000000000000000000000000000000000000007".HexToAddress();
+            Token = "0x0000000000000000000000000000000000000008".HexToAddress();
+            TokenTwo = "0x0000000000000000000000000000000000000009".HexToAddress();
+            Trader0 = "0x0000000000000000000000000000000000000010".HexToAddress();
+            Trader1 = "0x0000000000000000000000000000000000000011".HexToAddress();
+            OtherAddress = "0x0000000000000000000000000000000000000012".HexToAddress();
         }
 
         protected IOpdexMarketDeployer CreateNewOpdexMarketDeployer()
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
             SetupBalance(0);
             SetupBlock(10);
-            SetupCreate<OpdexStakingMarket>(CreateResult.Succeeded(Controller), 0ul, new object[] { StakeToken, (uint)3 });
+            SetupMessage(Deployer, Owner);
+            
+            SetupCreate<OpdexStakingMarket>(CreateResult.Succeeded(StakingMarket), 0ul, new object[] { StakingToken, (uint)3 });
 
-            return new OpdexMarketDeployer(_mockContractState.Object, StakeToken);
+            return new OpdexMarketDeployer(_mockContractState.Object, StakingToken);
         }
 
         protected IOpdexStakingMarket CreateNewOpdexStakingMarket(ulong balance = 0)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Controller, Owner, 0));
-            _mockContractState.Setup(x => x.Block.Number).Returns(() => 10);
-
+            SetupBlock(10);
             SetupBalance(balance);
+            SetupMessage(StakingMarket, Owner);
             
-            return new OpdexStakingMarket(_mockContractState.Object, StakeToken, 3);
+            return new OpdexStakingMarket(_mockContractState.Object, StakingToken, 3);
         }
 
         protected IOpdexStandardMarket CreateNewOpdexStandardMarket(bool authPoolCreators = false, bool authProviders = false, bool authTraders = false, uint fee = 3, ulong balance = 0)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(StandardMarket, Owner, 0));
-            State.SetContract(StakeToken, true);
             SetupBlock(10);
             SetupBalance(balance);
+            SetupMessage(StandardMarket, Owner);
+            
             return new OpdexStandardMarket(_mockContractState.Object, Owner, authPoolCreators, authProviders, authTraders, fee);
         }
 
         protected IOpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0, uint fee = 3)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, Controller, 0));
-            State.SetContract(StakeToken, true);
+            SetupBlock(10);
             SetupBalance(balance);
-            return new OpdexStakingPool(_mockContractState.Object, Token, StakeToken, fee);
+            SetupMessage(Pool, StakingMarket);
+            
+            State.SetContract(StakingToken, true);
+
+            return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
         }
         
-        protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authorizeProviders = false, bool authorizeTraders = false, uint fee = 3)
+        protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authProviders = false, bool authTraders = false, uint fee = 3)
         {
-            _mockContractState.Setup(x => x.Message).Returns(new Message(Pool, StandardMarket, 0));
+            SetupBlock(10);
             SetupBalance(balance);
-            return new OpdexStandardPool(_mockContractState.Object, Token, authorizeProviders, authorizeTraders, fee);
+            SetupMessage(Pool, StandardMarket);
+            
+            return new OpdexStandardPool(_mockContractState.Object, Token, authProviders, authTraders, fee);
         }
 
         protected void SetupMessage(Address contractAddress, Address sender, ulong value = 0)
