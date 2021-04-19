@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct ExitStakingPoolLog
+public struct StartStakingLog
 {
     [Index] public Address Staker;
     public UInt256 Amount;

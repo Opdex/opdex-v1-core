@@ -19,12 +19,12 @@ public interface IOpdexPool : IStandardToken256
     Address Token { get; }
     
     /// <summary>
-    /// Amount of CRS in reserves.
+    /// The amount of CRS tokens in reserves.
     /// </summary>
     ulong ReserveCrs { get; }
     
     /// <summary>
-    /// Amount of SRC in reserves.
+    /// The amount of SRC tokens in reserves.
     /// </summary>
     UInt256 ReserveSrc { get; }
     
@@ -62,7 +62,7 @@ public interface IOpdexPool : IStandardToken256
     /// called in the same transaction to prevent arbitrage between separate transactions.
     /// </remarks>
     /// <param name="to">The address to assign the minted LP tokens to.</param>
-    /// <returns>The number if minted LP tokens</returns>
+    /// <returns>The number if minted LP tokens.</returns>
     UInt256 Mint(Address to);
     
     /// <summary>
@@ -77,7 +77,7 @@ public interface IOpdexPool : IStandardToken256
     /// <param name="amountSrcOut">The amount of SRC tokens to pull from the pool.</param>
     /// <param name="to">The address to send the tokens to.</param>
     /// <param name="data">
-    /// <see cref="CallbackData"/> bytes for a callback after tokens are pulled form the pool but before
+    /// <see cref="CallbackData"/> bytes for an optional callback after tokens are pulled form the pool but before
     /// validations enforcing the necessary input amount and fees.
     /// </param>
     void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data);
@@ -90,14 +90,14 @@ public interface IOpdexPool : IStandardToken256
     /// from an integrated smart contract. Token transfers to the pool and this method should be
     /// called in the same transaction to prevent arbitrage between separate transactions.
     /// </remarks>
-    /// <param name="to">The address to return the reserves tokens to</param>
+    /// <param name="to">The address to return the reserves tokens to.</param>
     /// <returns>Array of CRS and SRC amounts returned. (e.g. [ AmountCrs, AmountSrc ])</returns>
     UInt256[] Burn(Address to);
     
     /// <summary>
     /// Forces the pools balances to match the reserves, sending overages to the caller.
     /// </summary>
-    /// <param name="to">The address to send any differences to</param>
+    /// <param name="to">The address to send any differences to.</param>
     void Skim(Address to);
     
     /// <summary>

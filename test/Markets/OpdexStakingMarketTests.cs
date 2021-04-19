@@ -4,7 +4,7 @@ using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
-namespace OpdexCoreContracts.Tests
+namespace OpdexV1Core.Tests
 {
     public class OpdexStakingMarketTests : TestBase
     {

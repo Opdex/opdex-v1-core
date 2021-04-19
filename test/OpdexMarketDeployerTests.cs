@@ -4,7 +4,7 @@ using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
-namespace OpdexCoreContracts.Tests
+namespace OpdexV1Core.Tests
 {
     public class OpdexMarketDeployerTests : TestBase
     {
@@ -13,7 +13,14 @@ namespace OpdexCoreContracts.Tests
         {
             CreateNewOpdexMarketDeployer();
             
-            VerifyLog(new MarketCreatedLog { Market = StakingMarket }, Times.Once);
+            VerifyLog(new MarketCreatedLog
+            {
+                Market = StakingMarket, 
+                AuthPoolCreators = false, 
+                AuthProviders = false, 
+                AuthTraders = false, 
+                Fee = 3U
+            }, Times.Once);
         }
 
         [Theory]
@@ -34,7 +41,14 @@ namespace OpdexCoreContracts.Tests
             
             market.Should().Be(StandardMarket);
             
-            VerifyLog(new MarketCreatedLog {Market = StandardMarket}, Times.Once);
+            VerifyLog(new MarketCreatedLog
+            {
+                Market = StandardMarket, 
+                AuthPoolCreators = authPoolCreators, 
+                AuthProviders = authProviders, 
+                AuthTraders = authTraders, 
+                Fee = fee
+            }, Times.Once);
         }
         
         [Fact]

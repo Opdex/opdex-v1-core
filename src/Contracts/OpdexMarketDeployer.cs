@@ -25,7 +25,14 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         
         var market = response.NewContractAddress;
 
-        Log(new MarketCreatedLog { Market = market });
+        Log(new MarketCreatedLog
+        {
+            Market = market, 
+            AuthPoolCreators = authPoolCreators, 
+            AuthProviders = authProviders, 
+            AuthTraders = authTraders, 
+            Fee = fee
+        });
             
         return market;
     }
@@ -40,6 +47,13 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
 
         var market = response.NewContractAddress;
             
-        Log(new MarketCreatedLog { Market = market });
+        Log(new MarketCreatedLog
+        {
+            Market = market, 
+            AuthPoolCreators = false, 
+            AuthProviders = false, 
+            AuthTraders = false, 
+            Fee = 3
+        });
     }
 }

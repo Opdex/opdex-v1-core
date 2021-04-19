@@ -18,7 +18,7 @@ public interface IOpdexStakingPool : IOpdexPool
     UInt256 TotalStakedApplicable { get; }
     
     /// <summary>
-    /// The balance of rewards earned and to be distributed to stakers.
+    /// The balance of liquidity pool tokens earned by stakers to be collected.
     /// </summary>
     UInt256 StakingRewardsBalance { get; }
 
@@ -26,21 +26,21 @@ public interface IOpdexStakingPool : IOpdexPool
     /// Retrieves the amount of tokens staked for an address.
     /// </summary>
     /// <param name="address">The address to check the staked balance of.</param>
-    /// <returns>Amount of staked tokens</returns>
+    /// <returns>The amount of staked tokens.</returns>
     UInt256 GetStakedBalance(Address address);
     
     /// <summary>
     /// Retrieves the recorded weight of stakers entry position.
     /// </summary>
     /// <param name="address">The address to check the weight of.</param>
-    /// <returns>Stakers entry weight</returns>
+    /// <returns>The stakers entry weight.</returns>
     UInt256 GetStakedWeight(Address address);
     
     /// <summary>
     /// Retrieves the amount of earned rewards of a staker.
     /// </summary>
     /// <param name="staker">The address to check the reward balance of.</param>
-    /// <returns>Amount of earned rewards</returns>
+    /// <returns>The amount of earned rewards.</returns>
     UInt256 GetStakingRewards(Address staker);
     
     /// <summary>
@@ -58,7 +58,7 @@ public interface IOpdexStakingPool : IOpdexPool
     void Collect(Address to, bool liquidate);
     
     /// <summary>
-    /// Discontinue staking and withdraw rewards. Optionally liquidate the earned LP tokens into the pools
+    /// Stop staking and withdraw rewards. Optionally liquidate the earned LP tokens into the pools
     /// reserve tokens.
     /// </summary>
     /// <param name="to">The address to send rewards to.</param>

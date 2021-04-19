@@ -221,7 +221,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
 
             TotalStaked += balance;
             
-            Log(new EnterStakingPoolLog
+            Log(new StartStakingLog
             {
                 Staker = Message.Sender,
                 Amount = balance
@@ -272,7 +272,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         {
             SafeTransferTo(StakingToken, to, stakedBalance);
             
-            Log(new ExitStakingPoolLog
+            Log(new StopStakingLog
             {
                 Staker = Message.Sender,
                 Amount = stakedBalance

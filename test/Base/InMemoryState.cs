@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using NBitcoin;
 using Stratis.SmartContracts;
 
-namespace OpdexCoreContracts.Tests
+namespace OpdexV1Core.Tests
 {
     public class InMemoryState : IPersistentState
     {

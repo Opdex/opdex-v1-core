@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
-namespace OpdexCoreContracts.Tests
+namespace OpdexV1Core.Tests
 {
     public class OpdexStandardPoolTests : TestBase
     {
@@ -441,6 +441,8 @@ namespace OpdexCoreContracts.Tests
 
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
+            
+            VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);
 
             VerifyLog(new ReservesLog
             {
@@ -508,6 +510,8 @@ namespace OpdexCoreContracts.Tests
 
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
+            
+            VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);
             
             VerifyLog(new ReservesLog
             {
@@ -602,11 +606,15 @@ namespace OpdexCoreContracts.Tests
             State.SetUInt256($"Balance:{Pool}", burnAmount);
             State.SetUInt256(nameof(IOpdexStandardPool.KLast), currentKLast);
             
-            SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
+            var getBalanceCallParams = new object[] {Pool};
+            SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, TransferResult.Transferred(currentReserveSrc));
+            
             SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
+            
+            var transferToParams = new object[] {to, expectedReceivedSrc};
             SetupCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
+                SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
             });
 
             var results = pool.Burn(to);
@@ -615,7 +623,11 @@ namespace OpdexCoreContracts.Tests
             pool.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
             pool.TotalSupply.Should().Be(currentTotalSupply  - burnAmount);
-
+            
+            VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, Times.Exactly(2));
+            VerifyCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), transferToParams, Times.Once);
+            VerifyTransfer(to, expectedReceivedCrs, Times.Once);
+            
             // Burn Tokens
             VerifyLog(new TransferLog
             {
@@ -655,12 +667,16 @@ namespace OpdexCoreContracts.Tests
             State.SetUInt256(nameof(IOpdexStandardPool.TotalSupply), currentTotalSupply);
             State.SetUInt256($"Balance:{Pool}", burnAmount);
             State.SetUInt256(nameof(IOpdexStandardPool.KLast), currentKLast);
+
+            var getBalanceCallParams = new object[] {Pool};
+            SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, TransferResult.Transferred(currentReserveSrc));
             
-            SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
             SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
-            SetupCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), new object[] { to, expectedReceivedSrc }, TransferResult.Transferred(true), () =>
+
+            var transferToParams = new object[] {to, expectedReceivedSrc};
+            SetupCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), transferToParams, TransferResult.Transferred(true), () =>
             {
-                SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
+                SetupCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, TransferResult.Transferred(currentReserveSrc - expectedReceivedSrc));
             });
 
             var results = pool.Burn(to);
@@ -670,6 +686,10 @@ namespace OpdexCoreContracts.Tests
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
             pool.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
 
+            VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, Times.Exactly(2));
+            VerifyCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), transferToParams, Times.Once);
+            VerifyTransfer(to, expectedReceivedCrs, Times.Once);
+            
             // Burn Tokens
             VerifyLog(new TransferLog
             {
@@ -1033,7 +1053,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs,
-                ReserveSrc = (currentReserveSrc + expectedFee)
+                ReserveSrc = currentReserveSrc + expectedFee
             }, Times.Once);
 
             VerifyLog(new SwapLog
@@ -1085,7 +1105,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs + expectedCrsReceived,
-                ReserveSrc = (currentReserveSrc - borrowedSrc)
+                ReserveSrc = currentReserveSrc - borrowedSrc
             }, Times.Once);
 
             VerifyLog(new SwapLog
@@ -1188,7 +1208,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs,
-                ReserveSrc = (currentReserveSrc + expectedSrcReceived)
+                ReserveSrc = currentReserveSrc + expectedSrcReceived
             }, Times.Once);
 
             VerifyLog(new SwapLog
@@ -1367,7 +1387,7 @@ namespace OpdexCoreContracts.Tests
             VerifyLog(new ReservesLog
             {
                 ReserveCrs = currentReserveCrs - borrowedCrs + expectedCrsReceived,
-                ReserveSrc = (currentReserveSrc + expectedSrcReceived)
+                ReserveSrc = currentReserveSrc + expectedSrcReceived
             }, Times.Once);
 
             VerifyLog(new SwapLog

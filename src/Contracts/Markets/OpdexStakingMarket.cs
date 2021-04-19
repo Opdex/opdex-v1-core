@@ -11,7 +11,7 @@ public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="stakingToken">The address of the staking token.</param>
-    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
+    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%, Market Deploy hard-codes 3.</param>
     public OpdexStakingMarket(ISmartContractState state, Address stakingToken, uint fee) : base(state, fee)
     {
         StakingToken = stakingToken;

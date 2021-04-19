@@ -3,7 +3,7 @@ using Stratis.SmartContracts;
 public interface IOpdexStandardPool : IOpdexPool
 {
     /// <summary>
-    /// The address of the market contract that created the pool.
+    /// The address of the market the pool is assigned to.
     /// </summary>
     Address Market { get; }
     
@@ -18,7 +18,8 @@ public interface IOpdexStandardPool : IOpdexPool
     bool AuthTraders { get; }
 
     /// <summary>
-    /// Checks if an address is authorized for the requested permission.
+    /// Checks if an address is authorized for the requested permission. If authorizations are
+    /// enabled will make a call to the Market contract to check permissions.
     /// </summary>s
     /// <param name="address">The address to check a permission authorization for.</param>
     /// <param name="permission">The permission to check authorization of. (1 - Create Pool, 2 - Trade, 3 - Provide, 4 - Set Permissions)</param>
