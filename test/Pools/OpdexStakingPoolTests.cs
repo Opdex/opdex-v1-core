@@ -625,7 +625,8 @@ namespace OpdexV1Core.Tests
             VerifyLog(new StartStakingLog
             {
                 Staker = Trader0,
-                Amount = stakeAmount
+                Amount = stakeAmount,
+                TotalStaked = stakeAmount
             }, Times.Once);
         }
 
@@ -640,7 +641,8 @@ namespace OpdexV1Core.Tests
             UInt256 totalStaked = 10_000;
             UInt256 stakingRewardsBalance = 1_000_000;
             UInt256 expectedWeight = 100_000;
-            
+            UInt256 expectedTotalStaked = stakeAmount + totalStaked;
+
             var pool = CreateNewOpdexStakingPool();
             
             State.SetAddress(nameof(IOpdexStakingPool.StakingToken), StakingToken);
@@ -659,7 +661,7 @@ namespace OpdexV1Core.Tests
             
             pool.Stake(stakeAmount);
 
-            pool.TotalStaked.Should().Be(stakeAmount + totalStaked);
+            pool.TotalStaked.Should().Be(expectedTotalStaked);
             pool.TotalStakedApplicable.Should().Be(totalStaked);
             pool.GetStakedWeight(Trader0).Should().Be(expectedWeight);
             pool.GetStakedBalance(Trader0).Should().Be(stakeAmount);
@@ -670,7 +672,8 @@ namespace OpdexV1Core.Tests
             VerifyLog(new StartStakingLog
             {
                 Staker = Trader0,
-                Amount = stakeAmount
+                Amount = stakeAmount,
+                TotalStaked = expectedTotalStaked
             }, Times.Once);
         }
 
@@ -686,7 +689,9 @@ namespace OpdexV1Core.Tests
             UInt256 stakingRewardsBalance = 1_000_000;
             UInt256 expectedWeight = 200_001;
             UInt256 currentStakerBalance = 1_000;
-            
+            UInt256 expectedTotalStaked = totalStaked + currentStakerBalance;
+            UInt256 expectedReward = 100_000;
+
             var pool = CreateNewOpdexStakingPool();
             
             State.SetAddress(nameof(IOpdexStakingPool.StakingToken), StakingToken);
@@ -706,7 +711,7 @@ namespace OpdexV1Core.Tests
             
             pool.Stake(stakeAmount);
 
-            pool.TotalStaked.Should().Be(totalStaked + currentStakerBalance);
+            pool.TotalStaked.Should().Be(expectedTotalStaked);
             pool.TotalStakedApplicable.Should().Be(totalStaked - stakeAmount);
             pool.GetStakedWeight(Trader0).Should().Be(expectedWeight);
             pool.GetStakedBalance(Trader0).Should().Be(stakeAmount + currentStakerBalance);
@@ -717,13 +722,14 @@ namespace OpdexV1Core.Tests
             VerifyLog(new CollectStakingRewardsLog
             {
                 Staker = Trader0,
-                Reward = 100_000
+                Reward = expectedReward
             }, Times.Once);
             
             VerifyLog(new StartStakingLog
             {
                 Staker = Trader0,
-                Amount = stakeAmount + currentStakerBalance
+                Amount = stakeAmount + currentStakerBalance,
+                TotalStaked = expectedTotalStaked
             }, Times.Once);
         }
 
@@ -848,7 +854,8 @@ namespace OpdexV1Core.Tests
             UInt256 expectedReward = 100_000;
             const ulong expectedRewardCrs = 234;
             UInt256 expectedRewardSrc = 2_353_223;
-            
+            UInt256 expectedTotalStaked = totalStaked - currentStakerBalance;
+
             var pool = CreateNewOpdexStakingPool();
             
             State.SetAddress(nameof(IOpdexStakingPool.StakingToken), StakingToken);
@@ -875,7 +882,7 @@ namespace OpdexV1Core.Tests
             
             pool.Unstake(Trader0, true);
             
-            pool.TotalStaked.Should().Be(totalStaked - currentStakerBalance);
+            pool.TotalStaked.Should().Be(expectedTotalStaked);
             pool.TotalStakedApplicable.Should().Be(totalStaked - currentStakerBalance);
             pool.GetStakedWeight(Trader0).Should().Be(expectedWeight);
             pool.GetStakedBalance(Trader0).Should().Be(UInt256.Zero);
@@ -905,7 +912,8 @@ namespace OpdexV1Core.Tests
             VerifyLog(new StopStakingLog
             {
                 Staker = Trader0,
-                Amount = currentStakerBalance
+                Amount = currentStakerBalance,
+                TotalStaked = expectedTotalStaked
             }, Times.Once);
             
             VerifyLog(new CollectStakingRewardsLog
@@ -926,6 +934,7 @@ namespace OpdexV1Core.Tests
             UInt256 stakingRewardsBalance = 1_000_000;
             UInt256 currentStakerBalance = 1_000;
             UInt256 expectedReward = 100_000;
+            UInt256 expectedTotalStaked = totalStaked - currentStakerBalance;
             
             var pool = CreateNewOpdexStakingPool();
             
@@ -945,8 +954,8 @@ namespace OpdexV1Core.Tests
             SetupCall(StakingToken, 0ul, nameof(IOpdexStakingPool.TransferTo), transferToParams, TransferResult.Transferred(true));
 
             pool.Unstake(Trader0, false);
-            
-            pool.TotalStaked.Should().Be(totalStaked - currentStakerBalance);
+
+            pool.TotalStaked.Should().Be(expectedTotalStaked);
             pool.TotalStakedApplicable.Should().Be(totalStaked - currentStakerBalance);
             pool.GetStakedWeight(Trader0).Should().Be(UInt256.Zero);
             pool.GetStakedBalance(Trader0).Should().Be(UInt256.Zero);
@@ -964,7 +973,8 @@ namespace OpdexV1Core.Tests
             VerifyLog(new StopStakingLog
             {
                 Staker = Trader0,
-                Amount = currentStakerBalance
+                Amount = currentStakerBalance,
+                TotalStaked = expectedTotalStaked
             }, Times.Once);
         }
         

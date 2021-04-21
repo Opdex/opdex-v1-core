@@ -144,7 +144,7 @@ public interface IOpdexMarket
     
     /// <summary>
     /// Calculates the necessary deposit amount, including transaction fees, based on the amount to receive and the pool's reserves.
-    /// Used for CRS-SRC or SRC-CRS single pool transactions
+    /// Used for CRS-SRC or SRC-CRS single pool transactions.
     /// </summary>
     /// <param name="amountOut">The amount of tokens to receive.</param>
     /// <param name="reserveIn">The pool's reserve amount of the input token type.</param>

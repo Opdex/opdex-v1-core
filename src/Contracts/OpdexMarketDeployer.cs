@@ -53,7 +53,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
             AuthPoolCreators = false, 
             AuthProviders = false, 
             AuthTraders = false, 
-            Fee = 3
+            Fee = transactionFee
         });
     }
 }

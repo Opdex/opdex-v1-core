@@ -80,12 +80,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         State.SetBool($"AuthorizedFor:{permission}:{address}", authorize);
         
-        Log(new PermissionsChangeLog
-        {
-            Address = address,
-            Permission = permission,
-            IsAuthorized = authorize
-        });
+        Log(new PermissionsChangeLog { Address = address, Permission = permission, IsAuthorized = authorize });
     }
 
     /// <inheritdoc />
@@ -103,11 +98,16 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     {
         Assert(Message.Sender == Owner, "OPDEX: UNAUTHORIZED");
 
+        var isAuthorizedParams = new object[] {Message.Sender, (byte)Permissions.SetPermissions};
+        var isAuthorizedResponse = Call(newMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), isAuthorizedParams);
+        
+        Assert(isAuthorizedResponse.Success && (bool)isAuthorizedResponse.ReturnValue, "OPDEX: INVALID_MARKET");
+        
         var pool = GetValidatedPool(token);
 
-        var response = Call(pool, 0, nameof(IOpdexStandardPool.SetMarket), new object[] {newMarket});
+        var updatePoolResponse = Call(pool, 0, nameof(IOpdexStandardPool.SetMarket), new object[] {newMarket});
         
-        Assert(response.Success, "OPDEX: CHANGE_MARKET_FAILED");
+        Assert(updatePoolResponse.Success, "OPDEX: CHANGE_MARKET_FAILED");
     }
 
     /// <inheritdoc />

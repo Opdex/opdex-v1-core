@@ -51,10 +51,6 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// Enables market contracts to be updated to allow extra functionality or improving flows.
     /// </summary>
     /// <param name="token">The SRC token to lookup the pool being updated.</param>
-    /// <param name="newMarket">
-    /// The new market's smart contract address.
-    /// CRITICAL: An error here for a private market that authorizes providers and traders
-    /// would lock all liquidity in that pool.
-    /// </param>
+    /// <param name="newMarket">The new market's smart contract address.</param>
     void SetPoolMarket(Address token, Address newMarket);
 }

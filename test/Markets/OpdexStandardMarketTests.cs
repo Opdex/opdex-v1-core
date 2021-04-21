@@ -153,17 +153,21 @@ namespace OpdexV1Core.Tests
         [Fact]
         public void SetPoolMarket_Success()
         {
+            var newMarket = OtherAddress;
             var market = CreateNewOpdexStandardMarket(true, true, true);
             
             State.SetAddress($"Pool:{Token}", Pool);
 
-            var setMarketParams = new object[] {OtherAddress};
-            
+            var isAuthorizedForParams = new object[] {Owner, (byte)Permissions.SetPermissions};
+            SetupCall(newMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), isAuthorizedForParams, TransferResult.Transferred(true));
+
+            var setMarketParams = new object[] {newMarket};
             SetupCall(Pool, 0ul, nameof(IOpdexStandardPool.SetMarket), setMarketParams, TransferResult.Transferred(null));
             
             market.SetPoolMarket(Token, OtherAddress);
 
             VerifyCall(Pool, 0ul, nameof(IOpdexStandardPool.SetMarket), setMarketParams, Times.Once);
+            VerifyCall(newMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), isAuthorizedForParams, Times.Once);
         }
 
         [Fact]

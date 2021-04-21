@@ -221,11 +221,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
 
             TotalStaked += balance;
             
-            Log(new StartStakingLog
-            {
-                Staker = Message.Sender,
-                Amount = balance
-            });
+            Log(new StartStakingLog { Staker = Message.Sender, Amount = balance, TotalStaked = TotalStaked});
         }
         
         SetStakedWeight(Message.Sender, weight);
@@ -243,9 +239,8 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
 
     private static UInt256 CalculateStakingWeight(UInt256 stakedBalance, UInt256 rewardsBalance, UInt256 totalStaked)
     {
-        return rewardsBalance > 0 && totalStaked > 0
-            ? stakedBalance * rewardsBalance / totalStaked
-            : 0;
+        if (rewardsBalance == 0 || totalStaked == 0) return 0;
+        return stakedBalance * rewardsBalance / totalStaked;
     }
 
     private void CollectStakingRewardsExecute(Address to, UInt256 stakedBalance, bool liquidate)
@@ -259,11 +254,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         if (liquidate) BurnExecute(to, rewards);
         else TransferTokensExecute(Address, to, rewards);
         
-        Log(new CollectStakingRewardsLog
-        {
-            Staker = Message.Sender,
-            Reward = rewards
-        });
+        Log(new CollectStakingRewardsLog { Staker = Message.Sender, Reward = rewards });
     }
 
     private void UnstakeExecute(Address to, UInt256 stakedBalance, bool transfer)
@@ -271,12 +262,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         if (transfer)
         {
             SafeTransferTo(StakingToken, to, stakedBalance);
-            
-            Log(new StopStakingLog
-            {
-                Staker = Message.Sender,
-                Amount = stakedBalance
-            });
+            Log(new StopStakingLog { Staker = Message.Sender, Amount = stakedBalance, TotalStaked = TotalStaked});
         }
         
         SetStakedBalance(Message.Sender, 0);
