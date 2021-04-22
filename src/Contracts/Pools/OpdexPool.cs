@@ -2,7 +2,7 @@ using Stratis.SmartContracts;
 
 /// <summary>
 /// Standard liquidity pool including CRS and one SRC20 token. Methods in this contract should not be called directly
-/// unless integrated through a third party contract. The controller contract has safeguards and prerequisite
+/// unless integrated through a third party contract. The market contract has safeguards and prerequisite
 /// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
 /// </summary>
 public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool

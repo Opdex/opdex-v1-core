@@ -56,9 +56,9 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         return State.GetUInt256($"StakedBalance:{address}");
     }
 
-    private void SetStakedBalance(Address address, UInt256 weight)
+    private void SetStakedBalance(Address address, UInt256 balance)
     {
-        State.SetUInt256($"StakedBalance:{address}", weight);
+        State.SetUInt256($"StakedBalance:{address}", balance);
     }
 
     /// <inheritdoc />
@@ -67,9 +67,9 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         return State.GetUInt256($"StakedWeight:{address}");
     }
 
-    private void SetStakedWeight(Address address, UInt256 weightK)
+    private void SetStakedWeight(Address address, UInt256 weight)
     {
-        State.SetUInt256($"StakedWeight:{address}", weightK);
+        State.SetUInt256($"StakedWeight:{address}", weight);
     }
 
     /// <inheritdoc />

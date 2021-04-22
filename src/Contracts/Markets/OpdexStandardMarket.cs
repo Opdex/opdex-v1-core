@@ -59,7 +59,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     }
 
     /// <inheritdoc />
-    public bool IsAuthorizedFor(Address address, byte permission)
+    public bool IsAuthorized(Address address, byte permission)
     {
         switch ((Permissions)permission)
         {
@@ -67,7 +67,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
             case Permissions.Provide when !AuthProviders:
             case Permissions.CreatePool when !AuthPoolCreators: return true;
             case Permissions.Unknown: return false;
-            default: return address == Owner || State.GetBool($"AuthorizedFor:{permission}:{address}");
+            default: return address == Owner || State.GetBool($"IsAuthorized:{permission}:{address}");
         }
     }
 
@@ -78,7 +78,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         Assert((Permissions)permission != Permissions.Unknown, "OPDEX: INVALID_PERMISSION");
         
-        State.SetBool($"AuthorizedFor:{permission}:{address}", authorize);
+        State.SetBool($"IsAuthorized:{permission}:{address}", authorize);
         
         Log(new PermissionsChangeLog { Address = address, Permission = permission, IsAuthorized = authorize });
     }
@@ -99,7 +99,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         Assert(Message.Sender == Owner, "OPDEX: UNAUTHORIZED");
 
         var isAuthorizedParams = new object[] {Message.Sender, (byte)Permissions.SetPermissions};
-        var isAuthorizedResponse = Call(newMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), isAuthorizedParams);
+        var isAuthorizedResponse = Call(newMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), isAuthorizedParams);
         
         Assert(isAuthorizedResponse.Success && (bool)isAuthorizedResponse.ReturnValue, "OPDEX: INVALID_MARKET");
         
@@ -200,6 +200,6 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     
     private void EnsureAuthorizationFor(Address address, Permissions permission)
     {
-        Assert(IsAuthorizedFor(address, (byte)permission), "OPDEX: UNAUTHORIZED");
+        Assert(IsAuthorized(address, (byte)permission), "OPDEX: UNAUTHORIZED");
     }
 }

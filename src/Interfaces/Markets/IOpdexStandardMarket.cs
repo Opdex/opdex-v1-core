@@ -30,7 +30,7 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// The permission to check authorization of. See <see cref="Permissions"/> for list of available options.
     /// </param>
     /// <returns>Flag describing if the address is authorized or not.</returns>
-    bool IsAuthorizedFor(Address address, byte permission);
+    bool IsAuthorized(Address address, byte permission);
 
     /// <summary>
     /// Allows permitted addresses to sets authorization for a provided address and permission.

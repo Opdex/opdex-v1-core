@@ -57,7 +57,7 @@ public interface IOpdexPool : IStandardToken256
     /// When adding liquidity, mints new liquidity pool tokens based on differences in reserves and balances.
     /// </summary>
     /// <remarks>
-    /// Should be called from the Opdex controller contract normally with the exception of being called
+    /// Should be called from the market contract normally with the exception of being called
     /// from an integrated smart contract. Token transfers to the pool and this method should be
     /// called in the same transaction to prevent arbitrage between separate transactions.
     /// </remarks>
@@ -69,7 +69,7 @@ public interface IOpdexPool : IStandardToken256
     /// Swap between token types in the pool, determined by differences in balances and reserves. 
     /// </summary>
     /// <remarks>
-    /// Should be called from the Opdex controller contract normally with the exception of being called
+    /// Should be called from the market contract normally with the exception of being called
     /// from an integrated smart contract. Token transfers to the pool and this method should be
     /// called in the same transaction to prevent arbitrage between separate transactions.
     /// </remarks>
@@ -86,7 +86,7 @@ public interface IOpdexPool : IStandardToken256
     /// When removing liquidity, burns liquidity pool tokens returning an equal share of the pools reserves. 
     /// </summary>
     /// <remarks>
-    /// Should be called from the Opdex controller contract normally with the exception of being called
+    /// Should be called from the market contract normally with the exception of being called
     /// from an integrated smart contract. Token transfers to the pool and this method should be
     /// called in the same transaction to prevent arbitrage between separate transactions.
     /// </remarks>

@@ -24,7 +24,7 @@ public interface IOpdexStandardPool : IOpdexPool
     /// <param name="address">The address to check a permission authorization for.</param>
     /// <param name="permission">The permission to check authorization of. (1 - Create Pool, 2 - Trade, 3 - Provide, 4 - Set Permissions)</param>
     /// <returns>Flag describing if the address is authorized for the requested permission.</returns>
-    bool IsAuthorizedFor(Address address, byte permission);
+    bool IsAuthorized(Address address, byte permission);
 
     /// <summary>
     /// Allows the current set market to assign the pool to a new market.

@@ -67,16 +67,16 @@ namespace OpdexV1Core.Tests
             
             if (shouldAuth && !isMarketCaller)
             {
-                SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, TransferResult.Transferred(expectedResult));
+                SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, TransferResult.Transferred(expectedResult));
             }
 
-            var isAuthorized = pool.IsAuthorizedFor(sender, permission);
+            var isAuthorized = pool.IsAuthorized(sender, permission);
 
             isAuthorized.Should().Be(expectedResult);
             
             if (shouldAuth && !isMarketCaller)
             {
-                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, Times.Once);
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, Times.Once);
             }
         }
 
@@ -161,7 +161,7 @@ namespace OpdexV1Core.Tests
             var authParams = new object[] {sender, (byte)Permissions.Provide};
             if (authorize)
             {
-                SetupCall(StandardMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams,
+                SetupCall(StandardMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorized), authParams,
                     TransferResult.Transferred(true));
             }
             
@@ -179,7 +179,7 @@ namespace OpdexV1Core.Tests
             
             if (authorize)
             {
-                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, Times.Once);
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, Times.Once);
             }
             
             VerifyLog(new ReservesLog
@@ -205,7 +205,7 @@ namespace OpdexV1Core.Tests
             var authParams = new object[] {sender, (byte)Permissions.Provide};
             if (authorize)
             {
-                SetupCall(StandardMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams,
+                SetupCall(StandardMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorized), authParams,
                     TransferResult.Transferred(true));
             }
             
@@ -226,7 +226,7 @@ namespace OpdexV1Core.Tests
             
             if (authorize)
             {
-                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), authParams, Times.Once);
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, Times.Once);
             }
 
             VerifyCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, Times.Once);

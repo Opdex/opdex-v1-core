@@ -70,7 +70,7 @@ namespace OpdexV1Core.Tests
             
             market.Authorize(OtherAddress, permission, isAuthorized);
 
-            market.IsAuthorizedFor(OtherAddress, permission).Should().Be(isAuthorized);
+            market.IsAuthorized(OtherAddress, permission).Should().Be(isAuthorized);
 
             VerifyLog(new PermissionsChangeLog
             {
@@ -105,7 +105,7 @@ namespace OpdexV1Core.Tests
             
             market.Authorize(Trader0, permission, isAuthorized);
 
-            market.IsAuthorizedFor(Trader0, permission).Should().Be(isAuthorized);
+            market.IsAuthorized(Trader0, permission).Should().Be(isAuthorized);
 
             VerifyLog(new PermissionsChangeLog
             {
@@ -158,8 +158,8 @@ namespace OpdexV1Core.Tests
             
             State.SetAddress($"Pool:{Token}", Pool);
 
-            var isAuthorizedForParams = new object[] {Owner, (byte)Permissions.SetPermissions};
-            SetupCall(newMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), isAuthorizedForParams, TransferResult.Transferred(true));
+            var isAuthorizedParams = new object[] {Owner, (byte)Permissions.SetPermissions};
+            SetupCall(newMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorized), isAuthorizedParams, TransferResult.Transferred(true));
 
             var setMarketParams = new object[] {newMarket};
             SetupCall(Pool, 0ul, nameof(IOpdexStandardPool.SetMarket), setMarketParams, TransferResult.Transferred(null));
@@ -167,7 +167,7 @@ namespace OpdexV1Core.Tests
             market.SetPoolMarket(Token, OtherAddress);
 
             VerifyCall(Pool, 0ul, nameof(IOpdexStandardPool.SetMarket), setMarketParams, Times.Once);
-            VerifyCall(newMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorizedFor), isAuthorizedForParams, Times.Once);
+            VerifyCall(newMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorized), isAuthorizedParams, Times.Once);
         }
 
         [Fact]
@@ -301,8 +301,8 @@ namespace OpdexV1Core.Tests
 
             if (authProvider)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{sender}", true);
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{to}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Provide}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Provide}:{to}", true);
             }
             
             SetupMessage(StandardMarket, sender, amountCrsDesired);
@@ -401,7 +401,7 @@ namespace OpdexV1Core.Tests
 
             SetupMessage(Pool, sender);
             
-            State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{receiver}", true);
+            State.SetBool($"IsAuthorized:{(byte)Permissions.Provide}:{receiver}", true);
 
             market
                 .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, receiver, 0))
@@ -426,8 +426,8 @@ namespace OpdexV1Core.Tests
 
             if (authProvider)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{sender}", true);
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{receiver}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Provide}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Provide}:{receiver}", true);
             }
 
             SetupMessage(StandardMarket, sender);
@@ -540,7 +540,7 @@ namespace OpdexV1Core.Tests
 
             SetupMessage(Pool, sender);
             
-            State.SetBool($"AuthorizedFor:{(byte)Permissions.Provide}:{receiver}", true);
+            State.SetBool($"IsAuthorized:{(byte)Permissions.Provide}:{receiver}", true);
 
             market
                 .Invoking(c => c.RemoveLiquidity(Token, 10, 10, 10, receiver, 0))
@@ -573,7 +573,7 @@ namespace OpdexV1Core.Tests
 
             if (requireAuth)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Trade}:{sender}", true);
             }
             
             SetupMessage(StandardMarket, sender, amountCrsIn);
@@ -679,7 +679,7 @@ namespace OpdexV1Core.Tests
             
             if (requireAuth)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Trade}:{sender}", true);
             }
             
             SetupMessage(StandardMarket, sender);
@@ -787,7 +787,7 @@ namespace OpdexV1Core.Tests
             
             if (requireAuth)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Trade}:{sender}", true);
             }
             
             SetupMessage(StandardMarket, sender);
@@ -899,7 +899,7 @@ namespace OpdexV1Core.Tests
             
             if (requireAuth)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Trade}:{sender}", true);
             }
             
             SetupMessage(StandardMarket, sender, amountCrsIn);
@@ -1022,7 +1022,7 @@ namespace OpdexV1Core.Tests
             
             if (requireAuth)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Trade}:{sender}", true);
             }
             
             SetupMessage(StandardMarket, sender);
@@ -1145,7 +1145,7 @@ namespace OpdexV1Core.Tests
             
             if (requireAuth)
             {
-                State.SetBool($"AuthorizedFor:{(byte)Permissions.Trade}:{sender}", true);
+                State.SetBool($"IsAuthorized:{(byte)Permissions.Trade}:{sender}", true);
             }
             
             SetupMessage(StandardMarket, sender);

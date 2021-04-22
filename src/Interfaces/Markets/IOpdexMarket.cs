@@ -22,8 +22,8 @@ public interface IOpdexMarket
     Address CreatePool(Address token);
     
     /// <summary>
-    /// Provides liquidity to a specified pool. SRC tokens being provided must have previously
-    /// approved the controller contract with the desired allowance.
+    /// Allows users to provide liquidity to a pool, provided amounts must match the same ratio as the pool's current reserves.
+    /// SRC20 tokens used for providing liquidity must have previously approved an allowance for this contract to spend.
     /// </summary>
     /// <param name="token">The SRC token address to lookup its pool by.</param>
     /// <param name="amountSrcDesired">The wishful amount of SRC tokens to deposit.</param>
@@ -36,7 +36,7 @@ public interface IOpdexMarket
     
     /// <summary>
     /// Remove liquidity from a specified pool. Liquidity Pool tokens being removed and burned must
-    /// have previously approved the controller contract with the desired burn amount.
+    /// have previously approved the market contract with the desired burn amount.
     /// </summary>
     /// <param name="token">The SRC token address to lookup its pool by.</param>
     /// <param name="liquidity">The amount of liquidity pool tokens to remove.</param>
@@ -59,7 +59,7 @@ public interface IOpdexMarket
     
     /// <summary>
     /// Swaps a maximum amount of SRC tokens for an exact amount of CRS tokens.
-    /// SRC tokens must have previously approved the controller contract with the desired amount.
+    /// SRC tokens must have previously approved the market contract with the desired amount.
     /// </summary>
     /// <param name="amountCrsOut">The exact amount of CRS tokens to receive.</param>
     /// <param name="amountSrcInMax">The maximum amount of SRC tokens to swap.</param>
@@ -71,7 +71,7 @@ public interface IOpdexMarket
     
     /// <summary>
     /// Swaps an exact amount of SRC tokes for a minimum amount of CRS tokens. Swapped SRC tokens must have
-    /// previously approved the controller contract with the desired amount.
+    /// previously approved the market contract with the desired amount.
     /// </summary>
     /// <param name="amountSrcIn">The exact amount of SRC tokens to swap.</param>
     /// <param name="amountCrsOutMin">The minimum amount of CRS tokens to receive.</param>
@@ -93,7 +93,7 @@ public interface IOpdexMarket
     
     /// <summary>
     /// Swaps a maximum amount of SRC tokens for an exact amount of SRC tokens. SRC tokens being swapped must
-    /// have previously approved the controller contract with the desired amount.
+    /// have previously approved the market contract with the desired amount.
     /// SRC to SRC token swaps hop between two pools which incurs double the market's transaction
     /// fees but is done in a single transaction. Input SRC tokens are swapped for CRS tokens which
     /// are then swapped for the desired SRC token.
@@ -109,7 +109,7 @@ public interface IOpdexMarket
     
     /// <summary>
     /// Swaps an exact amount of SRC tokens for a minimum amount of SRC tokens. SRC tokens being swapped must
-    /// have previously approved the controller contract with the desired amount.
+    /// have previously approved the market contract with the desired amount.
     /// SRC to SRC token swaps hop between two pools which incurs double the market's transaction
     /// fees but is done in a single transaction. Input SRC tokens are swapped for CRS tokens which
     /// are then swapped for the desired SRC token.

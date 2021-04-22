@@ -2,7 +2,7 @@ using Stratis.SmartContracts;
 
 /// <summary>
 /// Standard liquidity pool including CRS and one SRC20 token. Methods in this contract should not be called directly
-/// unless integrated through a third party contract. The controller contract has safeguards and prerequisite
+/// unless integrated through a third party contract. The market contract has safeguards and prerequisite
 /// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
 /// </summary>
 public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
@@ -107,7 +107,7 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     }
     
     /// <inheritdoc />
-    public bool IsAuthorizedFor(Address address, byte permission)
+    public bool IsAuthorized(Address address, byte permission)
     {
         switch ((Permissions)permission)
         {
@@ -116,7 +116,7 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
             case Permissions.Unknown: return false;
             default:
                 return address == Market || 
-                       (bool)Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorizedFor), new object[] {address, permission}).ReturnValue;
+                       (bool)Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorized), new object[] {address, permission}).ReturnValue;
         }
     }
 
@@ -132,6 +132,6 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
     
     private void EnsureAuthorizationFor(Address address, Permissions permission)
     {
-        Assert(IsAuthorizedFor(address, (byte)permission), "OPDEX: UNAUTHORIZED");
+        Assert(IsAuthorized(address, (byte)permission), "OPDEX: UNAUTHORIZED");
     }
 }
