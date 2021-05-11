@@ -31,7 +31,8 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
             AuthPoolCreators = authPoolCreators, 
             AuthProviders = authProviders, 
             AuthTraders = authTraders, 
-            Fee = fee
+            Fee = fee,
+            StakingToken = Address.Zero
         });
             
         return market;
@@ -53,7 +54,8 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
             AuthPoolCreators = false, 
             AuthProviders = false, 
             AuthTraders = false, 
-            Fee = transactionFee
+            Fee = transactionFee,
+            StakingToken = stakingToken
         });
     }
 }

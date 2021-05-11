@@ -19,7 +19,8 @@ namespace OpdexV1Core.Tests
                 AuthPoolCreators = false, 
                 AuthProviders = false, 
                 AuthTraders = false, 
-                Fee = 3U
+                Fee = 3U,
+                StakingToken = StakingToken
             }, Times.Once);
         }
 

@@ -76,6 +76,8 @@ public abstract class OpdexLiquidityPoolToken : SmartContract, IStandardToken256
     public bool TransferFrom(Address from, Address to, UInt256 amount)
     {
         var allowance = Allowance(from, Message.Sender);
+
+        if (allowance < amount) return false;
         
         if (allowance > 0) SetAllowance(from, Message.Sender, allowance - amount);
         
@@ -84,7 +86,11 @@ public abstract class OpdexLiquidityPoolToken : SmartContract, IStandardToken256
     
     protected bool TransferTokensExecute(Address from, Address to, UInt256 amount)
     {
-        SetBalance(from, GetBalance(from) - amount);
+        var fromBalance = GetBalance(from);
+
+        if (fromBalance < amount) return false;
+        
+        SetBalance(from, fromBalance - amount);
         SetBalance(to, GetBalance(to) + amount);
         
         Log(new TransferLog { From = from,  To = to,  Amount = amount });

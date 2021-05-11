@@ -106,7 +106,7 @@ namespace OpdexV1Core.Tests
         }
 
         [Fact]
-        public void TransferTo_Throws_InsufficientFromBalance()
+        public void TransferTo_Fails_InsufficientFromBalance()
         {
             var pool = CreateNewOpdexStakingPool();
             var from = Trader0;
@@ -118,10 +118,8 @@ namespace OpdexV1Core.Tests
             State.SetUInt256($"Balance:{from}", initialFromBalance);
             State.SetUInt256($"Balance:{to}", initialToBalance);
             SetupMessage(Pool, from);
-            
-            pool
-                .Invoking(p => p.TransferTo(to, amount))
-                .Should().Throw<OverflowException>();
+
+            pool.TransferTo(to, amount).Should().BeFalse();
         }
         
         [Fact]
@@ -176,7 +174,7 @@ namespace OpdexV1Core.Tests
         }
 
         [Fact]
-        public void TransferFrom_Throws_InsufficientFromBalance()
+        public void TransferFrom_Fails_InsufficientFromBalance()
         {
             var pool = CreateNewOpdexStakingPool();
             var from = Trader0;
@@ -188,14 +186,12 @@ namespace OpdexV1Core.Tests
             State.SetUInt256($"Balance:{from}", initialFromBalance);
             State.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
             SetupMessage(Pool, to);
-            
-            pool
-                .Invoking(p => p.TransferFrom(from, to, amount))
-                .Should().Throw<OverflowException>();
+
+            pool.TransferFrom(from, to, amount).Should().BeFalse();
         }
         
         [Fact]
-        public void TransferFrom_Throws_InsufficientSpenderAllowance()
+        public void TransferFrom_Fails_InsufficientSpenderAllowance()
         {
             var pool = CreateNewOpdexStakingPool();
             var from = Trader0;
@@ -207,10 +203,8 @@ namespace OpdexV1Core.Tests
             State.SetUInt256($"Balance:{from}", initialFromBalance);
             State.SetUInt256($"Allowance:{from}:{to}", spenderAllowance);
             SetupMessage(Pool, to);
-            
-            pool
-                .Invoking(p => p.TransferFrom(from, to, amount))
-                .Should().Throw<OverflowException>();
+
+            pool.TransferFrom(from, to, amount).Should().BeFalse();
         }
 
         [Fact]
