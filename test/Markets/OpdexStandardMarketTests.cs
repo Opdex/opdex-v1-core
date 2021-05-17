@@ -72,7 +72,7 @@ namespace OpdexV1Core.Tests
 
             market.IsAuthorized(OtherAddress, permission).Should().Be(isAuthorized);
 
-            VerifyLog(new ChangeMarketPermissionsLog
+            VerifyLog(new ChangeMarketPermissionLog
             {
                 Address = OtherAddress,
                 Permission = permission,
@@ -107,14 +107,14 @@ namespace OpdexV1Core.Tests
 
             market.IsAuthorized(Trader0, permission).Should().Be(isAuthorized);
 
-            VerifyLog(new ChangeMarketPermissionsLog
+            VerifyLog(new ChangeMarketPermissionLog
             {
                 Address = OtherAddress,
                 Permission = (byte)Permissions.SetPermissions,
                 IsAuthorized = true
             }, Times.Once);
             
-            VerifyLog(new ChangeMarketPermissionsLog
+            VerifyLog(new ChangeMarketPermissionLog
             {
                 Address = Trader0,
                 Permission = permission,

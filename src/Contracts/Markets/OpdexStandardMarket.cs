@@ -80,7 +80,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         State.SetBool($"IsAuthorized:{permission}:{address}", authorize);
         
-        Log(new ChangeMarketPermissionsLog { Address = address, Permission = permission, IsAuthorized = authorize });
+        Log(new ChangeMarketPermissionLog { Address = address, Permission = permission, IsAuthorized = authorize });
     }
 
     /// <inheritdoc />

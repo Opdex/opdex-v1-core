@@ -36,7 +36,8 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         
         Log(new ChangeDeployerOwnerLog {From = Message.Sender, To = address});
     }
-        
+    
+    /// <inheritdoc />
     public Address CreateStandardMarket(Address marketOwner, bool authPoolCreators, bool authProviders, bool authTraders, uint fee)
     {
         Assert(Message.Sender == Owner, UnauthorizedError);
