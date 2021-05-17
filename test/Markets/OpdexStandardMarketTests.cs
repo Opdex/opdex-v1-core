@@ -26,7 +26,7 @@ namespace OpdexV1Core.Tests
         }
 
         [Fact]
-        public void UpdateOwner_Success()
+        public void SetOwner_Success()
         {
             var market = CreateNewOpdexStandardMarket();
             
@@ -34,11 +34,11 @@ namespace OpdexV1Core.Tests
 
             market.Owner.Should().Be(OtherAddress);
 
-            VerifyLog(new MarketOwnerChangeLog { From = Owner, To = OtherAddress }, Times.Once);
+            VerifyLog(new ChangeMarketOwnerLog { From = Owner, To = OtherAddress }, Times.Once);
         }
         
         [Fact]
-        public void UpdateOwner_Throws_Unauthorized()
+        public void SetOwner_Throws_Unauthorized()
         {
             var market = CreateNewOpdexStandardMarket();
 
@@ -72,7 +72,7 @@ namespace OpdexV1Core.Tests
 
             market.IsAuthorized(OtherAddress, permission).Should().Be(isAuthorized);
 
-            VerifyLog(new PermissionsChangeLog
+            VerifyLog(new ChangeMarketPermissionsLog
             {
                 Address = OtherAddress,
                 Permission = permission,
@@ -107,14 +107,14 @@ namespace OpdexV1Core.Tests
 
             market.IsAuthorized(Trader0, permission).Should().Be(isAuthorized);
 
-            VerifyLog(new PermissionsChangeLog
+            VerifyLog(new ChangeMarketPermissionsLog
             {
                 Address = OtherAddress,
                 Permission = (byte)Permissions.SetPermissions,
                 IsAuthorized = true
             }, Times.Once);
             
-            VerifyLog(new PermissionsChangeLog
+            VerifyLog(new ChangeMarketPermissionsLog
             {
                 Address = Trader0,
                 Permission = permission,
@@ -213,7 +213,7 @@ namespace OpdexV1Core.Tests
             market.Fee.Should().Be(fee);
             market.Owner.Should().Be(Owner);
 
-            var expectedPoolCreatedLog = new LiquidityPoolCreatedLog { Token = Token, Pool = Pool };
+            var expectedPoolCreatedLog = new CreateLiquidityPoolLog { Token = Token, Pool = Pool };
             
             VerifyLog(expectedPoolCreatedLog, Times.Once);
         }

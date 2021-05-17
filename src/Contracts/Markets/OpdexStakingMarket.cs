@@ -41,7 +41,7 @@ public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
         
         SetPool(token, pool);
         
-        Log(new LiquidityPoolCreatedLog { Token = token, Pool = pool });
+        Log(new CreateLiquidityPoolLog { Token = token, Pool = pool });
         
         return pool;
     }

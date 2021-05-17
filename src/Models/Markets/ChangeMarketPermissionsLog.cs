@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct PermissionsChangeLog
+public struct ChangeMarketPermissionsLog
 {
     [Index] public Address Address;
     public byte Permission;

@@ -43,7 +43,7 @@ namespace OpdexV1Core.Tests
 
             market.GetPool(Token).Should().Be(pool).And.Be(Pool);
 
-            var expectedPoolCreatedLog = new LiquidityPoolCreatedLog { Token = Token, Pool = Pool };
+            var expectedPoolCreatedLog = new CreateLiquidityPoolLog { Token = Token, Pool = Pool };
             VerifyLog(expectedPoolCreatedLog, Times.Once);
         }
 

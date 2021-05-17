@@ -1,8 +1,9 @@
 using Stratis.SmartContracts;
 
-public struct MarketCreatedLog
+public struct CreateMarketLog
 {
     [Index] public Address Market;
+    [Index] public Address Owner;
     public Address StakingToken;
     public bool AuthPoolCreators;
     public bool AuthProviders;

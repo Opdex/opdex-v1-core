@@ -80,7 +80,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         State.SetBool($"IsAuthorized:{permission}:{address}", authorize);
         
-        Log(new PermissionsChangeLog { Address = address, Permission = permission, IsAuthorized = authorize });
+        Log(new ChangeMarketPermissionsLog { Address = address, Permission = permission, IsAuthorized = authorize });
     }
 
     /// <inheritdoc />
@@ -90,7 +90,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         Owner = address;
         
-        Log(new MarketOwnerChangeLog {From = Message.Sender, To = address});
+        Log(new ChangeMarketOwnerLog {From = Message.Sender, To = address});
     }
     
     /// <inheritdoc />
@@ -129,7 +129,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         SetPool(token, pool);
         
-        Log(new LiquidityPoolCreatedLog { Token = token, Pool = pool });
+        Log(new CreateLiquidityPoolLog { Token = token, Pool = pool });
         
         return pool;
     }
