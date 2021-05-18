@@ -89,7 +89,7 @@ namespace OpdexV1Core.Tests
 
             pool.Market.Should().Be(OtherAddress);
 
-            VerifyLog(new MarketChangeLog {From = StandardMarket, To = OtherAddress}, Times.Once);
+            VerifyLog(new ChangeMarketLog {From = StandardMarket, To = OtherAddress}, Times.Once);
         }
 
         [Fact]

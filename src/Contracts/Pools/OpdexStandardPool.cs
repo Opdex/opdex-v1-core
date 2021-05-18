@@ -127,7 +127,7 @@ public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
 
         Market = address;
         
-        Log(new MarketChangeLog { From = Message.Sender, To = address });
+        Log(new ChangeMarketLog { From = Message.Sender, To = address });
     }
     
     private void EnsureAuthorizationFor(Address address, Permissions permission)
