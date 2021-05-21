@@ -75,6 +75,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         Log(new CreateMarketLog
         {
             Market = market, 
+            Owner = Message.Sender,
             AuthPoolCreators = false, 
             AuthProviders = false, 
             AuthTraders = false, 

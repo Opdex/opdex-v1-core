@@ -16,6 +16,7 @@ namespace OpdexV1Core.Tests
             VerifyLog(new CreateMarketLog
             {
                 Market = StakingMarket, 
+                Owner = Owner, 
                 AuthPoolCreators = false, 
                 AuthProviders = false, 
                 AuthTraders = false, 
