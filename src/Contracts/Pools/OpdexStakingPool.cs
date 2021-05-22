@@ -3,7 +3,7 @@ using Stratis.SmartContracts;
 /// <summary>
 /// Standard liquidity pool with added staking capabilities. Inflates liquidity pool token supply
 /// by .05% according to the difference between root K and root KLast. Stakers deposit the staking
-/// token and earn the inflated fees according to their weight staked.
+/// token and receive the inflated fees according to their weight staked for governance participation.
 /// </summary>
 public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
 {
@@ -247,14 +247,17 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     {
         var rewards = GetStakingRewardsExecute(Message.Sender, stakedBalance);
         
-        StakingRewardsBalance -= rewards;
         TotalStaked -= stakedBalance;
-        TotalStakedApplicable -= stakedBalance;
         
+        if (rewards == 0) return;
+        
+        StakingRewardsBalance -= rewards;
+        TotalStakedApplicable -= stakedBalance;
+
+        Log(new CollectStakingRewardsLog { Staker = Message.Sender, Reward = rewards });
+
         if (liquidate) BurnExecute(to, rewards);
         else TransferTokensExecute(Address, to, rewards);
-        
-        Log(new CollectStakingRewardsLog { Staker = Message.Sender, Reward = rewards });
     }
 
     private void UnstakeExecute(Address to, UInt256 stakedBalance, bool transfer)
