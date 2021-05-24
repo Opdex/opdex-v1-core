@@ -8,6 +8,11 @@ public interface IOpdexStakingPool : IOpdexPool
     Address StakingToken { get; }
     
     /// <summary>
+    /// The mining pool associated with this staking pool contract.
+    /// </summary>
+    Address MiningPool { get; }
+    
+    /// <summary>
     /// The total amount of staked tokens.
     /// </summary>
     UInt256 TotalStaked { get; }

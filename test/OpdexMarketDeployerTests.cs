@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Moq;
+using OpdexV1Core.Tests.Base;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;

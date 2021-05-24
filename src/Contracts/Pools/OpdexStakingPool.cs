@@ -17,6 +17,10 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     public OpdexStakingPool(ISmartContractState state, Address token, Address stakingToken, uint fee) : base(state, token, fee) 
     {
         StakingToken = stakingToken;
+
+        if (stakingToken == token) return;
+        
+        MiningPool = Create<OpdexMiningPool>(0, new object[] {stakingToken, Address}).NewContractAddress;
     }
     
     /// <inheritdoc />
@@ -27,6 +31,13 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     {
         get => State.GetAddress(nameof(StakingToken));
         private set => State.SetAddress(nameof(StakingToken), value);
+    }
+    
+    /// <inheritdoc />
+    public Address MiningPool
+    {
+        get => State.GetAddress(nameof(MiningPool));
+        private set => State.SetAddress(nameof(MiningPool), value);
     }
         
     /// <inheritdoc />
