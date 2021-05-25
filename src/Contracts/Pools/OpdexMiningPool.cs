@@ -219,8 +219,6 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     {
         EnsureUnlocked();
         
-        // Todo: Maybe a minimum amount instead
-        // This is only locked so somebody can't donate 1 token to reset the mining period
         Assert(Message.Sender == MiningGovernance, "OPDEX: UNAUTHORIZED");
         
         UpdateReward(Address.Zero);
@@ -277,10 +275,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         if (address == Address.Zero) return;
         
-        // Setting the actual reward amount earned
         SetReward(address, Earned(address));
-            
-        // Setting the reward per token at the last time their rewards were updated
         SetRewardPerTokenPaid(address, rewardPerToken);
     }
     

@@ -53,7 +53,7 @@ public interface IOpdexMiningPool
     bool Locked { get; }
 
     /// <summary>
-    /// Retrieves the last calculated reward per token for the provided address.
+    /// Retrieves the last calculated reward per full liquidity pool token (100_000_000 sats) for the provided address.
     /// </summary>
     /// <param name="address">The miners address.</param>
     /// <returns>The last calculated amount of tokens earned per liquidity pool token used for mining.</returns>
@@ -86,7 +86,7 @@ public interface IOpdexMiningPool
     UInt256 GetRewardForDuration();
 
     /// <summary>
-    /// Calculates and returns the expected earnings per liquidity pool token used to mine based on the
+    /// Calculates and returns the expected earnings per full liquidity pool token (100_000_000 sats) used to mine based on the
     /// current state including remaining mining period, total tokens mining, and the reward rate.
     /// </summary>
     /// <returns>Amount of earnings per token used to mine based on the current state of the pool.</returns>

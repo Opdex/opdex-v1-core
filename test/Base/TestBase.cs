@@ -243,7 +243,15 @@ namespace OpdexV1Core.Tests.Base
                 return false;
             }
 
-            return expected.ToString() == actual.ToString();
+            for (var i = 0; i < expected.Length; i++)
+            {
+                if (expected[i].ToString() != actual[i].ToString())
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

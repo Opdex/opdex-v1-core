@@ -169,7 +169,7 @@ namespace OpdexV1Core.Tests.Pools
             var expectedSrcBalanceParams = new object[] {Pool};
             SetupCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
             
-            SetupMessage(StandardMarket, sender);
+            SetupMessage(Pool, sender);
             
             pool.Sync();
 
