@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 /// by .05% according to the difference between root K and root KLast. Stakers deposit the staking
 /// token and receive the inflated fees according to their weight staked for governance participation.
 /// </summary>
-public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
+public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 {
     /// <summary>
     /// Constructor initializing a staking pool contract.

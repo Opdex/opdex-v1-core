@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 /// unless integrated through a third party contract. The market contract has safeguards and prerequisite
 /// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
 /// </summary>
-public class OpdexStandardPool : OpdexPool, IOpdexStandardPool
+public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
 {
     /// <summary>
     /// Constructor initializing a standard pool contract.
