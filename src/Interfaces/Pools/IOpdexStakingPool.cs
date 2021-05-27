@@ -18,14 +18,39 @@ public interface IOpdexStakingPool : IOpdexPool
     UInt256 TotalStaked { get; }
     
     /// <summary>
-    /// The total amount of staked tokens that have earned rewards.
-    /// </summary>
-    UInt256 TotalStakedApplicable { get; }
-    
-    /// <summary>
     /// The balance of liquidity pool tokens earned by stakers to be collected.
     /// </summary>
     UInt256 StakingRewardsBalance { get; }
+    
+    /// <summary>
+    /// The latest fees that haven't been accounted for when calculating reward per token.
+    /// </summary>
+    UInt256 ApplicableStakingRewards { get; }
+    
+    /// <summary>
+    /// The amount of rewards per full token staked from the last time the staker executed a staking action.
+    /// </summary>
+    UInt256 RewardPerStakedTokenLast { get; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="address">The address of the staker.</param>
+    /// <returns>The amount of rewards per token from the last action taken by the staker.</returns>
+    UInt256 GetStoredRewardPerStakedToken(Address address);
+    
+    /// <summary>
+    /// Retrieves the last calculated award for a staker from the most recent action taken by the staker.
+    /// </summary>
+    /// <param name="address">The address of the staker.</param>
+    /// <returns>The last calculated reward amount for the staker.</returns>
+    UInt256 GetStoredReward(Address address);
+
+    /// <summary>
+    /// Retrieves the current reward per full token staked.
+    /// </summary>
+    /// <returns>The amount of rewards.</returns>
+    UInt256 GetRewardPerStakedToken();
 
     /// <summary>
     /// Retrieves the amount of tokens staked for an address.
@@ -33,13 +58,6 @@ public interface IOpdexStakingPool : IOpdexPool
     /// <param name="address">The address to check the staked balance of.</param>
     /// <returns>The amount of staked tokens.</returns>
     UInt256 GetStakedBalance(Address address);
-    
-    /// <summary>
-    /// Retrieves the recorded weight of stakers entry position.
-    /// </summary>
-    /// <param name="address">The address to check the weight of.</param>
-    /// <returns>The stakers entry weight.</returns>
-    UInt256 GetStakedWeight(Address address);
     
     /// <summary>
     /// Retrieves the amount of earned rewards of a staker.

@@ -7,6 +7,8 @@ using Stratis.SmartContracts;
 /// </summary>
 public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 {
+    private const ulong SatsPerToken = 100_000_000;
+
     /// <summary>
     /// Constructor initializing a staking pool contract.
     /// </summary>
@@ -48,19 +50,48 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     }
         
     /// <inheritdoc />
-    public UInt256 TotalStakedApplicable
-    {
-        get => State.GetUInt256(nameof(TotalStakedApplicable));
-        private set => State.SetUInt256(nameof(TotalStakedApplicable), value);
-    }
-        
-    /// <inheritdoc />
     public UInt256 StakingRewardsBalance
     {
         get => State.GetUInt256(nameof(StakingRewardsBalance));
         private set => State.SetUInt256(nameof(StakingRewardsBalance), value);
     }
 
+    /// <inheritdoc />
+    public UInt256 RewardPerStakedTokenLast
+    {
+        get => State.GetUInt256(nameof(RewardPerStakedTokenLast));
+        private set => State.SetUInt256(nameof(RewardPerStakedTokenLast), value);
+    }
+    
+    /// <inheritdoc />
+    public UInt256 ApplicableStakingRewards
+    {
+        get => State.GetUInt256(nameof(ApplicableStakingRewards));
+        private set => State.SetUInt256(nameof(ApplicableStakingRewards), value);
+    }
+    
+    /// <inheritdoc />
+    public UInt256 GetStoredRewardPerStakedToken(Address address)
+    {
+        return State.GetUInt256($"StoredRewardPerStakedToken:{address}");
+    }
+
+    private void SeStoredRewardPerStakedToken(Address address, UInt256 reward)
+    {
+        State.SetUInt256($"StoredRewardPerStakedToken:{address}", reward);
+    }
+    
+    /// <inheritdoc />
+    public UInt256 GetStoredReward(Address address)
+    {
+        return State.GetUInt256($"StoredReward:{address}");
+    }
+
+    private void SetStoredReward(Address address, UInt256 reward)
+    {
+        State.SetUInt256($"StoredReward:{address}", reward);
+    }
+    
     /// <inheritdoc />
     public UInt256 GetStakedBalance(Address address)
     {
@@ -73,43 +104,22 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     }
 
     /// <inheritdoc />
-    public UInt256 GetStakedWeight(Address address)
-    {
-        return State.GetUInt256($"StakedWeight:{address}");
-    }
-
-    private void SetStakedWeight(Address address, UInt256 weight)
-    {
-        State.SetUInt256($"StakedWeight:{address}", weight);
-    }
-
-    /// <inheritdoc />
-    public UInt256 GetStakingRewards(Address staker)
-    {
-        return GetStakingRewardsExecute(staker, GetStakedBalance(staker));
-    }
-    
-    /// <inheritdoc />
     public void Stake(UInt256 amount)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
+        Assert(amount > 0, "OPDEX: CANNOT_STAKE_ZERO");
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
+        UpdateStakingPosition(Message.Sender);
+
+        TotalStaked += amount;
         
-        var stakedBalance = GetStakedBalance(Message.Sender);
-        if (stakedBalance > 0)
-        {
-            CollectStakingRewardsExecute(Message.Sender, stakedBalance, false);
-            UnstakeExecute(Message.Sender, stakedBalance, false);
-        }
-        
-        stakedBalance += amount;
+        SetStakedBalance(Message.Sender, GetStakedBalance(Message.Sender) + amount);
         
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
         
-        SetStakedBalance(Message.Sender, stakedBalance);
-        SetStakingWeightExecute(stakedBalance);
+        Log(new StartStakingLog { Staker = Message.Sender, Amount = amount, TotalStaked = TotalStaked});
         
         NominateLiquidityPool();
         
@@ -123,12 +133,9 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureStakingEnabled();
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
+        UpdateStakingPosition(Message.Sender);
         
-        var stakedBalance = GetStakedBalance(Message.Sender);
-        
-        CollectStakingRewardsExecute(to, stakedBalance, liquidate);
-        
-        SetStakingWeightExecute(stakedBalance);
+        CollectStakingRewards(to, liquidate);
         
         Unlock();
     }
@@ -140,12 +147,19 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureStakingEnabled();
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
+        UpdateStakingPosition(Message.Sender);
         
         var stakedBalance = GetStakedBalance(Message.Sender);
+
+        TotalStaked -= stakedBalance;
         
-        CollectStakingRewardsExecute(to, stakedBalance, liquidate);
+        SetStakedBalance(Message.Sender, 0);
         
-        UnstakeExecute(to, stakedBalance, true);
+        CollectStakingRewards(to, liquidate);
+        
+        SafeTransferTo(StakingToken, to, stakedBalance);
+        
+        Log(new StopStakingLog {Amount = stakedBalance, Staker = Message.Sender, TotalStaked = TotalStaked});
         
         NominateLiquidityPool();
         
@@ -208,79 +222,68 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureUnlocked();
         
         UpdateReserves(Balance, GetSrcBalance(Token, Address));
-        
-        StakingRewardsBalance = GetBalance(Address);
-        
+
+        if (TotalStaked > 0)
+        {
+            var balance = GetBalance(Address);
+
+            ApplicableStakingRewards += balance - StakingRewardsBalance;
+            StakingRewardsBalance = balance;
+        }
+
         Unlock();
     }
-
-    private void NominateLiquidityPool()
+    
+    /// <inheritdoc />
+    public UInt256 GetStakingRewards(Address staker)
     {
-        Call(StakingToken, 0ul, nameof(NominateLiquidityPool));
+        var stakedBalance = GetStakedBalance(staker);
+        var rewardPerTokenStaked = GetRewardPerStakedToken();
+        var rewardPerTokenPaid = GetStoredRewardPerStakedToken(staker);
+        var rewardsDifference = rewardPerTokenStaked - rewardPerTokenPaid;
+        var reward = GetStoredReward(staker);
+
+        return reward + (stakedBalance * rewardsDifference / SatsPerToken);
     }
-
-    private void SetStakingWeightExecute(UInt256 balance)
+    
+    /// <inheritdoc />
+    public UInt256 GetRewardPerStakedToken()
     {
-        UInt256 weight = 0;
+        var totalStaked = TotalStaked;
         
-        if (balance > 0)
-        {
-            var totalStaked = TotalStaked;
-            var stakingRewardsBalance = StakingRewardsBalance;
-
-            weight = CalculateStakingWeight(balance, stakingRewardsBalance, totalStaked);
-
-            TotalStaked += balance;
-            
-            Log(new StartStakingLog { Staker = Message.Sender, Amount = balance, TotalStaked = TotalStaked});
-        }
+        if (totalStaked == 0) return RewardPerStakedTokenLast;
         
-        SetStakedWeight(Message.Sender, weight);
+        return RewardPerStakedTokenLast + (ApplicableStakingRewards * SatsPerToken / totalStaked);
     }
 
-    private UInt256 GetStakingRewardsExecute(Address staker, UInt256 balance)
+    private void UpdateStakingPosition(Address address)
     {
-        var stakedWeight = GetStakedWeight(staker);
-        var stakingRewardsBalance = StakingRewardsBalance;
-        var totalStakedApplicable = TotalStakedApplicable;
-        var currentWeight = CalculateStakingWeight(balance, stakingRewardsBalance, totalStakedApplicable);
+        var rewardPerToken = GetRewardPerStakedToken();
 
-        return currentWeight <= stakedWeight ? 0 : currentWeight - stakedWeight;
-    }
+        ApplicableStakingRewards = 0;
+        RewardPerStakedTokenLast = rewardPerToken;
 
-    private static UInt256 CalculateStakingWeight(UInt256 stakedBalance, UInt256 rewardsBalance, UInt256 totalStaked)
-    {
-        if (rewardsBalance == 0 || totalStaked == 0) return 0;
-        return stakedBalance * rewardsBalance / totalStaked;
-    }
-
-    private void CollectStakingRewardsExecute(Address to, UInt256 stakedBalance, bool liquidate)
-    {
-        var rewards = GetStakingRewardsExecute(Message.Sender, stakedBalance);
+        if (address == Address.Zero) return;
         
-        TotalStaked -= stakedBalance;
+        SetStoredReward(address, GetStakingRewards(address));
+        SeStoredRewardPerStakedToken(address, rewardPerToken);
+    }
+    
+    private void CollectStakingRewards(Address to, bool liquidate)
+    {
+        var rewards = GetStoredReward(Message.Sender);
+        
+        // Dust from rounding with no stakers goes to the next burn,mint,skim or sync
+        StakingRewardsBalance = TotalStaked > 0 ? StakingRewardsBalance - rewards : 0;
         
         if (rewards == 0) return;
         
-        StakingRewardsBalance -= rewards;
-        TotalStakedApplicable -= stakedBalance;
+        SetStoredReward(Message.Sender, 0);
+        
+        if (liquidate) BurnExecute(to, rewards);
+        else Assert(TransferTokensExecute(Address, to, rewards), "OPDEX: INVALID_TRANSFER");
 
         Log(new CollectStakingRewardsLog { Staker = Message.Sender, Reward = rewards });
-
-        if (liquidate) BurnExecute(to, rewards);
-        else TransferTokensExecute(Address, to, rewards);
-    }
-
-    private void UnstakeExecute(Address to, UInt256 stakedBalance, bool transfer)
-    {
-        if (transfer)
-        {
-            SafeTransferTo(StakingToken, to, stakedBalance);
-            Log(new StopStakingLog { Staker = Message.Sender, Amount = stakedBalance, TotalStaked = TotalStaked});
-        }
-        
-        SetStakedBalance(Message.Sender, 0);
-        SetStakedWeight(Message.Sender, 0);
     }
 
     private void EnsureStakingEnabled()
@@ -310,10 +313,15 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         var liquidity = numerator / denominator;
         
         if (liquidity == 0) return;
-
+        
         StakingRewardsBalance += liquidity;
-        TotalStakedApplicable = TotalStaked;
+        ApplicableStakingRewards += liquidity;
         
         MintTokensExecute(Address, liquidity);
+    }
+
+    private void NominateLiquidityPool()
+    {
+        Call(StakingToken, 0ul, nameof(NominateLiquidityPool));
     }
 }
