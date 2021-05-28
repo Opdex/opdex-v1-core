@@ -104,7 +104,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     }
 
     /// <inheritdoc />
-    public void Stake(UInt256 amount)
+    public void StartStaking(UInt256 amount)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
@@ -119,7 +119,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
         
-        Log(new StartStakingLog { Staker = Message.Sender, Amount = amount, TotalStaked = TotalStaked});
+        Log(new StakeLog { Staker = Message.Sender, Amount = amount, TotalStaked = TotalStaked, EventType = StakeEventType.StartStaking});
         
         NominateLiquidityPool();
         
@@ -127,7 +127,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     }
     
     /// <inheritdoc />
-    public void Collect(Address to, bool liquidate)
+    public void CollectStakingRewards(bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
@@ -135,13 +135,13 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         MintStakingRewards(ReserveCrs, ReserveSrc);
         UpdateStakingPosition(Message.Sender);
         
-        CollectStakingRewards(to, liquidate);
+        CollectStakingRewardsExecute(Message.Sender, liquidate);
         
         Unlock();
     }
         
     /// <inheritdoc />
-    public void Unstake(Address to, bool liquidate)
+    public void StopStaking(UInt256 amount, bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
@@ -150,16 +150,18 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         UpdateStakingPosition(Message.Sender);
         
         var stakedBalance = GetStakedBalance(Message.Sender);
+        
+        Assert(amount <= stakedBalance && amount > 0, "OPDEX: INVALID_AMOUNT");
 
-        TotalStaked -= stakedBalance;
+        TotalStaked -= amount;
         
-        SetStakedBalance(Message.Sender, 0);
+        SetStakedBalance(Message.Sender, stakedBalance - amount);
         
-        CollectStakingRewards(to, liquidate);
+        CollectStakingRewardsExecute(Message.Sender, liquidate);
         
-        SafeTransferTo(StakingToken, to, stakedBalance);
+        SafeTransferTo(StakingToken, Message.Sender, amount);
         
-        Log(new StopStakingLog {Amount = stakedBalance, Staker = Message.Sender, TotalStaked = TotalStaked});
+        Log(new StakeLog {Amount = amount, Staker = Message.Sender, TotalStaked = TotalStaked, EventType = StakeEventType.StopStaking});
         
         NominateLiquidityPool();
         
@@ -269,7 +271,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         SeStoredRewardPerStakedToken(address, rewardPerToken);
     }
     
-    private void CollectStakingRewards(Address to, bool liquidate)
+    private void CollectStakingRewardsExecute(Address to, bool liquidate)
     {
         var rewards = GetStoredReward(Message.Sender);
         
@@ -322,6 +324,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 
     private void NominateLiquidityPool()
     {
+        // Failures shouldn't prevent the staking action
         Call(StakingToken, 0ul, nameof(NominateLiquidityPool));
     }
 }

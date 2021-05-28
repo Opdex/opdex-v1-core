@@ -18,29 +18,29 @@ public interface IOpdexStakingPool : IOpdexPool
     UInt256 TotalStaked { get; }
     
     /// <summary>
-    /// The balance of liquidity pool tokens earned by stakers to be collected.
+    /// The balance of liquidity pool tokens belonging to stakers.
     /// </summary>
     UInt256 StakingRewardsBalance { get; }
     
     /// <summary>
-    /// The latest fees that haven't been accounted for when calculating reward per token.
+    /// The latest fees that haven't been accounted for when calculating reward per staked token.
     /// </summary>
     UInt256 ApplicableStakingRewards { get; }
     
     /// <summary>
-    /// The amount of rewards per full token staked from the last time the staker executed a staking action.
+    /// The amount of liquidity pool token rewards per full token staked from the last time any staker executed a staking action.
     /// </summary>
     UInt256 RewardPerStakedTokenLast { get; }
 
     /// <summary>
-    /// 
+    /// Retrieves the last calculated reward per staked token stored during the last action executed by the staker.
     /// </summary>
     /// <param name="address">The address of the staker.</param>
-    /// <returns>The amount of rewards per token from the last action taken by the staker.</returns>
+    /// <returns>The amount of rewards per staked token from the last action taken by the staker.</returns>
     UInt256 GetStoredRewardPerStakedToken(Address address);
     
     /// <summary>
-    /// Retrieves the last calculated award for a staker from the most recent action taken by the staker.
+    /// Retrieves the last calculated reward amount stored during the most recent action taken by the staker.
     /// </summary>
     /// <param name="address">The address of the staker.</param>
     /// <returns>The last calculated reward amount for the staker.</returns>
@@ -60,31 +60,31 @@ public interface IOpdexStakingPool : IOpdexPool
     UInt256 GetStakedBalance(Address address);
     
     /// <summary>
-    /// Retrieves the amount of earned rewards of a staker.
+    /// Retrieves the current amount of earned rewards of a staker.
     /// </summary>
     /// <param name="staker">The address to check the reward balance of.</param>
-    /// <returns>The amount of earned rewards.</returns>
+    /// <returns>The current amount of rewards to be collected.</returns>
     UInt256 GetStakingRewards(Address staker);
     
     /// <summary>
-    /// Using an allowance, transfers stake tokens to the pool and records staking weight.
+    /// Using an allowance, transfers staking tokens to the pool, beginning staking and nominated the
+    /// liquidity pool through the staking token contract to the governance smart contract.
     /// </summary>
     /// <param name="amount">The amount of tokens to stake.</param>
-    void Stake(UInt256 amount);
+    void StartStaking(UInt256 amount);
     
     /// <summary>
     /// Collect any earned staking rewards while continuing to stake, optionally liquidate the earned LP
     /// tokens into the pools reserve tokens.
     /// </summary>
-    /// <param name="to">The address to send rewards to.</param>
     /// <param name="liquidate">Boolean value to liquidate rewards.</param>
-    void Collect(Address to, bool liquidate);
-    
+    void CollectStakingRewards(bool liquidate);
+
     /// <summary>
     /// Stop staking and withdraw rewards. Optionally liquidate the earned LP tokens into the pools
     /// reserve tokens.
     /// </summary>
-    /// <param name="to">The address to send rewards to.</param>
+    /// <param name="amount">The amount of tokens to stop staking.</param>
     /// <param name="liquidate">Boolean value to liquidate rewards.</param>
-    void Unstake(Address to, bool liquidate);
+    void StopStaking(UInt256 amount, bool liquidate);
 }
