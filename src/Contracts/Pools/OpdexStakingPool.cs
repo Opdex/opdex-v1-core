@@ -17,10 +17,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     public OpdexStakingPool(ISmartContractState state, Address token, Address stakingToken, uint fee) : base(state, token, fee) 
     {
         StakingToken = stakingToken;
-
-        if (stakingToken == token) return;
-        
-        MiningPool = Create<OpdexMiningPool>(0, new object[] {stakingToken, Address}).NewContractAddress;
+        MiningPool = InitializeMiningPool(token, stakingToken);
     }
     
     /// <inheritdoc />
@@ -315,5 +312,16 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         TotalStakedApplicable = TotalStaked;
         
         MintTokensExecute(Address, liquidity);
+    }
+
+    private Address InitializeMiningPool(Address token, Address stakingToken)
+    {
+        if (stakingToken == token) return Address.Zero;
+        
+        var response = Create<OpdexMiningPool>(0, new object[] {stakingToken, Address});
+
+        Assert(response.Success, "OPDEX: INVALID_MINING_POOL");
+
+        return response.NewContractAddress;
     }
 }

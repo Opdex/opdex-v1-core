@@ -26,6 +26,64 @@ namespace OpdexV1Core.Tests.Pools
         }
 
         [Fact]
+        public void CreateContract_Throws_InvalidMiningGovernance()
+        {
+            SetupBalance(0);
+            SetupBlock(10);
+            
+            SetupCall(StakingToken, 0, "get_MiningGovernance", null, TransferResult.Failed());
+            
+            this.Invoking(p => p.BlankMiningPool())
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_MINING_GOVERNANCE");
+        }
+        
+        [Fact]
+        public void CreateContract_Throws_InvalidGovernanceAddress()
+        {
+            SetupBalance(0);
+            SetupBlock(10);
+            
+            SetupCall(StakingToken, 0, "get_MiningGovernance", null, TransferResult.Transferred(Address.Zero));
+            
+            this.Invoking(p => p.BlankMiningPool())
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_GOVERNANCE_ADDRESS");
+        }
+        
+        [Fact]
+        public void CreateContract_Throws_InvalidMiningDuration()
+        {
+            SetupBalance(0);
+            SetupBlock(10);
+            
+            SetupCall(StakingToken, 0, "get_MiningGovernance", null, TransferResult.Transferred(MiningGovernance));
+            SetupCall(MiningGovernance, 0, "get_MiningDuration", null, TransferResult.Failed());
+            
+            this.Invoking(p => p.BlankMiningPool())
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_MINING_DURATION");
+        }
+        
+        [Fact]
+        public void CreateContract_Throws_InvalidDurationAmount()
+        {
+            SetupBalance(0);
+            SetupBlock(10);
+            
+            SetupCall(StakingToken, 0, "get_MiningGovernance", null, TransferResult.Transferred(MiningGovernance));
+            SetupCall(MiningGovernance, 0, "get_MiningDuration", null, TransferResult.Transferred(0ul));
+            
+            this.Invoking(p => p.BlankMiningPool())
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_DURATION_AMOUNT");
+        }
+
+        [Fact]
         public void GetRewardForDuration_Success()
         {
             const ulong miningDuration = 100;

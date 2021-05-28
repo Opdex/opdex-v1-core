@@ -18,8 +18,8 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     {
         MinedToken = minedToken;
         StakingToken = stakingToken;
-        MiningGovernance = (Address)Call(MinedToken, 0, "get_MiningGovernance").ReturnValue;
-        MiningDuration = (ulong)Call(MiningGovernance, 0, "get_MiningDuration").ReturnValue;
+        MiningGovernance = GetMiningGovernance();
+        MiningDuration = GetMiningDuration();
     }
 
     /// <inheritdoc />
@@ -297,6 +297,32 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         var result = Call(token, 0, nameof(IStandardToken.TransferFrom), new object[] {from, to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
+    }
+
+    private Address GetMiningGovernance()
+    {
+        var response = Call(MinedToken, 0, "get_MiningGovernance");
+        
+        Assert(response.Success, "OPDEX: INVALID_MINING_GOVERNANCE");
+
+        var address = (Address)response.ReturnValue;
+
+        Assert(address != Address.Zero, "OPDEX: INVALID_GOVERNANCE_ADDRESS");
+
+        return address;
+    }
+
+    private ulong GetMiningDuration()
+    {
+        var response = Call(MiningGovernance, 0, "get_MiningDuration");
+        
+        Assert(response.Success, "OPDEX: INVALID_MINING_DURATION");
+        
+        var duration = (ulong)response.ReturnValue;
+
+        Assert(duration != 0ul, "OPDEX: INVALID_DURATION_AMOUNT");
+
+        return duration;
     }
     
     private void EnsureUnlocked()
