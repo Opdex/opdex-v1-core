@@ -23,8 +23,23 @@ namespace OpdexV1Core.Tests.Pools
             pool.MiningPool.Should().Be(MiningPool1);
         }
         
-        #region Sync Tests
+        [Fact]
+        public void CreateStakingPool_Throws_InvalidMiningPool()
+        {
+            SetupBalance(0);
+            SetupBlock(10);
+            SetupMessage(Pool, Owner);
 
+            SetupCreate<OpdexMiningPool>(CreateResult.Failed(), 0ul, new object[] {StakingToken, Pool});
+            
+            this.Invoking(p => p.BlankStakingPool(3))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_MINING_POOL");
+        }
+        
+        #region Sync Tests
+        
         [Fact]
         public void Sync_NoStakedFees_Success()
         {

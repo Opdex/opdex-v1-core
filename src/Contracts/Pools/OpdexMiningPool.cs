@@ -18,8 +18,8 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     {
         MinedToken = minedToken;
         StakingToken = stakingToken;
-        MiningGovernance = (Address)Call(MinedToken, 0, "get_MiningGovernance").ReturnValue;
-        MiningDuration = (ulong)Call(MiningGovernance, 0, "get_MiningDuration").ReturnValue;
+        MiningGovernance = GetMiningGovernance();
+        MiningDuration = GetMiningDuration();
     }
 
     /// <inheritdoc />
@@ -72,10 +72,10 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     }
     
     /// <inheritdoc />
-    public UInt256 RewardPerToken
+    public UInt256 RewardPerStakedTokenLast
     {
-        get => State.GetUInt256(nameof(RewardPerToken));
-        private set => State.SetUInt256(nameof(RewardPerToken), value);
+        get => State.GetUInt256(nameof(RewardPerStakedTokenLast));
+        private set => State.SetUInt256(nameof(RewardPerStakedTokenLast), value);
     }
     
     /// <inheritdoc />
@@ -93,23 +93,23 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     }
 
     /// <inheritdoc />
-    public UInt256 GetRewardPerTokenPaid(Address address)
+    public UInt256 GetStoredRewardPerStakedToken(Address address)
     {
-        return State.GetUInt256($"RewardPerTokenPaid:{address}");
+        return State.GetUInt256($"RewardPerStakedToken:{address}");
     }
 
-    private void SetRewardPerTokenPaid(Address address, UInt256 reward)
+    private void SetStoredRewardPerStakedToken(Address address, UInt256 reward)
     {
-        State.SetUInt256($"RewardPerTokenPaid:{address}", reward);
+        State.SetUInt256($"RewardPerStakedToken:{address}", reward);
     }
     
     /// <inheritdoc />
-    public UInt256 GetReward(Address address)
+    public UInt256 GetStoredReward(Address address)
     {
         return State.GetUInt256($"Reward:{address}");
     }
 
-    private void SetReward(Address address, UInt256 reward)
+    private void SetStoredReward(Address address, UInt256 reward)
     {
         State.SetUInt256($"Reward:{address}", reward);
     }
@@ -138,36 +138,36 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     }
 
     /// <inheritdoc />
-    public UInt256 GetRewardPerToken()
+    public UInt256 GetRewardPerStakedToken()
     {
         var totalSupply = TotalSupply;
         
-        if (totalSupply == 0) return RewardPerToken;
+        if (totalSupply == 0) return RewardPerStakedTokenLast;
 
         var remainingRewards = (LatestBlockApplicable() - LastUpdateBlock) * RewardRate;
         
-        return RewardPerToken + (remainingRewards * SatsPerToken / totalSupply);
+        return RewardPerStakedTokenLast + (remainingRewards * SatsPerToken / totalSupply);
     }
 
     /// <inheritdoc />
-    public UInt256 Earned(Address address)
+    public UInt256 GetMiningRewards(Address address)
     {
         var balance = GetBalance(address);
-        var rewardPerToken = GetRewardPerToken();
-        var addressRewardPaid = GetRewardPerTokenPaid(address);
+        var rewardPerToken = GetRewardPerStakedToken();
+        var addressRewardPaid = GetStoredRewardPerStakedToken(address);
         var remainingReward = rewardPerToken - addressRewardPaid;
-        var reward = GetReward(address);
+        var reward = GetStoredReward(address);
         
         return reward + (balance * remainingReward / SatsPerToken);
     }
 
     /// <inheritdoc />
-    public void Mine(UInt256 amount)
+    public void StartMining(UInt256 amount)
     {
         EnsureUnlocked();
-        Assert(amount > 0, "OPDEX: CANNOT_MINE_ZERO");
+        Assert(amount > 0, "OPDEX: INVALID_AMOUNT");
 
-        UpdateReward(Message.Sender);
+        UpdateMiningPosition(Message.Sender);
         
         TotalSupply += amount;
         
@@ -175,42 +175,44 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
 
-        Log(new StartMiningLog { Miner = Message.Sender, Amount = amount });
+        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = MineEventType.StartMining });
         
         Unlock();
     }
 
     /// <inheritdoc />
-    public void Collect()
+    public void CollectMiningRewards()
     {
         EnsureUnlocked();
         
-        UpdateReward(Message.Sender);
+        UpdateMiningPosition(Message.Sender);
 
-        CollectExecute();
+        CollectMiningRewardsExecute();
         
         Unlock();
     }
 
     /// <inheritdoc />
-    public void Exit()
+    public void StopMining(UInt256 amount)
     {
         EnsureUnlocked();
 
-        UpdateReward(Message.Sender);
+        UpdateMiningPosition(Message.Sender);
 
-        var amount = GetBalance(Message.Sender);
+        var balance = GetBalance(Message.Sender);
+        
+        Assert(amount > 0 && balance >= amount, "OPDEX: INVALID_AMOUNT");
 
         TotalSupply -= amount;
         
-        SetBalance(Message.Sender, GetBalance(Message.Sender) - amount);
+        SetBalance(Message.Sender, balance - amount);
         
         SafeTransferTo(StakingToken, Message.Sender, amount);
         
-        Log(new StopMiningLog { Miner = Message.Sender, Amount = amount });
+        CollectMiningRewardsExecute();
         
-        CollectExecute();
-        
+        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = MineEventType.StopMining });
+
         Unlock();
     }
     
@@ -221,7 +223,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         
         Assert(Message.Sender == MiningGovernance, "OPDEX: UNAUTHORIZED");
         
-        UpdateReward(Address.Zero);
+        UpdateMiningPosition(Address.Zero);
 
         var miningDuration = MiningDuration;
         
@@ -253,30 +255,30 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         Unlock(); 
     }
 
-    private void CollectExecute()
+    private void CollectMiningRewardsExecute()
     {
-        var reward = GetReward(Message.Sender);
+        var reward = GetStoredReward(Message.Sender);
 
         if (reward == 0) return;
 
-        SetReward(Message.Sender, 0);
+        SetStoredReward(Message.Sender, 0);
             
         SafeTransferTo(MinedToken, Message.Sender, reward);
             
         Log(new CollectMiningRewardsLog { Miner = Message.Sender, Amount = reward });
     }
 
-    private void UpdateReward(Address address)
+    private void UpdateMiningPosition(Address address)
     {
-        var rewardPerToken = GetRewardPerToken();
+        var rewardPerToken = GetRewardPerStakedToken();
         
-        RewardPerToken = rewardPerToken;
+        RewardPerStakedTokenLast = rewardPerToken;
         LastUpdateBlock = LatestBlockApplicable();
 
         if (address == Address.Zero) return;
         
-        SetReward(address, Earned(address));
-        SetRewardPerTokenPaid(address, rewardPerToken);
+        SetStoredReward(address, GetMiningRewards(address));
+        SetStoredRewardPerStakedToken(address, rewardPerToken);
     }
     
     private void SafeTransferTo(Address token, Address to, UInt256 amount)
@@ -295,6 +297,32 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         var result = Call(token, 0, nameof(IStandardToken.TransferFrom), new object[] {from, to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
+    }
+
+    private Address GetMiningGovernance()
+    {
+        var response = Call(MinedToken, 0, "get_MiningGovernance");
+        
+        Assert(response.Success, "OPDEX: INVALID_MINING_GOVERNANCE");
+
+        var address = (Address)response.ReturnValue;
+
+        Assert(address != Address.Zero, "OPDEX: INVALID_GOVERNANCE_ADDRESS");
+
+        return address;
+    }
+
+    private ulong GetMiningDuration()
+    {
+        var response = Call(MiningGovernance, 0, "get_MiningDuration");
+        
+        Assert(response.Success, "OPDEX: INVALID_MINING_DURATION");
+        
+        var duration = (ulong)response.ReturnValue;
+
+        Assert(duration != 0ul, "OPDEX: INVALID_DURATION_AMOUNT");
+
+        return duration;
     }
     
     private void EnsureUnlocked()

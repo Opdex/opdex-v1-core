@@ -3,12 +3,12 @@ using Stratis.SmartContracts;
 public interface IOpdexMiningPool
 {
     /// <summary>
-    /// The address of the governance contract in charge of distributing tokens to be mined.
+    /// The address of the governance contract responsible for distributing tokens to be mined.
     /// </summary>
     Address MiningGovernance { get; }
     
     /// <summary>
-    /// The contract address of the liquidity pool token used for mining..
+    /// The contract address of the liquidity pool token used for mining.
     /// </summary>
     Address StakingToken { get; }
     
@@ -38,9 +38,9 @@ public interface IOpdexMiningPool
     ulong LastUpdateBlock { get; }
     
     /// <summary>
-    /// The amount of earned tokens per liquidity pool token used for mining, based on the pool's current state.
+    /// The latest calculated amount of rewards per full liquidity pool token used for mining.
     /// </summary>
-    UInt256 RewardPerToken { get; }
+    UInt256 RewardPerStakedTokenLast { get; }
     
     /// <summary>
     /// The total supply of liquidity pool tokens currently mining.
@@ -53,24 +53,24 @@ public interface IOpdexMiningPool
     bool Locked { get; }
 
     /// <summary>
-    /// Retrieves the last calculated reward per full liquidity pool token (100_000_000 sats) for the provided address.
+    /// Retrieves the last calculated reward per full liquidity pool token for the provided address.
     /// </summary>
     /// <param name="address">The miners address.</param>
     /// <returns>The last calculated amount of tokens earned per liquidity pool token used for mining.</returns>
-    UInt256 GetRewardPerTokenPaid(Address address);
+    UInt256 GetStoredRewardPerStakedToken(Address address);
 
     /// <summary>
     /// Retrieves the last calculated reward amount from state for a provided address.
     /// </summary>
     /// <param name="address">The address of the address to check the rewards for.</param>
     /// <returns>The number of earned tokens from mining.</returns>
-    UInt256 GetReward(Address address);
+    UInt256 GetStoredReward(Address address);
 
     /// <summary>
-    /// Returns the balance of liquidity pool tokens used for mining from a provided address.
+    /// Returns the balance of liquidity pool tokens used for mining for a provided address.
     /// </summary>
     /// <param name="address">The address of the wallet to check the balance of.</param>
-    /// <returns>The number of liquidity pool tokens held in the mining pool for mining.</returns>
+    /// <returns>The number of liquidity pool tokens the address is using to mine.</returns>
     UInt256 GetBalance(Address address);
 
     /// <summary>
@@ -86,37 +86,33 @@ public interface IOpdexMiningPool
     UInt256 GetRewardForDuration();
 
     /// <summary>
-    /// Calculates and returns the expected earnings per full liquidity pool token (100_000_000 sats) used to mine based on the
-    /// current state including remaining mining period, total tokens mining, and the reward rate.
+    /// Calculates and returns the current rewards per full liquidity pool token used to mine.
     /// </summary>
     /// <returns>Amount of earnings per token used to mine based on the current state of the pool.</returns>
-    UInt256 GetRewardPerToken();
+    UInt256 GetRewardPerStakedToken();
 
     /// <summary>
-    /// Calculates and returns the amount of mined tokens earned by the miner.
+    /// Calculates and returns the current amount of mined tokens earned by the miner.
     /// </summary>
     /// <param name="address">The wallet address toa check earned rewards for.</param>
     /// <returns>Amount of tokens earned through mining.</returns>
-    UInt256 Earned(Address address);
+    UInt256 GetMiningRewards(Address address);
     
     /// <summary>
-    /// Use liquidity pool tokens to mine and earn rewarded tokens.
+    /// Using an allowance, transfer liquidity pool tokens to mine with for rewarded tokens.
     /// </summary>
-    /// <param name="amount">
-    /// The amount of liquidity pool tokens to mine with. Calling this method requires an approved
-    /// allowance of this amount.
-    /// </param>
-    void Mine(UInt256 amount);
+    /// <param name="amount">The amount of liquidity pool tokens to mine with, requires an allowance approval.</param>
+    void StartMining(UInt256 amount);
     
     /// <summary>
-    /// Collects and transfers earned rewards to miner.
+    /// Collects and transfers earned rewards to miner while continuing to mine.
     /// </summary>
-    void Collect();
+    void CollectMiningRewards();
     
     /// <summary>
-    /// Withdraws all staked liquidity pool tokens and collects mined rewards.
+    /// Withdraws the specified amount of liquidity pool tokens mining and collects rewards.
     /// </summary>
-    void Exit();
+    void StopMining(UInt256 amount);
     
     /// <summary>
     /// Hook used to notify this mining pool of rewarded funding. Sets reward rates and mining periods.

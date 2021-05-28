@@ -129,6 +129,11 @@ namespace OpdexV1Core.Tests.Base
 
             return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
         }
+
+        protected IOpdexStakingPool BlankStakingPool(uint fee)
+        {
+            return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
+        }
         
         protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authProviders = false, bool authTraders = false, uint fee = 3)
         {
@@ -149,6 +154,11 @@ namespace OpdexV1Core.Tests.Base
             SetupCall(StakingToken, 0, "get_MiningGovernance", null, TransferResult.Transferred(MiningGovernance));
             SetupCall(MiningGovernance, 0, "get_MiningDuration", null, TransferResult.Transferred(BlocksPerMonth));
             
+            return new OpdexMiningPool(_mockContractState.Object, StakingToken, Pool1);
+        }
+
+        protected IOpdexMiningPool BlankMiningPool()
+        {
             return new OpdexMiningPool(_mockContractState.Object, StakingToken, Pool1);
         }
 
