@@ -5,5 +5,5 @@ public struct MineLog
     [Index] public Address Miner;
     public UInt256 Amount;
     public UInt256 TotalSupply;
-    [Index] public MineEventType EventType;
+    [Index] public byte EventType;
 }

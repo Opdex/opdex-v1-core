@@ -175,7 +175,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
 
-        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = MineEventType.StartMining });
+        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = (byte)MineEventType.StartMining });
         
         Unlock();
     }
@@ -211,7 +211,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         
         CollectMiningRewardsExecute();
         
-        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = MineEventType.StopMining });
+        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = (byte)MineEventType.StopMining });
 
         Unlock();
     }
