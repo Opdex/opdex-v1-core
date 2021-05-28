@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 /// unless integrated through a third party contract. The market contract has safeguards and prerequisite
 /// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
 /// </summary>
-public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
+public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
 {
     private const ulong MinimumLiquidity = 1000;
 
@@ -15,7 +15,7 @@ public abstract class OpdexPool : OpdexLiquidityPoolToken, IOpdexPool
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The address of the SRC token in the pool.</param>
     /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
-    protected OpdexPool(ISmartContractState state, Address token, uint fee) : base(state)
+    protected OpdexLiquidityPool(ISmartContractState state, Address token, uint fee) : base(state)
     {
         Assert(fee <= 10);
         Token = token;

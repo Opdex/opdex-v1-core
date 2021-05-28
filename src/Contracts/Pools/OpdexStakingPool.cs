@@ -5,7 +5,7 @@ using Stratis.SmartContracts;
 /// by .05% according to the difference between root K and root KLast. Stakers deposit the staking
 /// token and receive the inflated fees according to their weight staked for governance participation.
 /// </summary>
-public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
+public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 {
     /// <summary>
     /// Constructor initializing a staking pool contract.
@@ -17,6 +17,7 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     public OpdexStakingPool(ISmartContractState state, Address token, Address stakingToken, uint fee) : base(state, token, fee) 
     {
         StakingToken = stakingToken;
+        MiningPool = InitializeMiningPool(token, stakingToken);
     }
     
     /// <inheritdoc />
@@ -27,6 +28,13 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
     {
         get => State.GetAddress(nameof(StakingToken));
         private set => State.SetAddress(nameof(StakingToken), value);
+    }
+    
+    /// <inheritdoc />
+    public Address MiningPool
+    {
+        get => State.GetAddress(nameof(MiningPool));
+        private set => State.SetAddress(nameof(MiningPool), value);
     }
         
     /// <inheritdoc />
@@ -304,5 +312,16 @@ public class OpdexStakingPool : OpdexPool, IOpdexStakingPool
         TotalStakedApplicable = TotalStaked;
         
         MintTokensExecute(Address, liquidity);
+    }
+
+    private Address InitializeMiningPool(Address token, Address stakingToken)
+    {
+        if (stakingToken == token) return Address.Zero;
+        
+        var response = Create<OpdexMiningPool>(0, new object[] {stakingToken, Address});
+
+        Assert(response.Success, "OPDEX: INVALID_MINING_POOL");
+
+        return response.NewContractAddress;
     }
 }

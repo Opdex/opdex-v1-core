@@ -1,10 +1,11 @@
 using FluentAssertions;
 using Moq;
+using OpdexV1Core.Tests.Base;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
-namespace OpdexV1Core.Tests
+namespace OpdexV1Core.Tests.Markets
 {
     public class OpdexStandardMarketTests : TestBase
     {
@@ -996,19 +997,19 @@ namespace OpdexV1Core.Tests
         #region Swap SRC for Exact SRC Src
         
         [Theory]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7532, 0, false)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7547, 1, true)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7561, 2, false)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7577, 3, true)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7592, 4, false)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7608, 5, true)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7624, 6, false)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7637, 7, true)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7653, 8, false)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7669, 9, true)]
-        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 7685, 10, false)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3760, 7532, 0, false)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3764, 7547, 1, true)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3767, 7561, 2, false)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3771, 7577, 3, true)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3775, 7592, 4, false)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3779, 7608, 5, true)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3783, 7624, 6, false)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3786, 7637, 7, true)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3790, 7653, 8, false)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3794, 7669, 9, true)]
+        [InlineData(5_000, 1_500_000, 2_000_000, 2_500_000, 5_000_000, 3798, 7685, 10, false)]
         public void SwapSrcForExactSrc_Success(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, 
-            UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc, UInt256 expectedTokenInAmountIn, uint fee, bool requireAuth)
+            UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc, UInt256 expectedCrsInAmount, UInt256 expectedSrcInAmount, uint fee, bool requireAuth)
         {
             var tokenIn = Token;
             var tokenOut = TokenTwo;
@@ -1043,7 +1044,7 @@ namespace OpdexV1Core.Tests
             SetupCall(tokenIn, 0ul, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
             
             // Call pool to swap src to crs
-            var swapSrcToCrsParams = new object[] {expectedTokenInAmountIn, UInt256.MinValue, StandardMarket, new byte[0]};
+            var swapSrcToCrsParams = new object[] {expectedCrsInAmount, UInt256.Zero, tokenOutPool, new byte[0]};
             SetupCall(tokenInPool, 0, nameof(IOpdexStandardPool.Swap), swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrs));
             
             // Call pool to swap crs to src
@@ -1051,7 +1052,7 @@ namespace OpdexV1Core.Tests
             SetupCall(tokenOutPool, 0, nameof(IOpdexStandardPool.Swap), swapCrsToSrcParams, TransferResult.Transferred(true));
             
             var response = market.SwapSrcForExactSrc(UInt256.MaxValue, tokenIn, tokenOutAmount, tokenOut, sender, 0);
-            response.Should().Be(expectedTokenInAmountIn);
+            response.Should().Be(expectedSrcInAmount);
             
             VerifyCall(tokenInPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, Times.Once);
             VerifyCall(tokenOutPool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, Times.Once);
@@ -1165,7 +1166,7 @@ namespace OpdexV1Core.Tests
             SetupCall(tokenIn, 0ul, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, TransferResult.Transferred(true));
         
             // Call pool to swap src to crs
-            var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.MinValue, StandardMarket, new byte[0]};
+            var swapSrcToCrsParams = new object[] {amountCrsOut, UInt256.Zero, tokenOutPool, new byte[0]};
             SetupCall(tokenInPool, 0, nameof(IOpdexStandardPool.Swap), swapSrcToCrsParams, TransferResult.Transferred(true), () => SetupBalance(amountCrsOut));
             
             // Call pool to swap crs to src

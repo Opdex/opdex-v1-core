@@ -1,11 +1,12 @@
 using System;
 using FluentAssertions;
 using Moq;
+using OpdexV1Core.Tests.Base;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Xunit;
 
-namespace OpdexV1Core.Tests
+namespace OpdexV1Core.Tests.Pools
 {
     public class OpdexStandardPoolTests : TestBase
     {
@@ -168,7 +169,7 @@ namespace OpdexV1Core.Tests
             var expectedSrcBalanceParams = new object[] {Pool};
             SetupCall(Token, 0ul, nameof(IOpdexStandardPool.GetBalance), expectedSrcBalanceParams, TransferResult.Transferred(expectedBalanceToken));
             
-            SetupMessage(StandardMarket, sender);
+            SetupMessage(Pool, sender);
             
             pool.Sync();
 

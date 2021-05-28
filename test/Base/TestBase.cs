@@ -1,12 +1,13 @@
 using System;
 using System.Linq;
+using FluentAssertions;
 using Moq;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
 using Stratis.SmartContracts.CLR.Serialization;
 using Stratis.SmartContracts.Networks;
 
-namespace OpdexV1Core.Tests
+namespace OpdexV1Core.Tests.Base
 {
     public class TestBase
     {
@@ -27,6 +28,24 @@ namespace OpdexV1Core.Tests
         protected readonly Address Trader0;
         protected readonly Address Trader1;
         protected readonly Address OtherAddress;
+        protected readonly Address MiningGovernance;
+        protected readonly Address MiningPool1;
+        protected readonly Address MiningPool2;
+        protected readonly Address MiningPool3;
+        protected readonly Address MiningPool4;
+        protected readonly Address MiningPool5;
+        protected readonly Address Pool1;
+        protected readonly Address Pool2;
+        protected readonly Address Pool3;
+        protected readonly Address Pool4;
+        protected readonly Address Pool5;
+        protected readonly Address Miner1;
+        protected readonly Address Miner2;
+        protected readonly Address Miner3;
+        protected readonly Address Miner4;
+        protected readonly Address Miner5;
+        protected const ulong BlocksPerYear = 60 * 60 * 24 * 365 / 16;
+        protected const ulong BlocksPerMonth = BlocksPerYear / 12;
 
         protected TestBase()
         {
@@ -51,6 +70,22 @@ namespace OpdexV1Core.Tests
             Trader0 = "0x0000000000000000000000000000000000000010".HexToAddress();
             Trader1 = "0x0000000000000000000000000000000000000011".HexToAddress();
             OtherAddress = "0x0000000000000000000000000000000000000012".HexToAddress();
+            MiningGovernance = "0x0000000000000000000000000000000000000013".HexToAddress();
+            MiningPool1 = "0x0000000000000000000000000000000000000014".HexToAddress();
+            MiningPool2 = "0x0000000000000000000000000000000000000015".HexToAddress();
+            MiningPool3 = "0x0000000000000000000000000000000000000016".HexToAddress();
+            MiningPool4 = "0x0000000000000000000000000000000000000017".HexToAddress();
+            MiningPool5 = "0x0000000000000000000000000000000000000018".HexToAddress();
+            Pool1 = "0x0000000000000000000000000000000000000019".HexToAddress();
+            Pool2 = "0x0000000000000000000000000000000000000020".HexToAddress();
+            Pool3 = "0x0000000000000000000000000000000000000021".HexToAddress();
+            Pool4 = "0x0000000000000000000000000000000000000022".HexToAddress();
+            Pool5 = "0x0000000000000000000000000000000000000023".HexToAddress();
+            Miner1 = "0x0000000000000000000000000000000000000024".HexToAddress();
+            Miner2 = "0x0000000000000000000000000000000000000025".HexToAddress();
+            Miner3 = "0x0000000000000000000000000000000000000026".HexToAddress();
+            Miner4 = "0x0000000000000000000000000000000000000027".HexToAddress();
+            Miner5 = "0x0000000000000000000000000000000000000028".HexToAddress();
         }
 
         protected IOpdexMarketDeployer CreateNewOpdexMarketDeployer()
@@ -89,7 +124,14 @@ namespace OpdexV1Core.Tests
             SetupMessage(Pool, StakingMarket);
             
             State.SetContract(StakingToken, true);
+            
+            SetupCreate<OpdexMiningPool>(CreateResult.Succeeded(MiningPool1), 0ul, new object[] { StakingToken, Pool });
 
+            return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
+        }
+
+        protected IOpdexStakingPool BlankStakingPool(uint fee)
+        {
             return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
         }
         
@@ -100,6 +142,24 @@ namespace OpdexV1Core.Tests
             SetupMessage(Pool, StandardMarket);
             
             return new OpdexStandardPool(_mockContractState.Object, Token, authProviders, authTraders, fee);
+        }
+        
+        protected IOpdexMiningPool CreateNewMiningPool(ulong block = 10)
+        {
+            _mockContractState.Setup(x => x.Message).Returns(new Message(MiningPool1, Pool1, 0));
+            
+            SetupBalance(0);
+            SetupBlock(block);
+            
+            SetupCall(StakingToken, 0, "get_MiningGovernance", null, TransferResult.Transferred(MiningGovernance));
+            SetupCall(MiningGovernance, 0, "get_MiningDuration", null, TransferResult.Transferred(BlocksPerMonth));
+            
+            return new OpdexMiningPool(_mockContractState.Object, StakingToken, Pool1);
+        }
+
+        protected IOpdexMiningPool BlankMiningPool()
+        {
+            return new OpdexMiningPool(_mockContractState.Object, StakingToken, Pool1);
         }
 
         protected void SetupMessage(Address contractAddress, Address sender, ulong value = 0)
@@ -122,7 +182,9 @@ namespace OpdexV1Core.Tests
         protected void SetupCall(Address to, ulong amountToTransfer, string methodName, object[] parameters, TransferResult result, Action callback = null)
         {
             _mockInternalExecutor
-                .Setup(x => x.Call(_mockContractState.Object, to, amountToTransfer, methodName, It.Is<object[]>(p => ValidateParameters(parameters, p)), It.IsAny<ulong>()))
+                .Setup(x => 
+                    x.Call(_mockContractState.Object, to, amountToTransfer, methodName, 
+                        It.Is<object[]>(p => ValidateParameters(parameters, p)), It.IsAny<ulong>()))
                 .Returns(result)
                 .Callback(() =>
                 {
@@ -156,12 +218,16 @@ namespace OpdexV1Core.Tests
 
         protected void VerifyCall(Address addressTo, ulong amountToTransfer, string methodName, object[] parameters, Func<Times> times)
         {
-            _mockInternalExecutor.Verify(x => x.Call(_mockContractState.Object, addressTo, amountToTransfer, methodName, It.Is<object[]>(p => ValidateParameters(parameters, p)), 0ul), times);
+            _mockInternalExecutor.Verify(x => 
+                x.Call(_mockContractState.Object, addressTo, amountToTransfer, methodName, 
+                    It.Is<object[]>(p => ValidateParameters(parameters, p)), 0ul), times);
         }
         
         protected void VerifyCall(Address addressTo, ulong amountToTransfer, string methodName, object[] parameters, Times times)
         {
-            _mockInternalExecutor.Verify(x => x.Call(_mockContractState.Object, addressTo, amountToTransfer, methodName, It.Is<object[]>(p => ValidateParameters(parameters, p)), 0ul), times);
+            _mockInternalExecutor.Verify(x => 
+                x.Call(_mockContractState.Object, addressTo, amountToTransfer, methodName, 
+                    It.Is<object[]>(p => ValidateParameters(parameters, p)), 0ul), times);
         }
 
         protected void VerifyTransfer(Address to, ulong value, Func<Times> times)
@@ -182,35 +248,19 @@ namespace OpdexV1Core.Tests
                 return true;
             }
 
-            if (actual == null ^ expected == null)
+            if (expected == null ^ actual == null)
             {
                 return false;
             }
 
             for (var i = 0; i < expected.Length; i++)
             {
-                var expectedParam = expected[i];
-                var actualParam = actual[i];
-                    
-                if (expected.GetType().IsArray)
+                if (expected[i].ToString() != actual[i].ToString())
                 {
-                    var expectedArray = expectedParam as byte[] ?? new byte[0];
-                    var actualArray = actualParam as byte[] ?? new byte[0];
-                        
-                    if (expectedArray.Where((t, b) => !t.Equals(actualArray[b])).Any())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    if (!expectedParam.Equals(actualParam))
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
-                
+
             return true;
         }
     }
