@@ -3,7 +3,7 @@ using Stratis.SmartContracts;
 public interface IOpdexStakingPool : IOpdexPool
 {
     /// <summary>
-    /// The address of the pools staking token.
+    /// The address of the pool's staking token.
     /// </summary>
     Address StakingToken { get; }
     
@@ -67,14 +67,14 @@ public interface IOpdexStakingPool : IOpdexPool
     UInt256 GetStakingRewards(Address staker);
     
     /// <summary>
-    /// Using an allowance, transfers staking tokens to the pool, beginning staking and nominated the
-    /// liquidity pool through the staking token contract to the governance smart contract.
+    /// Using an allowance, transfers staking tokens to the pool, beginning staking and nominating the
+    /// liquidity pool for mining.
     /// </summary>
     /// <param name="amount">The amount of tokens to stake.</param>
     void StartStaking(UInt256 amount);
     
     /// <summary>
-    /// Collect any earned staking rewards while continuing to stake, optionally liquidate the earned LP
+    /// Collect any earned staking rewards while continuing to stake, optionally liquidate the received LP
     /// tokens into the pools reserve tokens.
     /// </summary>
     /// <param name="liquidate">Boolean value to liquidate rewards.</param>

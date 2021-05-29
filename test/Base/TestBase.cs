@@ -130,9 +130,12 @@ namespace OpdexV1Core.Tests.Base
             return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
         }
 
-        protected IOpdexStakingPool BlankStakingPool(uint fee)
+        protected IOpdexStakingPool BlankStakingPool(uint fee, Address? token = null, Address? stakingToken = null)
         {
-            return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
+            var setToken = token ?? Token;
+            var setStakingToken = stakingToken ?? StakingToken;
+            
+            return new OpdexStakingPool(_mockContractState.Object, setToken, setStakingToken, fee);
         }
         
         protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authProviders = false, bool authTraders = false, uint fee = 3)

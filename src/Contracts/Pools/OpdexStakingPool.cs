@@ -70,23 +70,23 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     /// <inheritdoc />
     public UInt256 GetStoredRewardPerStakedToken(Address address)
     {
-        return State.GetUInt256($"StoredRewardPerStakedToken:{address}");
+        return State.GetUInt256($"RewardPerStakedToken:{address}");
     }
 
     private void SeStoredRewardPerStakedToken(Address address, UInt256 reward)
     {
-        State.SetUInt256($"StoredRewardPerStakedToken:{address}", reward);
+        State.SetUInt256($"RewardPerStakedToken:{address}", reward);
     }
     
     /// <inheritdoc />
     public UInt256 GetStoredReward(Address address)
     {
-        return State.GetUInt256($"StoredReward:{address}");
+        return State.GetUInt256($"Reward:{address}");
     }
 
     private void SetStoredReward(Address address, UInt256 reward)
     {
-        State.SetUInt256($"StoredReward:{address}", reward);
+        State.SetUInt256($"Reward:{address}", reward);
     }
     
     /// <inheritdoc />
@@ -106,8 +106,9 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureUnlocked();
         EnsureStakingEnabled();
         Assert(amount > 0, "OPDEX: CANNOT_STAKE_ZERO");
-        
+
         MintStakingRewards(ReserveCrs, ReserveSrc);
+        
         UpdateStakingPosition(Message.Sender);
 
         TotalStaked += amount;
@@ -116,9 +117,11 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
         
-        Log(new StakeLog { Staker = Message.Sender, Amount = amount, TotalStaked = TotalStaked, EventType = StakeEventType.StartStaking});
+        Log(new StakeLog { Staker = Message.Sender, Amount = amount, TotalStaked = TotalStaked, EventType = (byte)StakeEventType.StartStaking});
         
         NominateLiquidityPool();
+        
+        UpdateKLast();
         
         Unlock();
     }
@@ -130,9 +133,12 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureStakingEnabled();
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
+        
         UpdateStakingPosition(Message.Sender);
         
         CollectStakingRewardsExecute(Message.Sender, liquidate);
+        
+        UpdateKLast();
         
         Unlock();
     }
@@ -144,6 +150,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureStakingEnabled();
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
+        
         UpdateStakingPosition(Message.Sender);
         
         var stakedBalance = GetStakedBalance(Message.Sender);
@@ -158,9 +165,11 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         SafeTransferTo(StakingToken, Message.Sender, amount);
         
-        Log(new StakeLog {Amount = amount, Staker = Message.Sender, TotalStaked = TotalStaked, EventType = StakeEventType.StopStaking});
+        Log(new StakeLog {Amount = amount, Staker = Message.Sender, TotalStaked = TotalStaked, EventType = (byte)StakeEventType.StopStaking});
         
         NominateLiquidityPool();
+        
+        UpdateKLast();
         
         Unlock();
     }
@@ -169,11 +178,13 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     public override UInt256 Mint(Address to)
     {
         EnsureUnlocked();
-        
+
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
         var liquidity = MintExecute(to);
         
+        UpdateKLast();
+
         Unlock();
         
         return liquidity;
@@ -187,6 +198,8 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
         var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
+        
+        UpdateKLast();
         
         Unlock();
         
@@ -261,8 +274,6 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 
         ApplicableStakingRewards = 0;
         RewardPerStakedTokenLast = rewardPerToken;
-
-        if (address == Address.Zero) return;
         
         SetStoredReward(address, GetStakingRewards(address));
         SeStoredRewardPerStakedToken(address, rewardPerToken);
@@ -322,7 +333,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     private void NominateLiquidityPool()
     {
         // Failures shouldn't prevent the staking action
-        Call(StakingToken, 0ul, nameof(NominateLiquidityPool));
+        Call(StakingToken, 0, nameof(NominateLiquidityPool));
     }
 
     private Address InitializeMiningPool(Address token, Address stakingToken)
