@@ -35,19 +35,19 @@ public interface IOpdexStakingPool : IOpdexPool
     /// <summary>
     /// Retrieves the last calculated reward per staked token stored during the last action executed by the staker.
     /// </summary>
-    /// <param name="address">The address of the staker.</param>
+    /// <param name="staker">The address of the staker.</param>
     /// <returns>The amount of rewards per staked token from the last action taken by the staker.</returns>
-    UInt256 GetStoredRewardPerStakedToken(Address address);
+    UInt256 GetStoredRewardPerStakedToken(Address staker);
     
     /// <summary>
     /// Retrieves the last calculated reward amount stored during the most recent action taken by the staker.
     /// </summary>
-    /// <param name="address">The address of the staker.</param>
+    /// <param name="staker">The address of the staker.</param>
     /// <returns>The last calculated reward amount for the staker.</returns>
-    UInt256 GetStoredReward(Address address);
+    UInt256 GetStoredReward(Address staker);
 
     /// <summary>
-    /// Retrieves the current reward per full token staked.
+    /// Retrieves the current reward per full token staked based on the most recent calculation of total staking pool rewards.
     /// </summary>
     /// <returns>The amount of rewards.</returns>
     UInt256 GetRewardPerStakedToken();
@@ -55,12 +55,12 @@ public interface IOpdexStakingPool : IOpdexPool
     /// <summary>
     /// Retrieves the amount of tokens staked for an address.
     /// </summary>
-    /// <param name="address">The address to check the staked balance of.</param>
+    /// <param name="staker">The address to check the staked balance of.</param>
     /// <returns>The amount of staked tokens.</returns>
-    UInt256 GetStakedBalance(Address address);
+    UInt256 GetStakedBalance(Address staker);
     
     /// <summary>
-    /// Retrieves the current amount of earned rewards of a staker.
+    /// Retrieves the the amount of earned rewards based on the most recent calculation of total staking pool rewards.
     /// </summary>
     /// <param name="staker">The address to check the reward balance of.</param>
     /// <returns>The current amount of rewards to be collected.</returns>

@@ -68,36 +68,36 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     }
     
     /// <inheritdoc />
-    public UInt256 GetStoredRewardPerStakedToken(Address address)
+    public UInt256 GetStoredRewardPerStakedToken(Address staker)
     {
-        return State.GetUInt256($"RewardPerStakedToken:{address}");
+        return State.GetUInt256($"RewardPerStakedToken:{staker}");
     }
 
-    private void SeStoredRewardPerStakedToken(Address address, UInt256 reward)
+    private void SeStoredRewardPerStakedToken(Address staker, UInt256 reward)
     {
-        State.SetUInt256($"RewardPerStakedToken:{address}", reward);
+        State.SetUInt256($"RewardPerStakedToken:{staker}", reward);
     }
     
     /// <inheritdoc />
-    public UInt256 GetStoredReward(Address address)
+    public UInt256 GetStoredReward(Address staker)
     {
-        return State.GetUInt256($"Reward:{address}");
+        return State.GetUInt256($"Reward:{staker}");
     }
 
-    private void SetStoredReward(Address address, UInt256 reward)
+    private void SetStoredReward(Address staker, UInt256 reward)
     {
-        State.SetUInt256($"Reward:{address}", reward);
+        State.SetUInt256($"Reward:{staker}", reward);
     }
     
     /// <inheritdoc />
-    public UInt256 GetStakedBalance(Address address)
+    public UInt256 GetStakedBalance(Address staker)
     {
-        return State.GetUInt256($"StakedBalance:{address}");
+        return State.GetUInt256($"StakedBalance:{staker}");
     }
 
-    private void SetStakedBalance(Address address, UInt256 balance)
+    private void SetStakedBalance(Address staker, UInt256 balance)
     {
-        State.SetUInt256($"StakedBalance:{address}", balance);
+        State.SetUInt256($"StakedBalance:{staker}", balance);
     }
 
     /// <inheritdoc />
@@ -111,13 +111,17 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         UpdateStakingPosition(Message.Sender);
 
-        TotalStaked += amount;
+        var totalStaked = TotalStaked;
+        
+        totalStaked += amount;
+
+        TotalStaked = totalStaked;
         
         SetStakedBalance(Message.Sender, GetStakedBalance(Message.Sender) + amount);
         
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
         
-        Log(new StakeLog { Staker = Message.Sender, Amount = amount, TotalStaked = TotalStaked, EventType = (byte)StakeEventType.StartStaking});
+        Log(new StakeLog { Staker = Message.Sender, Amount = amount, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StartStaking});
         
         NominateLiquidityPool();
         
@@ -157,7 +161,11 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         Assert(amount <= stakedBalance && amount > 0, "OPDEX: INVALID_AMOUNT");
 
-        TotalStaked -= amount;
+        var totalStaked = TotalStaked;
+        
+        totalStaked -= amount;
+
+        TotalStaked = totalStaked;
         
         SetStakedBalance(Message.Sender, stakedBalance - amount);
         
@@ -165,7 +173,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         SafeTransferTo(StakingToken, Message.Sender, amount);
         
-        Log(new StakeLog {Amount = amount, Staker = Message.Sender, TotalStaked = TotalStaked, EventType = (byte)StakeEventType.StopStaking});
+        Log(new StakeLog {Amount = amount, Staker = Message.Sender, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StopStaking});
         
         NominateLiquidityPool();
         
