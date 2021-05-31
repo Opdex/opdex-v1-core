@@ -29,11 +29,11 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         return State.GetAddress($"Pool:{token}");
     }
 
+    /// <inheritdoc />
+    public abstract Address CreatePool(Address token);
+    
     protected void SetPool(Address token, Address contract)
     {
         State.SetAddress($"Pool:{token}", contract);
     }
-
-    /// <inheritdoc />
-    public abstract Address CreatePool(Address token);
 }

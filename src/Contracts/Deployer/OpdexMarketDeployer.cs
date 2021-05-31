@@ -48,7 +48,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         
         var market = marketResponse.NewContractAddress;
 
-        var routerResponse = Create<OpdexRouter>(0, new object[] {market});
+        var routerResponse = Create<OpdexStandardRouter>(0, new object[] {market});
         
         Assert(routerResponse.Success, "OPDEX: INVALID_ROUTER");
 
@@ -79,7 +79,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
 
         var market = marketResponse.NewContractAddress;
         
-        var routerResponse = Create<OpdexRouter>(0, new object[] {market});
+        var routerResponse = Create<OpdexStakingRouter>(0, new object[] {market});
         
         Assert(routerResponse.Success, "OPDEX: INVALID_ROUTER");
 

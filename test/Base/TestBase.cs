@@ -1,6 +1,4 @@
 using System;
-using System.Linq;
-using FluentAssertions;
 using Moq;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
@@ -120,15 +118,15 @@ namespace OpdexV1Core.Tests.Base
             return new OpdexStandardMarket(_mockContractState.Object, Owner, authPoolCreators, authProviders, authTraders, fee);
         }
 
-        protected IOpdexRouter CreateNewOpdexRouter(Address market, uint marketFee)
+        protected IOpdexRouter CreateNewOpdexStakingRouter(Address market, uint marketFee)
         {
             SetupBlock(10);
             SetupBalance(0);
-            SetupMessage(StandardMarket, Owner);
+            SetupMessage(StakingMarket, Owner);
             
             SetupCall(market, 0, "get_Fee", null, TransferResult.Transferred(marketFee));
             
-            return new OpdexRouter(_mockContractState.Object, market);
+            return new OpdexStakingRouter(_mockContractState.Object, market);
         }
 
         protected IOpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0, uint fee = 3)

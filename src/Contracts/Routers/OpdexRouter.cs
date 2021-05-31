@@ -1,9 +1,17 @@
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.Standards;
 
-public class OpdexRouter : SmartContract, IOpdexRouter
+/// <summary>
+/// 
+/// </summary>
+public abstract class OpdexRouter : SmartContract, IOpdexRouter
 {
-    public OpdexRouter(ISmartContractState state, Address market) : base(state)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="state"></param>
+    /// <param name="market"></param>
+    protected OpdexRouter(ISmartContractState state, Address market) : base(state)
     {
         Market = market;
         Fee = GetTransactionFee();
@@ -30,7 +38,13 @@ public class OpdexRouter : SmartContract, IOpdexRouter
         State.SetAddress($"Pool:{token}", pool);
     }
     
-    public UInt256[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    /// <inheritdoc />
+    public virtual UInt256[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    {
+        return AddLiquidityExecute(token, amountSrcDesired, amountCrsMin, amountSrcMin, to, deadline);
+    }
+    
+    protected UInt256[] AddLiquidityExecute(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -47,9 +61,14 @@ public class OpdexRouter : SmartContract, IOpdexRouter
         
         return new [] { amountCrs, amountSrc, (UInt256)liquidityResponse.ReturnValue };
     }
-
+    
     /// <inheritdoc />
-    public UInt256[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    public virtual UInt256[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
+    {
+        return RemoveLiquidityExecute(token, liquidity, amountCrsMin, amountSrcMin, to, deadline);
+    }
+    
+    protected UInt256[] RemoveLiquidityExecute(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -67,9 +86,14 @@ public class OpdexRouter : SmartContract, IOpdexRouter
 
         return burnResponse;
     }
-
+    
     /// <inheritdoc />
-    public UInt256 SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
+    public virtual UInt256 SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
+    {
+        return SwapExactCrsForSrcExecute(amountSrcOutMin, token, to, deadline);
+    }
+
+    protected UInt256 SwapExactCrsForSrcExecute(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -85,7 +109,12 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     }
 
     /// <inheritdoc />
-    public UInt256 SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
+    public virtual UInt256 SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
+    {
+        return SwapSrcForExactCrsExecute(amountCrsOut, amountSrcInMax, token, to, deadline);
+    }
+    
+    protected UInt256 SwapSrcForExactCrsExecute(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -102,7 +131,12 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     }
 
     /// <inheritdoc />
-    public ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
+    public virtual ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
+    {
+        return SwapExactSrcForCrsExecute(amountSrcIn, amountCrsOutMin, token, to, deadline);
+    }
+
+    protected ulong SwapExactSrcForCrsExecute(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -119,7 +153,12 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     }
 
     /// <inheritdoc />
-    public ulong SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
+    public virtual ulong SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
+    {
+        return SwapCrsForExactSrcExecute(amountSrcOut, token, to, deadline);
+    }
+
+    protected ulong SwapCrsForExactSrcExecute(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -136,7 +175,12 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     }
 
     /// <inheritdoc />
-    public UInt256 SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
+    public virtual UInt256 SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
+    {
+        return SwapSrcForExactSrcExecute(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, to, deadline);
+    }
+
+    protected UInt256 SwapSrcForExactSrcExecute(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -158,7 +202,12 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     }
 
     /// <inheritdoc />
-    public UInt256 SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
+    public virtual UInt256 SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
+    {
+        return SwapExactSrcForSrcExecute(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, to, deadline);
+    }
+
+    protected UInt256 SwapExactSrcForSrcExecute(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
     {
         ValidateDeadline(deadline);
         
@@ -203,8 +252,7 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     }
 
     /// <inheritdoc />
-    public UInt256 GetAmountOut(UInt256 tokenInAmount, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc,
-        UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc)
+    public UInt256 GetAmountOut(UInt256 tokenInAmount, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc)
     {
         var tokenInReserves = new Reserves {ReserveCrs = (ulong)tokenInReserveCrs, ReserveSrc = tokenInReserveSrc};
         var tokenOutReserves = new Reserves {ReserveCrs = (ulong)tokenOutReserveCrs, ReserveSrc = tokenOutReserveSrc};
@@ -228,8 +276,7 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     }
 
     /// <inheritdoc />
-    public UInt256 GetAmountIn(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, 
-        UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc)
+    public UInt256 GetAmountIn(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc)
     {
         var tokenInReserves = new Reserves {ReserveCrs = (ulong)tokenInReserveCrs, ReserveSrc = tokenInReserveSrc};
         var tokenOutReserves = new Reserves {ReserveCrs = (ulong)tokenOutReserveCrs, ReserveSrc = tokenOutReserveSrc};

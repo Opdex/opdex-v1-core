@@ -39,7 +39,7 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// <param name="secondary">The secondary address to check permissions for.</param>
     /// <param name="permission">The permission to check authorizations for.</param>
     /// <returns></returns>
-    public bool IsAuthorized(Address primary, Address secondary, byte permission);
+    bool IsAuthorized(Address primary, Address secondary, byte permission);
 
     /// <summary>
     /// Allows permitted addresses to sets authorization for a provided address and permission.
