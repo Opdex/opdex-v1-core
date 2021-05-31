@@ -44,6 +44,7 @@ namespace OpdexV1Core.Tests.Base
         protected readonly Address Miner3;
         protected readonly Address Miner4;
         protected readonly Address Miner5;
+        protected readonly Address Router;
         protected const ulong BlocksPerYear = 60 * 60 * 24 * 365 / 16;
         protected const ulong BlocksPerMonth = BlocksPerYear / 12;
 
@@ -86,6 +87,7 @@ namespace OpdexV1Core.Tests.Base
             Miner3 = "0x0000000000000000000000000000000000000026".HexToAddress();
             Miner4 = "0x0000000000000000000000000000000000000027".HexToAddress();
             Miner5 = "0x0000000000000000000000000000000000000028".HexToAddress();
+            Router = "0x0000000000000000000000000000000000000029".HexToAddress();
         }
 
         protected IOpdexMarketDeployer CreateNewOpdexMarketDeployer()
@@ -94,6 +96,7 @@ namespace OpdexV1Core.Tests.Base
             SetupBlock(10);
             SetupMessage(Deployer, Owner);
             
+            SetupCreate<OpdexRouter>(CreateResult.Succeeded(Router), 0, new object[] {StakingMarket});
             SetupCreate<OpdexStakingMarket>(CreateResult.Succeeded(StakingMarket), 0ul, new object[] { StakingToken, (uint)3 });
 
             return new OpdexMarketDeployer(_mockContractState.Object, StakingToken);
@@ -115,6 +118,17 @@ namespace OpdexV1Core.Tests.Base
             SetupMessage(StandardMarket, Owner);
             
             return new OpdexStandardMarket(_mockContractState.Object, Owner, authPoolCreators, authProviders, authTraders, fee);
+        }
+
+        protected IOpdexRouter CreateNewOpdexRouter(Address market, uint marketFee)
+        {
+            SetupBlock(10);
+            SetupBalance(0);
+            SetupMessage(StandardMarket, Owner);
+            
+            SetupCall(market, 0, "get_Fee", null, TransferResult.Transferred(marketFee));
+            
+            return new OpdexRouter(_mockContractState.Object, market);
         }
 
         protected IOpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0, uint fee = 3)

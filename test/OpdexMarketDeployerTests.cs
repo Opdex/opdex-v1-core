@@ -13,11 +13,12 @@ namespace OpdexV1Core.Tests
         public void CreatesOpdexMarketDeployer_Success()
         {
             CreateNewOpdexMarketDeployer();
-            
+
             VerifyLog(new CreateMarketLog
             {
                 Market = StakingMarket, 
                 Owner = Owner, 
+                Router = Router,
                 AuthPoolCreators = false, 
                 AuthProviders = false, 
                 AuthTraders = false, 
@@ -39,6 +40,11 @@ namespace OpdexV1Core.Tests
             
             var createParams = new object[] {marketOwner, authPoolCreators, authProviders, authTraders, fee};
             SetupCreate<OpdexStandardMarket>(CreateResult.Succeeded(StandardMarket), 0, createParams);
+
+            var createRouterParams = new object[] {StandardMarket};
+            SetupCreate<OpdexRouter>(CreateResult.Succeeded(Router), 0, createRouterParams);
+            
+            SetupCall(StandardMarket, 0, "get_Fee", new object[0], TransferResult.Transferred(fee));
             
             var deployer = CreateNewOpdexMarketDeployer();
             
@@ -52,6 +58,7 @@ namespace OpdexV1Core.Tests
             {
                 Market = StandardMarket, 
                 Owner = marketOwner,
+                Router = Router,
                 AuthPoolCreators = authPoolCreators, 
                 AuthProviders = authProviders, 
                 AuthTraders = authTraders, 

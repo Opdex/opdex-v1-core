@@ -48,65 +48,6 @@ namespace OpdexV1Core.Tests.Pools
                 .WithMessage("OPDEX: INVALID_TOKEN");
         }
 
-        [Theory]
-        [InlineData(true, true, (byte)Permissions.Trade, true)]
-        [InlineData(false, false, (byte)Permissions.Trade, true)]
-        [InlineData(true, false, (byte)Permissions.Trade, true)]
-        [InlineData(false, true, (byte)Permissions.Trade, true)]
-        [InlineData(true, false, (byte)Permissions.Trade, false)]
-        [InlineData(true, true, (byte)Permissions.Provide, true)]
-        [InlineData(false, false, (byte)Permissions.Provide, true)]
-        [InlineData(true, false, (byte)Permissions.Provide, true)]
-        [InlineData(false, true, (byte)Permissions.Provide, true)]
-        [InlineData(true, false, (byte)Permissions.Provide, false)]
-        public void IsAuthorized_Success(bool shouldAuth, bool isMarketCaller, byte permission, bool expectedResult)
-        {
-            var pool = CreateNewOpdexStandardPool(authProviders: shouldAuth, authTraders: shouldAuth);
-
-            var sender = isMarketCaller ? StandardMarket : Trader0;
-            var authParams = new object[] { sender, permission };
-            
-            if (shouldAuth && !isMarketCaller)
-            {
-                SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, TransferResult.Transferred(expectedResult));
-            }
-
-            var isAuthorized = pool.IsAuthorized(sender, permission);
-
-            isAuthorized.Should().Be(expectedResult);
-            
-            if (shouldAuth && !isMarketCaller)
-            {
-                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, Times.Once);
-            }
-        }
-
-        [Fact]
-        public void SetMarket_Success()
-        {
-            var pool = CreateNewOpdexStandardPool();
-            
-            pool.SetMarket(OtherAddress);
-
-            pool.Market.Should().Be(OtherAddress);
-
-            VerifyLog(new ChangeMarketLog {From = StandardMarket, To = OtherAddress}, Times.Once);
-        }
-
-        [Fact]
-        public void SetMarket_Throws_Unauthorized()
-        {
-            var pool = CreateNewOpdexStandardPool();
-            
-            SetupMessage(Pool, Trader0);
-
-            pool
-                .Invoking(p => p.SetMarket(StandardMarket))
-                .Should()
-                .Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: UNAUTHORIZED");
-        }
-
         [Fact]
         public void GetBalance_Success()
         {
@@ -203,7 +144,7 @@ namespace OpdexV1Core.Tests.Pools
 
             var pool = CreateNewOpdexStandardPool(expectedBalanceCrs, authProviders: authorize);
             
-            var authParams = new object[] {sender, (byte)Permissions.Provide};
+            var authParams = new object[] {sender, sender, (byte)Permissions.Provide};
             if (authorize)
             {
                 SetupCall(StandardMarket, 0ul, nameof(IOpdexStandardMarket.IsAuthorized), authParams,

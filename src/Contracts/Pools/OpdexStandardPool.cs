@@ -51,7 +51,7 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     public override UInt256 Mint(Address to)
     {
         EnsureUnlocked();
-        EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         
         var liquidity = MintExecute(to);
         
@@ -64,7 +64,7 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     public override UInt256[] Burn(Address to)
     {
         EnsureUnlocked();
-        EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         
         var amounts = BurnExecute(to,  GetBalance(Address));
         
@@ -77,7 +77,7 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     public override void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
     {
         EnsureUnlocked();
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         
         SwapExecute(amountCrsOut, amountSrcOut, to, data);
         
@@ -88,7 +88,7 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     public override void Skim(Address to)
     {
         EnsureUnlocked();
-        EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         
         SkimExecute(to);
         
@@ -99,15 +99,19 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     public override void Sync()
     {
         EnsureUnlocked();
-        EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
+        EnsureAuthorizationFor(Message.Sender, Address.Zero, Permissions.Provide);
         
         UpdateReserves(Balance, GetSrcBalance(Token, Address));
         
         Unlock();
     }
     
-    /// <inheritdoc />
-    public bool IsAuthorized(Address address, byte permission)
+    private void EnsureAuthorizationFor(Address primary, Address secondary, Permissions permission)
+    {
+        Assert(IsAuthorized(primary, secondary, (byte)permission), "OPDEX: UNAUTHORIZED");
+    }
+    
+    private bool IsAuthorized(Address primary, Address secondary, byte permission)
     {
         switch ((Permissions)permission)
         {
@@ -115,23 +119,13 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
             case Permissions.Trade when !AuthTraders: return true;
             case Permissions.Unknown: return false;
             default:
-                return address == Market || 
-                       (bool)Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorized), new object[] {address, permission}).ReturnValue;
+                var authParameters = secondary == Address.Zero 
+                    ? new object[] {primary, permission} 
+                    : new object[] {primary, secondary, permission};
+                
+                var isAuthorizedResponse = Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParameters);
+
+                return isAuthorizedResponse.Success && (bool)isAuthorizedResponse.ReturnValue;
         }
-    }
-
-    /// <inheritdoc />
-    public void SetMarket(Address address)
-    {
-        Assert(Message.Sender == Market, "OPDEX: UNAUTHORIZED");
-
-        Market = address;
-        
-        Log(new ChangeMarketLog { From = Message.Sender, To = address });
-    }
-    
-    private void EnsureAuthorizationFor(Address address, Permissions permission)
-    {
-        Assert(IsAuthorized(address, (byte)permission), "OPDEX: UNAUTHORIZED");
     }
 }

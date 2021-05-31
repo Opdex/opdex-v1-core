@@ -72,6 +72,12 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     }
 
     /// <inheritdoc />
+    public bool IsAuthorized(Address sender, Address receiver, byte permission)
+    {
+        return IsAuthorized(sender, permission) && IsAuthorized(receiver, permission);
+    }
+
+    /// <inheritdoc />
     public void Authorize(Address address, byte permission, bool authorize)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.SetPermissions);
@@ -91,23 +97,6 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         Owner = address;
         
         Log(new ChangeMarketOwnerLog {From = Message.Sender, To = address});
-    }
-    
-    /// <inheritdoc />
-    public void SetPoolMarket(Address token, Address newMarket)
-    {
-        Assert(Message.Sender == Owner, "OPDEX: UNAUTHORIZED");
-
-        var isAuthorizedParams = new object[] {Message.Sender, (byte)Permissions.SetPermissions};
-        var isAuthorizedResponse = Call(newMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), isAuthorizedParams);
-        
-        Assert(isAuthorizedResponse.Success && (bool)isAuthorizedResponse.ReturnValue, "OPDEX: INVALID_MARKET");
-        
-        var pool = GetValidatedPool(token);
-
-        var updatePoolResponse = Call(pool, 0, nameof(IOpdexStandardPool.SetMarket), new object[] {newMarket});
-        
-        Assert(updatePoolResponse.Success, "OPDEX: CHANGE_MARKET_FAILED");
     }
 
     /// <inheritdoc />
@@ -132,70 +121,6 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         Log(new CreateLiquidityPoolLog { Token = token, Pool = pool });
         
         return pool;
-    }
-    
-    /// <inheritdoc />
-    public override UInt256[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
-    { 
-        EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
-        
-        return AddLiquidityExecute(token, amountSrcDesired, amountCrsMin, amountSrcMin, to, deadline);
-    }
-    
-    /// <inheritdoc />
-    public override UInt256[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
-    {
-        EnsureAuthorizationFor(Message.Sender, Permissions.Provide);
-        
-        return RemoveLiquidityExecute(token, liquidity, amountCrsMin, amountSrcMin, to, deadline);
-    }
-    
-    /// <inheritdoc />
-    public override UInt256 SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
-    {
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        
-        return SwapExactCrsForSrcExecute(amountSrcOutMin, token, to, deadline);
-    }
-    
-    /// <inheritdoc />
-    public override UInt256 SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
-    {
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        
-        return SwapSrcForExactCrsExecute(amountCrsOut, amountSrcInMax, token, to, deadline);
-    }
-    
-    /// <inheritdoc />
-    public override ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
-    {
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        
-        return SwapExactSrcForCrsExecute(amountSrcIn, amountCrsOutMin, token, to, deadline);
-    }
-    
-    /// <inheritdoc />
-    public override ulong SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
-    {
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        
-        return SwapCrsForExactSrcExecute(amountSrcOut, token, to, deadline);
-    }
-
-    /// <inheritdoc />
-    public override UInt256 SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
-    {
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        
-        return SwapSrcForExactSrcExecute(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, to, deadline);
-    }
-    
-    /// <inheritdoc />
-    public override UInt256 SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
-    {
-        EnsureAuthorizationFor(Message.Sender, Permissions.Trade);
-        
-        return SwapExactSrcForSrcExecute(amountSrcIn, tokenIn, amountSrcOutMin, tokenOut, to, deadline);
     }
     
     private void EnsureAuthorizationFor(Address address, Permissions permission)

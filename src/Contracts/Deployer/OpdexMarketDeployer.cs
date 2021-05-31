@@ -42,16 +42,23 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     {
         Assert(Message.Sender == Owner, UnauthorizedError);
         
-        var response = Create<OpdexStandardMarket>(0, new object[] {marketOwner, authPoolCreators, authProviders, authTraders, fee});
+        var marketResponse = Create<OpdexStandardMarket>(0, new object[] {marketOwner, authPoolCreators, authProviders, authTraders, fee});
+
+        Assert(marketResponse.Success, InvalidMarketError);
         
-        Assert(response.Success, InvalidMarketError);
+        var market = marketResponse.NewContractAddress;
+
+        var routerResponse = Create<OpdexRouter>(0, new object[] {market});
         
-        var market = response.NewContractAddress;
+        Assert(routerResponse.Success, "OPDEX: INVALID_ROUTER");
+
+        var router = routerResponse.NewContractAddress;
 
         Log(new CreateMarketLog
         {
             Market = market, 
             Owner = marketOwner,
+            Router = router,
             AuthPoolCreators = authPoolCreators, 
             AuthProviders = authProviders, 
             AuthTraders = authTraders, 
@@ -66,16 +73,23 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     {
         const uint transactionFee = 3; // .3% for the staking market
 
-        var response = Create<OpdexStakingMarket>(0, new object[] {stakingToken, transactionFee});
+        var marketResponse = Create<OpdexStakingMarket>(0, new object[] {stakingToken, transactionFee});
         
-        Assert(response.Success, InvalidMarketError);
+        Assert(marketResponse.Success, InvalidMarketError);
 
-        var market = response.NewContractAddress;
+        var market = marketResponse.NewContractAddress;
+        
+        var routerResponse = Create<OpdexRouter>(0, new object[] {market});
+        
+        Assert(routerResponse.Success, "OPDEX: INVALID_ROUTER");
+
+        var router = routerResponse.NewContractAddress;
             
         Log(new CreateMarketLog
         {
             Market = market, 
             Owner = Message.Sender,
+            Router = router,
             AuthPoolCreators = false, 
             AuthProviders = false, 
             AuthTraders = false, 

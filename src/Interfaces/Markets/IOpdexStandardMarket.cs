@@ -23,7 +23,7 @@ public interface IOpdexStandardMarket : IOpdexMarket
     Address Owner { get; }
     
     /// <summary>
-    /// Checks the if the provided address is authorized for the given permission.
+    /// Checks if the provided address is authorized for the given permission.
     /// </summary>
     /// <param name="address">The address to check permissions for.</param>
     /// <param name="permission">
@@ -31,6 +31,15 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// </param>
     /// <returns>Flag describing if the address is authorized or not.</returns>
     bool IsAuthorized(Address address, byte permission);
+
+    /// <summary>
+    /// Checks if the provided primary and secondary addresses are authorized for the given permission.
+    /// </summary>
+    /// <param name="primary">The primary address to check permissions for.</param>
+    /// <param name="secondary">The secondary address to check permissions for.</param>
+    /// <param name="permission">The permission to check authorizations for.</param>
+    /// <returns></returns>
+    public bool IsAuthorized(Address primary, Address secondary, byte permission);
 
     /// <summary>
     /// Allows permitted addresses to sets authorization for a provided address and permission.
@@ -45,12 +54,4 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// </summary>
     /// <param name="address">The new market owner to promote.</param>
     void SetOwner(Address address);
-
-    /// <summary>
-    /// Allows the owner to change the persisted market contract address for a pool.
-    /// Enables market contracts to be updated to allow extra functionality or improving flows.
-    /// </summary>
-    /// <param name="token">The SRC token to lookup the pool being updated.</param>
-    /// <param name="newMarket">The new market's smart contract address.</param>
-    void SetPoolMarket(Address token, Address newMarket);
 }
