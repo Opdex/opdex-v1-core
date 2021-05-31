@@ -38,7 +38,7 @@ public interface IOpdexMiningPool
     ulong LastUpdateBlock { get; }
     
     /// <summary>
-    /// The latest calculated amount of rewards per full liquidity pool token used for mining.
+    /// The latest calculated amount of rewards per full liquidity pool token used for mining from the last time any miner executed a mining action.
     /// </summary>
     UInt256 RewardPerStakedTokenLast { get; }
     
@@ -53,25 +53,25 @@ public interface IOpdexMiningPool
     bool Locked { get; }
 
     /// <summary>
-    /// Retrieves the last calculated reward per full liquidity pool token for the provided address.
+    /// Retrieves the last calculated reward per full liquidity pool token for the provided address from the last action executed by the miner.
     /// </summary>
-    /// <param name="address">The miners address.</param>
+    /// <param name="miner">The miners address.</param>
     /// <returns>The last calculated amount of tokens earned per liquidity pool token used for mining.</returns>
-    UInt256 GetStoredRewardPerStakedToken(Address address);
+    UInt256 GetStoredRewardPerStakedToken(Address miner);
 
     /// <summary>
     /// Retrieves the last calculated reward amount from state for a provided address.
     /// </summary>
-    /// <param name="address">The address of the address to check the rewards for.</param>
+    /// <param name="miner">The address of the address to check the rewards for.</param>
     /// <returns>The number of earned tokens from mining.</returns>
-    UInt256 GetStoredReward(Address address);
+    UInt256 GetStoredReward(Address miner);
 
     /// <summary>
     /// Returns the balance of liquidity pool tokens used for mining for a provided address.
     /// </summary>
-    /// <param name="address">The address of the wallet to check the balance of.</param>
+    /// <param name="miner">The address of the wallet to check the balance of.</param>
     /// <returns>The number of liquidity pool tokens the address is using to mine.</returns>
-    UInt256 GetBalance(Address address);
+    UInt256 GetBalance(Address miner);
 
     /// <summary>
     /// Returns either the current block number or the last block of the mining period, whichever is less.
@@ -94,9 +94,9 @@ public interface IOpdexMiningPool
     /// <summary>
     /// Calculates and returns the current amount of mined tokens earned by the miner.
     /// </summary>
-    /// <param name="address">The wallet address toa check earned rewards for.</param>
+    /// <param name="miner">The wallet address toa check earned rewards for.</param>
     /// <returns>Amount of tokens earned through mining.</returns>
-    UInt256 GetMiningRewards(Address address);
+    UInt256 GetMiningRewards(Address miner);
     
     /// <summary>
     /// Using an allowance, transfer liquidity pool tokens to mine with for rewarded tokens.
@@ -112,6 +112,7 @@ public interface IOpdexMiningPool
     /// <summary>
     /// Withdraws the specified amount of liquidity pool tokens mining and collects rewards.
     /// </summary>
+    /// <param name="amount">The amount of tokens to withdraw from the mining pool.</param>
     void StopMining(UInt256 amount);
     
     /// <summary>

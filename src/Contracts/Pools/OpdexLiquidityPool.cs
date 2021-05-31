@@ -97,8 +97,7 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
     
         MintTokensExecute(to, liquidity);
         UpdateReserves(balanceCrs, balanceSrc);
-    
-        KLast = ReserveCrs * ReserveSrc;
+        UpdateKLast();
 
         Log(new MintLog
         {
@@ -135,8 +134,7 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
         balanceSrc = GetSrcBalance(token, address);
         
         UpdateReserves(balanceCrs, balanceSrc);
-        
-        KLast = ReserveCrs * ReserveSrc;
+        UpdateKLast();
         
         Log(new BurnLog
         {
@@ -225,6 +223,11 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
         ReserveSrc = balanceSrc;
         
         Log(new ReservesLog { ReserveCrs = balanceCrs, ReserveSrc = balanceSrc });
+    }
+
+    protected void UpdateKLast()
+    {
+        KLast = ReserveCrs * ReserveSrc;
     }
     
     protected static UInt256 Sqrt(UInt256 value)

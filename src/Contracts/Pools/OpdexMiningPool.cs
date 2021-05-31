@@ -93,36 +93,36 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     }
 
     /// <inheritdoc />
-    public UInt256 GetStoredRewardPerStakedToken(Address address)
+    public UInt256 GetStoredRewardPerStakedToken(Address miner)
     {
-        return State.GetUInt256($"RewardPerStakedToken:{address}");
+        return State.GetUInt256($"RewardPerStakedToken:{miner}");
     }
 
-    private void SetStoredRewardPerStakedToken(Address address, UInt256 reward)
+    private void SetStoredRewardPerStakedToken(Address miner, UInt256 reward)
     {
-        State.SetUInt256($"RewardPerStakedToken:{address}", reward);
+        State.SetUInt256($"RewardPerStakedToken:{miner}", reward);
     }
     
     /// <inheritdoc />
-    public UInt256 GetStoredReward(Address address)
+    public UInt256 GetStoredReward(Address miner)
     {
-        return State.GetUInt256($"Reward:{address}");
+        return State.GetUInt256($"Reward:{miner}");
     }
 
-    private void SetStoredReward(Address address, UInt256 reward)
+    private void SetStoredReward(Address miner, UInt256 reward)
     {
-        State.SetUInt256($"Reward:{address}", reward);
+        State.SetUInt256($"Reward:{miner}", reward);
     }
 
     /// <inheritdoc />
-    public UInt256 GetBalance(Address address)
+    public UInt256 GetBalance(Address miner)
     {
-        return State.GetUInt256($"Balance:{address}");
+        return State.GetUInt256($"Balance:{miner}");
     }
 
-    private void SetBalance(Address address, UInt256 reward)
+    private void SetBalance(Address miner, UInt256 reward)
     {
-        State.SetUInt256($"Balance:{address}", reward);
+        State.SetUInt256($"Balance:{miner}", reward);
     }
 
     /// <inheritdoc />
@@ -150,13 +150,13 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     }
 
     /// <inheritdoc />
-    public UInt256 GetMiningRewards(Address address)
+    public UInt256 GetMiningRewards(Address miner)
     {
-        var balance = GetBalance(address);
+        var balance = GetBalance(miner);
         var rewardPerToken = GetRewardPerStakedToken();
-        var addressRewardPaid = GetStoredRewardPerStakedToken(address);
-        var remainingReward = rewardPerToken - addressRewardPaid;
-        var reward = GetStoredReward(address);
+        var storedRewardPerToken = GetStoredRewardPerStakedToken(miner);
+        var remainingReward = rewardPerToken - storedRewardPerToken;
+        var reward = GetStoredReward(miner);
         
         return reward + (balance * remainingReward / SatsPerToken);
     }
@@ -268,17 +268,17 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         Log(new CollectMiningRewardsLog { Miner = Message.Sender, Amount = reward });
     }
 
-    private void UpdateMiningPosition(Address address)
+    private void UpdateMiningPosition(Address miner)
     {
         var rewardPerToken = GetRewardPerStakedToken();
         
         RewardPerStakedTokenLast = rewardPerToken;
         LastUpdateBlock = LatestBlockApplicable();
 
-        if (address == Address.Zero) return;
+        if (miner == Address.Zero) return;
         
-        SetStoredReward(address, GetMiningRewards(address));
-        SetStoredRewardPerStakedToken(address, rewardPerToken);
+        SetStoredReward(miner, GetMiningRewards(miner));
+        SetStoredRewardPerStakedToken(miner, rewardPerToken);
     }
     
     private void SafeTransferTo(Address token, Address to, UInt256 amount)

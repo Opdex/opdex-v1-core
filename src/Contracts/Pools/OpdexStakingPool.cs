@@ -7,6 +7,8 @@ using Stratis.SmartContracts;
 /// </summary>
 public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 {
+    private const ulong SatsPerToken = 100_000_000;
+
     /// <summary>
     /// Constructor initializing a staking pool contract.
     /// </summary>
@@ -45,13 +47,6 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     }
         
     /// <inheritdoc />
-    public UInt256 TotalStakedApplicable
-    {
-        get => State.GetUInt256(nameof(TotalStakedApplicable));
-        private set => State.SetUInt256(nameof(TotalStakedApplicable), value);
-    }
-        
-    /// <inheritdoc />
     public UInt256 StakingRewardsBalance
     {
         get => State.GetUInt256(nameof(StakingRewardsBalance));
@@ -59,92 +54,130 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     }
 
     /// <inheritdoc />
-    public UInt256 GetStakedBalance(Address address)
+    public UInt256 RewardPerStakedTokenLast
     {
-        return State.GetUInt256($"StakedBalance:{address}");
-    }
-
-    private void SetStakedBalance(Address address, UInt256 balance)
-    {
-        State.SetUInt256($"StakedBalance:{address}", balance);
-    }
-
-    /// <inheritdoc />
-    public UInt256 GetStakedWeight(Address address)
-    {
-        return State.GetUInt256($"StakedWeight:{address}");
-    }
-
-    private void SetStakedWeight(Address address, UInt256 weight)
-    {
-        State.SetUInt256($"StakedWeight:{address}", weight);
-    }
-
-    /// <inheritdoc />
-    public UInt256 GetStakingRewards(Address staker)
-    {
-        return GetStakingRewardsExecute(staker, GetStakedBalance(staker));
+        get => State.GetUInt256(nameof(RewardPerStakedTokenLast));
+        private set => State.SetUInt256(nameof(RewardPerStakedTokenLast), value);
     }
     
     /// <inheritdoc />
-    public void Stake(UInt256 amount)
+    public UInt256 ApplicableStakingRewards
+    {
+        get => State.GetUInt256(nameof(ApplicableStakingRewards));
+        private set => State.SetUInt256(nameof(ApplicableStakingRewards), value);
+    }
+    
+    /// <inheritdoc />
+    public UInt256 GetStoredRewardPerStakedToken(Address staker)
+    {
+        return State.GetUInt256($"RewardPerStakedToken:{staker}");
+    }
+
+    private void SeStoredRewardPerStakedToken(Address staker, UInt256 reward)
+    {
+        State.SetUInt256($"RewardPerStakedToken:{staker}", reward);
+    }
+    
+    /// <inheritdoc />
+    public UInt256 GetStoredReward(Address staker)
+    {
+        return State.GetUInt256($"Reward:{staker}");
+    }
+
+    private void SetStoredReward(Address staker, UInt256 reward)
+    {
+        State.SetUInt256($"Reward:{staker}", reward);
+    }
+    
+    /// <inheritdoc />
+    public UInt256 GetStakedBalance(Address staker)
+    {
+        return State.GetUInt256($"StakedBalance:{staker}");
+    }
+
+    private void SetStakedBalance(Address staker, UInt256 balance)
+    {
+        State.SetUInt256($"StakedBalance:{staker}", balance);
+    }
+
+    /// <inheritdoc />
+    public void StartStaking(UInt256 amount)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
-        
+        Assert(amount > 0, "OPDEX: CANNOT_STAKE_ZERO");
+
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
-        var stakedBalance = GetStakedBalance(Message.Sender);
-        if (stakedBalance > 0)
-        {
-            CollectStakingRewardsExecute(Message.Sender, stakedBalance, false);
-            UnstakeExecute(Message.Sender, stakedBalance, false);
-        }
+        UpdateStakingPosition(Message.Sender);
+
+        var totalStaked = TotalStaked;
         
-        stakedBalance += amount;
+        totalStaked += amount;
+
+        TotalStaked = totalStaked;
+        
+        SetStakedBalance(Message.Sender, GetStakedBalance(Message.Sender) + amount);
         
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
         
-        SetStakedBalance(Message.Sender, stakedBalance);
-        SetStakingWeightExecute(stakedBalance);
+        Log(new StakeLog { Staker = Message.Sender, Amount = amount, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StartStaking});
         
         NominateLiquidityPool();
+        
+        UpdateKLast();
         
         Unlock();
     }
     
     /// <inheritdoc />
-    public void Collect(Address to, bool liquidate)
+    public void CollectStakingRewards(bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
-        var stakedBalance = GetStakedBalance(Message.Sender);
+        UpdateStakingPosition(Message.Sender);
         
-        CollectStakingRewardsExecute(to, stakedBalance, liquidate);
+        CollectStakingRewardsExecute(Message.Sender, liquidate);
         
-        SetStakingWeightExecute(stakedBalance);
+        UpdateKLast();
         
         Unlock();
     }
         
     /// <inheritdoc />
-    public void Unstake(Address to, bool liquidate)
+    public void StopStaking(UInt256 amount, bool liquidate)
     {
         EnsureUnlocked();
         EnsureStakingEnabled();
         
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
+        UpdateStakingPosition(Message.Sender);
+        
         var stakedBalance = GetStakedBalance(Message.Sender);
         
-        CollectStakingRewardsExecute(to, stakedBalance, liquidate);
+        Assert(amount <= stakedBalance && amount > 0, "OPDEX: INVALID_AMOUNT");
+
+        var totalStaked = TotalStaked;
         
-        UnstakeExecute(to, stakedBalance, true);
+        totalStaked -= amount;
+
+        TotalStaked = totalStaked;
+        
+        SetStakedBalance(Message.Sender, stakedBalance - amount);
+        
+        CollectStakingRewardsExecute(Message.Sender, liquidate);
+        
+        SafeTransferTo(StakingToken, Message.Sender, amount);
+        
+        Log(new StakeLog {Amount = amount, Staker = Message.Sender, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StopStaking});
         
         NominateLiquidityPool();
+        
+        UpdateKLast();
         
         Unlock();
     }
@@ -153,11 +186,13 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     public override UInt256 Mint(Address to)
     {
         EnsureUnlocked();
-        
+
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
         var liquidity = MintExecute(to);
         
+        UpdateKLast();
+
         Unlock();
         
         return liquidity;
@@ -171,6 +206,8 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         MintStakingRewards(ReserveCrs, ReserveSrc);
         
         var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
+        
+        UpdateKLast();
         
         Unlock();
         
@@ -205,79 +242,66 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureUnlocked();
         
         UpdateReserves(Balance, GetSrcBalance(Token, Address));
-        
-        StakingRewardsBalance = GetBalance(Address);
-        
+
+        if (TotalStaked > 0)
+        {
+            var balance = GetBalance(Address);
+
+            ApplicableStakingRewards += balance - StakingRewardsBalance;
+            StakingRewardsBalance = balance;
+        }
+
         Unlock();
     }
-
-    private void NominateLiquidityPool()
+    
+    /// <inheritdoc />
+    public UInt256 GetStakingRewards(Address staker)
     {
-        Call(StakingToken, 0ul, nameof(NominateLiquidityPool));
+        var stakedBalance = GetStakedBalance(staker);
+        var rewardPerTokenStaked = GetRewardPerStakedToken();
+        var rewardPerTokenPaid = GetStoredRewardPerStakedToken(staker);
+        var rewardsDifference = rewardPerTokenStaked - rewardPerTokenPaid;
+        var reward = GetStoredReward(staker);
+
+        return reward + (stakedBalance * rewardsDifference / SatsPerToken);
     }
-
-    private void SetStakingWeightExecute(UInt256 balance)
+    
+    /// <inheritdoc />
+    public UInt256 GetRewardPerStakedToken()
     {
-        UInt256 weight = 0;
+        var totalStaked = TotalStaked;
         
-        if (balance > 0)
-        {
-            var totalStaked = TotalStaked;
-            var stakingRewardsBalance = StakingRewardsBalance;
-
-            weight = CalculateStakingWeight(balance, stakingRewardsBalance, totalStaked);
-
-            TotalStaked += balance;
-            
-            Log(new StartStakingLog { Staker = Message.Sender, Amount = balance, TotalStaked = TotalStaked});
-        }
+        if (totalStaked == 0) return RewardPerStakedTokenLast;
         
-        SetStakedWeight(Message.Sender, weight);
+        return RewardPerStakedTokenLast + (ApplicableStakingRewards * SatsPerToken / totalStaked);
     }
 
-    private UInt256 GetStakingRewardsExecute(Address staker, UInt256 balance)
+    private void UpdateStakingPosition(Address address)
     {
-        var stakedWeight = GetStakedWeight(staker);
-        var stakingRewardsBalance = StakingRewardsBalance;
-        var totalStakedApplicable = TotalStakedApplicable;
-        var currentWeight = CalculateStakingWeight(balance, stakingRewardsBalance, totalStakedApplicable);
+        var rewardPerToken = GetRewardPerStakedToken();
 
-        return currentWeight <= stakedWeight ? 0 : currentWeight - stakedWeight;
-    }
-
-    private static UInt256 CalculateStakingWeight(UInt256 stakedBalance, UInt256 rewardsBalance, UInt256 totalStaked)
-    {
-        if (rewardsBalance == 0 || totalStaked == 0) return 0;
-        return stakedBalance * rewardsBalance / totalStaked;
-    }
-
-    private void CollectStakingRewardsExecute(Address to, UInt256 stakedBalance, bool liquidate)
-    {
-        var rewards = GetStakingRewardsExecute(Message.Sender, stakedBalance);
+        ApplicableStakingRewards = 0;
+        RewardPerStakedTokenLast = rewardPerToken;
         
-        TotalStaked -= stakedBalance;
+        SetStoredReward(address, GetStakingRewards(address));
+        SeStoredRewardPerStakedToken(address, rewardPerToken);
+    }
+    
+    private void CollectStakingRewardsExecute(Address to, bool liquidate)
+    {
+        var rewards = GetStoredReward(Message.Sender);
+        
+        // Dust from rounding with no stakers goes to the next burn,mint,skim or sync
+        StakingRewardsBalance = TotalStaked > 0 ? StakingRewardsBalance - rewards : 0;
         
         if (rewards == 0) return;
         
-        StakingRewardsBalance -= rewards;
-        TotalStakedApplicable -= stakedBalance;
+        SetStoredReward(Message.Sender, 0);
+        
+        if (liquidate) BurnExecute(to, rewards);
+        else Assert(TransferTokensExecute(Address, to, rewards), "OPDEX: INVALID_TRANSFER");
 
         Log(new CollectStakingRewardsLog { Staker = Message.Sender, Reward = rewards });
-
-        if (liquidate) BurnExecute(to, rewards);
-        else TransferTokensExecute(Address, to, rewards);
-    }
-
-    private void UnstakeExecute(Address to, UInt256 stakedBalance, bool transfer)
-    {
-        if (transfer)
-        {
-            SafeTransferTo(StakingToken, to, stakedBalance);
-            Log(new StopStakingLog { Staker = Message.Sender, Amount = stakedBalance, TotalStaked = TotalStaked});
-        }
-        
-        SetStakedBalance(Message.Sender, 0);
-        SetStakedWeight(Message.Sender, 0);
     }
 
     private void EnsureStakingEnabled()
@@ -307,11 +331,17 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         var liquidity = numerator / denominator;
         
         if (liquidity == 0) return;
-
+        
         StakingRewardsBalance += liquidity;
-        TotalStakedApplicable = TotalStaked;
+        ApplicableStakingRewards += liquidity;
         
         MintTokensExecute(Address, liquidity);
+    }
+    
+    private void NominateLiquidityPool()
+    {
+        // Failures shouldn't prevent the staking action
+        Call(StakingToken, 0, nameof(NominateLiquidityPool));
     }
 
     private Address InitializeMiningPool(Address token, Address stakingToken)
