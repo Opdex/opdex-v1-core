@@ -9,5 +9,6 @@ public struct CreateMarketLog
     public bool AuthPoolCreators;
     public bool AuthProviders;
     public bool AuthTraders;
-    public uint Fee;
+    public uint TransactionFee;
+    public bool MarketFeeEnabled;
 }

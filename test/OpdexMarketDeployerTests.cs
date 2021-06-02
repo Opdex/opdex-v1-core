@@ -12,45 +12,33 @@ namespace OpdexV1Core.Tests
         [Fact]
         public void CreatesOpdexMarketDeployer_Success()
         {
-            CreateNewOpdexMarketDeployer();
+            var marketDeployer = CreateNewOpdexMarketDeployer();
 
-            VerifyLog(new CreateMarketLog
-            {
-                Market = StakingMarket, 
-                Owner = Owner, 
-                Router = Router,
-                AuthPoolCreators = false, 
-                AuthProviders = false, 
-                AuthTraders = false, 
-                Fee = 3U,
-                StakingToken = StakingToken
-            }, Times.Once);
+            marketDeployer.Owner.Should().Be(Owner);
         }
 
         [Theory]
-        [InlineData(false, false, false, 3)]
-        [InlineData(true, false, false, 10)]
-        [InlineData(false, true, false, 9)]
-        [InlineData(false, true, true, 8)]
-        [InlineData(true, true, false, 0)]
-        [InlineData(true, true, true, 1)]
-        public void CreateStandardMarket_Success(bool authPoolCreators, bool authProviders, bool authTraders, uint fee)
+        [InlineData(false, false, false, 3, true)]
+        [InlineData(true, false, false, 10, false)]
+        [InlineData(false, true, false, 9, true)]
+        [InlineData(false, true, true, 8, false)]
+        [InlineData(true, true, false, 0, true)]
+        [InlineData(true, true, true, 1, false)]
+        public void CreateStandardMarket_Success(bool authPoolCreators, bool authProviders, bool authTraders, uint fee, bool enableMarketFee)
         {
             var marketOwner = Trader0;
             
-            var createParams = new object[] {marketOwner, authPoolCreators, authProviders, authTraders, fee};
+            var createParams = new object[] {fee, marketOwner, authPoolCreators, authProviders, authTraders, enableMarketFee};
             SetupCreate<OpdexStandardMarket>(CreateResult.Succeeded(StandardMarket), 0, createParams);
 
-            var createRouterParams = new object[] {StandardMarket};
+            var createRouterParams = new object[] {StandardMarket, fee, authProviders, authTraders};
             SetupCreate<OpdexRouter>(CreateResult.Succeeded(Router), 0, createRouterParams);
-            
-            SetupCall(StandardMarket, 0, "get_Fee", new object[0], TransferResult.Transferred(fee));
             
             var deployer = CreateNewOpdexMarketDeployer();
             
             SetupMessage(Deployer, Owner);
 
-            var market = deployer.CreateStandardMarket(marketOwner, authPoolCreators, authProviders, authTraders, fee);
+            var market = deployer.CreateStandardMarket(marketOwner, fee, authPoolCreators, authProviders, authTraders, enableMarketFee);
             
             market.Should().Be(StandardMarket);
             
@@ -62,10 +50,11 @@ namespace OpdexV1Core.Tests
                 AuthPoolCreators = authPoolCreators, 
                 AuthProviders = authProviders, 
                 AuthTraders = authTraders, 
-                Fee = fee
+                TransactionFee = fee,
+                MarketFeeEnabled = enableMarketFee
             }, Times.Once);
         }
-        
+
         [Fact]
         public void CreateStandardMarket_Throws_Unauthorized()
         {
@@ -74,7 +63,7 @@ namespace OpdexV1Core.Tests
             SetupMessage(Deployer, Trader1);
             
             deployer
-                .Invoking(d => d.CreateStandardMarket(Owner, true, true, true, 3))
+                .Invoking(d => d.CreateStandardMarket(Owner, 3, true, true, true, false))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: UNAUTHORIZED");
         }
@@ -82,13 +71,13 @@ namespace OpdexV1Core.Tests
         [Fact]
         public void CreateStandardMarket_Throws_InvalidMarket()
         {
-            var createParams = new object[] { Owner, true, true, true, 3U };
+            var createParams = new object[] { 3U, Owner, true, true, true, false };
             SetupCreate<OpdexStandardMarket>(CreateResult.Failed(), 0, createParams);
             
             var deployer = CreateNewOpdexMarketDeployer();
 
             deployer
-                .Invoking(d => d.CreateStandardMarket(Owner, true, true, true, 3))
+                .Invoking(d => d.CreateStandardMarket(Owner, 3, true, true, true, false))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_MARKET");
         }
@@ -121,6 +110,80 @@ namespace OpdexV1Core.Tests
                 .Should()
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: UNAUTHORIZED");
+        }
+        
+        [Fact]
+        public void CreateStakingMarket_Success()
+        {
+            const uint transactionFee = 3;
+            var marketOwner = Owner;
+            
+            var createParams = new object[] {transactionFee, StakingToken};
+            SetupCreate<OpdexStakingMarket>(CreateResult.Succeeded(StakingMarket), 0, createParams);
+
+            var createRouterParams = new object[] {StakingMarket, transactionFee, false, false};
+            SetupCreate<OpdexRouter>(CreateResult.Succeeded(Router), 0, createRouterParams);
+            
+            var deployer = CreateNewOpdexMarketDeployer();
+            
+            SetupMessage(Deployer, marketOwner);
+
+            State.SetContract(StakingToken, true);
+
+            var market = deployer.CreateStakingMarket(StakingToken);
+            
+            market.Should().Be(StakingMarket);
+            
+            VerifyLog(new CreateMarketLog
+            {
+                Market = StakingMarket, 
+                Owner = marketOwner,
+                Router = Router, 
+                TransactionFee = transactionFee,
+                StakingToken = StakingToken
+            }, Times.Once);
+        }
+        
+        [Fact]
+        public void CreateStakingMarket_Throws_Unauthorized()
+        {
+            var deployer = CreateNewOpdexMarketDeployer();
+
+            SetupMessage(Deployer, Trader1);
+            
+            deployer
+                .Invoking(d => d.CreateStakingMarket(StakingToken))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
+        }
+        
+        [Fact]
+        public void CreateStakingMarket_Throws_InvalidMarket()
+        {
+            var createParams = new object[] { 3U, StakingToken };
+            SetupCreate<OpdexStakingMarket>(CreateResult.Failed(), 0, createParams);
+            
+            State.SetContract(StakingToken, true);
+            
+            var deployer = CreateNewOpdexMarketDeployer();
+
+            deployer
+                .Invoking(d => d.CreateStakingMarket(StakingToken))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_MARKET");
+        }
+        
+        [Fact]
+        public void CreateStakingMarket_Throws_InvalidStakingToken()
+        {
+            State.SetContract(StakingToken, false);
+            
+            var deployer = CreateNewOpdexMarketDeployer();
+
+            deployer
+                .Invoking(d => d.CreateStakingMarket(StakingToken))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_STAKING_TOKEN");
         }
     }
 }

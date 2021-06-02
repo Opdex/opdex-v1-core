@@ -14,9 +14,9 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The SRC token address in the liquidity pool.</param>
-    /// <param name="stakingToken">The SRC staking token address.</param>
     /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
-    public OpdexStakingPool(ISmartContractState state, Address token, Address stakingToken, uint fee) : base(state, token, fee) 
+    /// <param name="stakingToken">The SRC staking token address.</param>
+    public OpdexStakingPool(ISmartContractState state, Address token, uint fee, Address stakingToken) : base(state, token, fee) 
     {
         StakingToken = stakingToken;
         MiningPool = InitializeMiningPool(token, stakingToken);
@@ -107,7 +107,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureStakingEnabled();
         Assert(amount > 0, "OPDEX: CANNOT_STAKE_ZERO");
 
-        MintStakingRewards(ReserveCrs, ReserveSrc);
+        MintStakingRewards();
         
         UpdateStakingPosition(Message.Sender);
 
@@ -136,7 +136,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureUnlocked();
         EnsureStakingEnabled();
         
-        MintStakingRewards(ReserveCrs, ReserveSrc);
+        MintStakingRewards();
         
         UpdateStakingPosition(Message.Sender);
         
@@ -153,7 +153,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureUnlocked();
         EnsureStakingEnabled();
         
-        MintStakingRewards(ReserveCrs, ReserveSrc);
+        MintStakingRewards();
         
         UpdateStakingPosition(Message.Sender);
         
@@ -187,7 +187,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     {
         EnsureUnlocked();
 
-        MintStakingRewards(ReserveCrs, ReserveSrc);
+        MintStakingRewards();
         
         var liquidity = MintExecute(to);
         
@@ -203,7 +203,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     {
         EnsureUnlocked();
         
-        MintStakingRewards(ReserveCrs, ReserveSrc);
+        MintStakingRewards();
         
         var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
         
@@ -313,15 +313,24 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         Assert(enabled, "OPDEX: STAKING_UNAVAILABLE");
     }
 
-    private void MintStakingRewards(ulong reserveCrs, UInt256 reserveSrc)
+    private void MintStakingRewards()
     {
-        if (TotalStaked == 0) return;
-        
         var kLast = KLast;
         
         if (kLast == 0) return;
+
+        if (TotalStaked == 0)
+        {
+            // stakers to 0 stakers, klast 100 should be reset to 0
+            // prevent new stakers minting fees they don't yet deserve
+            //
+            // Realistically, UpdateKLast and this method should never run when TotalStaked = 0
+            // Todo: Refactor
+            ResetKLast();
+            return;
+        }
         
-        var rootK = Sqrt(reserveCrs * reserveSrc);
+        var rootK = Sqrt(ReserveCrs * ReserveSrc);
         var rootKLast = Sqrt(kLast);
         
         if (rootK <= rootKLast) return;
@@ -350,7 +359,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         var response = Create<OpdexMiningPool>(0, new object[] {stakingToken, Address});
 
-        Assert(response.Success, "OPDEX: INVALID_MINING_POOL");
+        Assert(response.Success && response.NewContractAddress != Address.Zero, "OPDEX: INVALID_MINING_POOL");
 
         return response.NewContractAddress;
     }

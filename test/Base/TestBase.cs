@@ -94,10 +94,9 @@ namespace OpdexV1Core.Tests.Base
             SetupBlock(10);
             SetupMessage(Deployer, Owner);
             
-            SetupCreate<OpdexRouter>(CreateResult.Succeeded(Router), 0, new object[] {StakingMarket});
             SetupCreate<OpdexStakingMarket>(CreateResult.Succeeded(StakingMarket), 0ul, new object[] { StakingToken, (uint)3 });
 
-            return new OpdexMarketDeployer(_mockContractState.Object, StakingToken);
+            return new OpdexMarketDeployer(_mockContractState.Object);
         }
 
         protected IOpdexStakingMarket CreateNewOpdexStakingMarket(ulong balance = 0)
@@ -106,27 +105,26 @@ namespace OpdexV1Core.Tests.Base
             SetupBalance(balance);
             SetupMessage(StakingMarket, Owner);
             
-            return new OpdexStakingMarket(_mockContractState.Object, StakingToken, 3);
+            return new OpdexStakingMarket(_mockContractState.Object, 3, StakingToken);
         }
 
-        protected IOpdexStandardMarket CreateNewOpdexStandardMarket(bool authPoolCreators = false, bool authProviders = false, bool authTraders = false, uint fee = 3, ulong balance = 0)
+        protected IOpdexStandardMarket CreateNewOpdexStandardMarket(bool authPoolCreators = false, bool authProviders = false, 
+            bool authTraders = false, uint fee = 3, ulong balance = 0, bool marketFeeEnabled = false)
         {
             SetupBlock(10);
             SetupBalance(balance);
             SetupMessage(StandardMarket, Owner);
             
-            return new OpdexStandardMarket(_mockContractState.Object, Owner, authPoolCreators, authProviders, authTraders, fee);
+            return new OpdexStandardMarket(_mockContractState.Object, fee, Owner, authPoolCreators, authProviders, authTraders, marketFeeEnabled);
         }
 
-        protected IOpdexRouter CreateNewOpdexStakingRouter(Address market, uint marketFee)
+        protected IOpdexRouter CreateNewOpdexRouter(Address market, uint marketFee, bool authProviders = false, bool authTraders = false)
         {
             SetupBlock(10);
             SetupBalance(0);
             SetupMessage(StakingMarket, Owner);
             
-            SetupCall(market, 0, "get_Fee", null, TransferResult.Transferred(marketFee));
-            
-            return new OpdexStakingRouter(_mockContractState.Object, market);
+            return new OpdexRouter(_mockContractState.Object, market, marketFee, authProviders, authTraders);
         }
 
         protected IOpdexStakingPool CreateNewOpdexStakingPool(ulong balance = 0, uint fee = 3)
@@ -139,7 +137,7 @@ namespace OpdexV1Core.Tests.Base
             
             SetupCreate<OpdexMiningPool>(CreateResult.Succeeded(MiningPool1), 0ul, new object[] { StakingToken, Pool });
 
-            return new OpdexStakingPool(_mockContractState.Object, Token, StakingToken, fee);
+            return new OpdexStakingPool(_mockContractState.Object, Token, fee, StakingToken);
         }
 
         protected IOpdexStakingPool BlankStakingPool(uint fee, Address? token = null, Address? stakingToken = null)
@@ -147,16 +145,16 @@ namespace OpdexV1Core.Tests.Base
             var setToken = token ?? Token;
             var setStakingToken = stakingToken ?? StakingToken;
             
-            return new OpdexStakingPool(_mockContractState.Object, setToken, setStakingToken, fee);
+            return new OpdexStakingPool(_mockContractState.Object, setToken, fee, setStakingToken);
         }
         
-        protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authProviders = false, bool authTraders = false, uint fee = 3)
+        protected IOpdexStandardPool CreateNewOpdexStandardPool(ulong balance = 0, bool authProviders = false, bool authTraders = false, uint fee = 3, bool marketFeeEnabled = false)
         {
             SetupBlock(10);
             SetupBalance(balance);
             SetupMessage(Pool, StandardMarket);
             
-            return new OpdexStandardPool(_mockContractState.Object, Token, authProviders, authTraders, fee);
+            return new OpdexStandardPool(_mockContractState.Object, Token, fee, authProviders, authTraders, marketFeeEnabled);
         }
         
         protected IOpdexMiningPool CreateNewMiningPool(ulong block = 10)

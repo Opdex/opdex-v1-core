@@ -3,6 +3,33 @@ using Stratis.SmartContracts;
 public interface IOpdexRouter
 {
     /// <summary>
+    /// 
+    /// </summary>
+    public Address Market { get; }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public uint TransactionFee { get; }
+    
+    /// <summary>
+    /// Flag indicating if liquidity providers should be authorized
+    /// </summary>
+    bool AuthProviders { get; }
+        
+    /// <summary>
+    /// Flag indicating if traders should be authorized
+    /// </summary>
+    bool AuthTraders { get; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    Address GetStoredPool(Address token);
+    
+    /// <summary>
     /// Allows users to provide liquidity to a pool, provided amounts must match the same ratio as the pool's current reserves.
     /// SRC20 tokens used for providing liquidity must have previously approved an allowance for this contract to spend.
     /// </summary>

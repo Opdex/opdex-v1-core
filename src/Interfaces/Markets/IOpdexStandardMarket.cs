@@ -18,6 +18,11 @@ public interface IOpdexStandardMarket : IOpdexMarket
     bool AuthPoolCreators { get; }
     
     /// <summary>
+    /// 
+    /// </summary>
+    bool MarketFeeEnabled { get; }
+    
+    /// <summary>
     /// The address of the market owner.
     /// </summary>
     Address Owner { get; }
@@ -54,4 +59,11 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// </summary>
     /// <param name="address">The new market owner to promote.</param>
     void SetOwner(Address address);
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="token"></param>
+    /// <param name="amount"></param>
+    void CollectMarketFees(Address token, UInt256 amount);
 }

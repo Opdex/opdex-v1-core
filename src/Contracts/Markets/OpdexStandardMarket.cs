@@ -11,23 +11,26 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     /// Constructor to initialize a standard market.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
+    /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%.</param>
     /// <param name="owner">The owner of the market.</param>
     /// <param name="authPoolCreators">Flag to authorize liquidity pool creators.</param>
     /// <param name="authProviders">Flag to authorize liquidity pool providers.</param>
     /// <param name="authTraders">Flag to authorize traders.</param>
-    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
+    /// <param name="enableMarketFee">Flag to determine if 1/6 of transaction fees should be collected by the market.</param>
     public OpdexStandardMarket(
         ISmartContractState state, 
+        uint transactionFee,
         Address owner,
         bool authPoolCreators, 
         bool authProviders, 
-        bool authTraders, 
-        uint fee) : base(state, fee)
+        bool authTraders,
+        bool enableMarketFee) : base(state, transactionFee)
     {
         AuthPoolCreators = authPoolCreators;
         AuthProviders = authProviders;
         AuthTraders = authTraders;
         Owner = owner;
+        MarketFeeEnabled = enableMarketFee;
     }
     
     /// <inheritdoc />
@@ -49,6 +52,13 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     {
         get => State.GetBool(nameof(AuthPoolCreators));
         private set => State.SetBool(nameof(AuthPoolCreators), value);
+    }
+    
+    /// <inheritdoc />
+    public bool MarketFeeEnabled
+    {
+        get => State.GetBool(nameof(MarketFeeEnabled));
+        private set => State.SetBool(nameof(MarketFeeEnabled), value);
     }
 
     /// <inheritdoc />
@@ -110,9 +120,9 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         Assert(pool == Address.Zero, "OPDEX: POOL_EXISTS");
         
-        var poolResponse = Create<OpdexStandardPool>(0, new object[] {token, AuthProviders, AuthTraders, Fee});
+        var poolResponse = Create<OpdexStandardPool>(0, new object[] {token, TransactionFee, AuthProviders, AuthTraders, MarketFeeEnabled});
 
-        Assert(poolResponse.Success, "OPDEX: INVALID_POOL");
+        Assert(poolResponse.Success && poolResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_POOL");
 
         pool = poolResponse.NewContractAddress;
         
@@ -122,9 +132,34 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         
         return pool;
     }
+
+    /// <inheritdoc />
+    public void CollectMarketFees(Address token, UInt256 amount)
+    {
+        if (!MarketFeeEnabled) return;
+        
+        var owner = Owner;
+        
+        Assert(Message.Sender == owner, "OPDEX: UNAUTHORIZED");
+
+        var pool = GetPool(token);
+        
+        Assert(pool != Address.Zero, "OPDEX: INVALID_POOL");
+        
+        SafeTransferTo(pool, owner, amount);
+    }
     
     private void EnsureAuthorizationFor(Address address, Permissions permission)
     {
         Assert(IsAuthorized(address, (byte)permission), "OPDEX: UNAUTHORIZED");
+    }
+    
+    private void SafeTransferTo(Address token, Address to, UInt256 amount)
+    {
+        if (amount == 0) return;
+        
+        var result = Call(token, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {to, amount});
+        
+        Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_TO");
     }
 }

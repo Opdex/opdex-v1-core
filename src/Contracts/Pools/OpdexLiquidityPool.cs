@@ -5,28 +5,47 @@ using Stratis.SmartContracts;
 /// unless integrated through a third party contract. The market contract has safeguards and prerequisite
 /// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
 /// </summary>
-public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
+public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 {
     private const ulong MinimumLiquidity = 1000;
+    private const string TokenSymbol = "OLPT";
+    private const string TokenName = "Opdex Liquidity Pool Token";
+    private const byte TokenDecimals = 8;
 
     /// <summary>
     /// Constructor initializing a standard pool contract.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The address of the SRC token in the pool.</param>
-    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
-    protected OpdexLiquidityPool(ISmartContractState state, Address token, uint fee) : base(state)
+    /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%.</param>
+    protected OpdexLiquidityPool(ISmartContractState state, Address token, uint transactionFee) : base(state)
     {
-        Assert(fee <= 10);
+        Assert(transactionFee <= 10);
         Token = token;
-        Fee = fee;
+        TransactionFee = transactionFee;
     }
     
     /// <inheritdoc />
-    public uint Fee
+    public byte Decimals => TokenDecimals;
+    
+    /// <inheritdoc />
+    public string Name => TokenName;
+    
+    /// <inheritdoc />
+    public string Symbol => TokenSymbol;
+    
+    /// <inheritdoc />
+    public UInt256 TotalSupply 
     {
-        get => State.GetUInt32(nameof(Fee));
-        private set => State.SetUInt32(nameof(Fee), value);
+        get => State.GetUInt256(nameof(TotalSupply));
+        private set => State.SetUInt256(nameof(TotalSupply), value);
+    }
+    
+    /// <inheritdoc />
+    public uint TransactionFee
+    {
+        get => State.GetUInt32(nameof(TransactionFee));
+        private set => State.SetUInt32(nameof(TransactionFee), value);
     }
 
     /// <inheritdoc />
@@ -66,6 +85,28 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
     
     /// <inheritdoc />
     public UInt256[] Reserves => new [] { ReserveCrs, ReserveSrc };
+    
+    /// <inheritdoc />
+    public UInt256 GetBalance(Address address)
+    {
+        return State.GetUInt256($"Balance:{address}");
+    } 
+
+    private void SetBalance(Address address, UInt256 amount)
+    {
+        State.SetUInt256($"Balance:{address}", amount);
+    }
+
+    /// <inheritdoc />
+    public UInt256 Allowance(Address owner, Address spender)
+    {
+        return State.GetUInt256($"Allowance:{owner}:{spender}");
+    }
+
+    private void SetAllowance(Address owner, Address spender, UInt256 amount)
+    {
+        State.SetUInt256($"Allowance:{owner}:{spender}", amount);
+    }
 
     /// <inheritdoc />
     public abstract UInt256 Mint(Address to);
@@ -97,7 +138,6 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
     
         MintTokensExecute(to, liquidity);
         UpdateReserves(balanceCrs, balanceSrc);
-        UpdateKLast();
 
         Log(new MintLog
         {
@@ -134,7 +174,6 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
         balanceSrc = GetSrcBalance(token, address);
         
         UpdateReserves(balanceCrs, balanceSrc);
-        UpdateKLast();
         
         Log(new BurnLog
         {
@@ -180,7 +219,7 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
     
         Assert(amountCrsIn > 0 || amountSrcIn > 0, "OPDEX: ZERO_INPUT_AMOUNT");
 
-        var fee = Fee;
+        var fee = TransactionFee;
         const uint feeOffset = 1_000;
 
         var balanceCrsAdjusted = (balanceCrs * feeOffset) - (amountCrsIn * fee);
@@ -216,6 +255,68 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
 
     /// <inheritdoc />
     public abstract void Sync();
+    
+    /// <inheritdoc />
+    public bool TransferTo(Address to, UInt256 amount)
+    {
+        return TransferTokensExecute(Message.Sender, to, amount);
+    }
+    
+    /// <inheritdoc />
+    public bool Approve(Address spender, UInt256 currentAmount, UInt256 amount)
+    {
+        if (Allowance(Message.Sender, spender) != currentAmount) return false;
+
+        SetAllowance(Message.Sender, spender, amount);
+        
+        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount, OldAmount = currentAmount});
+        
+        return true;
+    }
+    
+    /// <inheritdoc />
+    public bool TransferFrom(Address from, Address to, UInt256 amount)
+    {
+        var allowance = Allowance(from, Message.Sender);
+
+        if (allowance < amount) return false;
+        
+        if (allowance > 0) SetAllowance(from, Message.Sender, allowance - amount);
+        
+        return TransferTokensExecute(from, to, amount);
+    }
+    
+    protected bool TransferTokensExecute(Address from, Address to, UInt256 amount)
+    {
+        var fromBalance = GetBalance(from);
+
+        if (fromBalance < amount) return false;
+        
+        SetBalance(from, fromBalance - amount);
+        SetBalance(to, GetBalance(to) + amount);
+        
+        Log(new TransferLog { From = from,  To = to,  Amount = amount });
+        
+        return true;
+    }
+    
+    protected void MintTokensExecute(Address to, UInt256 amount)
+    {
+        TotalSupply += amount;
+
+        SetBalance(to, GetBalance(to) + amount);
+
+        Log(new TransferLog { From = Address.Zero,  To = to,  Amount = amount });
+    }
+    
+    private void BurnTokensExecute(Address from, UInt256 amount)
+    {
+        TotalSupply -= amount;
+
+        SetBalance(from, GetBalance(from) - amount);
+        
+        Log(new TransferLog{ From = from, To = Address.Zero,  Amount = amount });
+    }
 
     protected void UpdateReserves(ulong balanceCrs, UInt256 balanceSrc)
     {
@@ -228,6 +329,11 @@ public abstract class OpdexLiquidityPool : OpdexLiquidityPoolToken, IOpdexPool
     protected void UpdateKLast()
     {
         KLast = ReserveCrs * ReserveSrc;
+    }
+
+    protected void ResetKLast()
+    {
+        KLast = 0;
     }
     
     protected static UInt256 Sqrt(UInt256 value)

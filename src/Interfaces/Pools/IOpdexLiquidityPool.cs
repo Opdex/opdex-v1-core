@@ -1,7 +1,7 @@
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.Standards;
 
-public interface IOpdexPool : IStandardToken256
+public interface IOpdexLiquidityPool : IStandardToken256
 {
     /// <summary>
     /// The liquidity pool token's name.
@@ -51,7 +51,7 @@ public interface IOpdexPool : IStandardToken256
     /// <summary>
     /// The market transaction fee, 0-10 equal to 0-1%.
     /// </summary>
-    uint Fee { get; }
+    uint TransactionFee { get; }
     
     /// <summary>
     /// When adding liquidity, mints new liquidity pool tokens based on differences in reserves and balances.

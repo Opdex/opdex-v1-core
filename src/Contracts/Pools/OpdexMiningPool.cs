@@ -320,7 +320,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         
         var duration = (ulong)response.ReturnValue;
 
-        Assert(duration != 0ul, "OPDEX: INVALID_DURATION_AMOUNT");
+        Assert(duration > 0, "OPDEX: INVALID_DURATION_AMOUNT");
 
         return duration;
     }

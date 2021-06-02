@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public interface IOpdexStandardPool : IOpdexPool
+public interface IOpdexStandardPool : IOpdexLiquidityPool
 {
     /// <summary>
     /// The address of the market the pool is assigned to.
@@ -16,4 +16,9 @@ public interface IOpdexStandardPool : IOpdexPool
     /// Flag to authorize swap type transactions.
     /// </summary>
     bool AuthTraders { get; }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    bool MarketFeeEnabled { get; }
 }

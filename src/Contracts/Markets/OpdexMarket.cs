@@ -9,18 +9,18 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
     /// Constructor to initialize the base of a market.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
-    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
-    protected OpdexMarket(ISmartContractState state, uint fee) : base(state)
+    /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%.</param>
+    protected OpdexMarket(ISmartContractState state, uint transactionFee) : base(state)
     {
-        Assert(fee <= 10, "OPDEX: INVALID_FEE");
-        Fee = fee;
+        Assert(transactionFee <= 10, "OPDEX: INVALID_TRANSACTION_FEE");
+        TransactionFee = transactionFee;
     }
     
     /// <inheritdoc />
-    public uint Fee
+    public uint TransactionFee
     {
-        get => State.GetUInt32(nameof(Fee));
-        private set => State.SetUInt32(nameof(Fee), value);
+        get => State.GetUInt32(nameof(TransactionFee));
+        private set => State.SetUInt32(nameof(TransactionFee), value);
     }
 
     /// <inheritdoc />

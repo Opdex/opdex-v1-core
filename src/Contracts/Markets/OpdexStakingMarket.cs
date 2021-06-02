@@ -10,9 +10,9 @@ public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
     /// Constructor initializing the staking market.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
+    /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%, Market Deploy hard-codes 3.</param>
     /// <param name="stakingToken">The address of the staking token.</param>
-    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%, Market Deploy hard-codes 3.</param>
-    public OpdexStakingMarket(ISmartContractState state, Address stakingToken, uint fee) : base(state, fee)
+    public OpdexStakingMarket(ISmartContractState state, uint transactionFee, Address stakingToken) : base(state, transactionFee)
     {
         StakingToken = stakingToken;
     }
@@ -33,9 +33,9 @@ public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
         
         Assert(pool == Address.Zero, "OPDEX: POOL_EXISTS");
         
-        var poolResponse = Create<OpdexStakingPool>(0, new object[] {token, StakingToken, Fee});
+        var poolResponse = Create<OpdexStakingPool>(0, new object[] {token, TransactionFee, StakingToken});
         
-        Assert(poolResponse.Success, "OPDEX: INVALID_POOL");
+        Assert(poolResponse.Success && poolResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_POOL");
 
         pool = poolResponse.NewContractAddress;
         

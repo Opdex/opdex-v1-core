@@ -1,4 +1,5 @@
 using System;
+using System.Net.PeerToPeer;
 using FluentAssertions;
 using Moq;
 using OpdexV1Core.Tests.Base;
@@ -11,20 +12,20 @@ namespace OpdexV1Core.Tests.Pools
     public class OpdexStandardPoolTests : TestBase
     {
         [Theory]
-        [InlineData(true, false, 0)]
-        [InlineData(true, true, 1)]
-        [InlineData(true, false, 2)]
-        [InlineData(true, false, 3)]
-        [InlineData(false, false, 4)]
-        [InlineData(true, true, 5)]
-        [InlineData(true, false, 6)]
-        [InlineData(false, false, 7)]
-        [InlineData(true, false, 8)]
-        [InlineData(false, true, 9)]
-        [InlineData(true, true, 10)]
-        public void CreatesNewPool_Success(bool authProviders, bool authTraders, uint fee)
+        [InlineData(true, false, 0, true)]
+        [InlineData(true, true, 1, false)]
+        [InlineData(true, false, 2, true)]
+        [InlineData(true, false, 3, false)]
+        [InlineData(false, false, 4, true)]
+        [InlineData(true, true, 5, false)]
+        [InlineData(true, false, 6, true)]
+        [InlineData(false, false, 7, false)]
+        [InlineData(true, false, 8, true)]
+        [InlineData(false, true, 9, false)]
+        [InlineData(true, true, 10, true)]
+        public void CreatesNewPool_Success(bool authProviders, bool authTraders, uint fee, bool marketFeeEnabled)
         {
-            var pool = CreateNewOpdexStandardPool(authProviders: authProviders, authTraders: authTraders, fee: fee);
+            var pool = CreateNewOpdexStandardPool(0ul, authProviders, authTraders, fee, marketFeeEnabled);
             
             pool.Token.Should().Be(Token);
             pool.Decimals.Should().Be(8);
@@ -32,8 +33,9 @@ namespace OpdexV1Core.Tests.Pools
             pool.Symbol.Should().Be("OLPT");
             pool.AuthProviders.Should().Be(authProviders);
             pool.AuthTraders.Should().Be(authTraders);
-            pool.Fee.Should().Be(fee);
+            pool.TransactionFee.Should().Be(fee);
             pool.Market.Should().Be(StandardMarket);
+            pool.MarketFeeEnabled.Should().Be(marketFeeEnabled);
         }
         
         [Fact]
@@ -370,10 +372,14 @@ namespace OpdexV1Core.Tests.Pools
             var mintedLiquidity = pool.Mint(trader);
             mintedLiquidity.Should().Be(expectedLiquidity);
             
-            pool.KLast.Should().Be(expectedKLast);
             pool.TotalSupply.Should().Be(expectedLiquidity + expectedBurnAmount); // burned
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
             pool.ReserveSrc.Should().Be(currentBalanceToken);
+
+            if (pool.MarketFeeEnabled)
+            {
+                pool.KLast.Should().Be(expectedKLast);
+            }
 
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
@@ -439,10 +445,14 @@ namespace OpdexV1Core.Tests.Pools
             var mintedLiquidity = pool.Mint(Trader0);
             mintedLiquidity.Should().Be(expectedLiquidity);
             
-            pool.KLast.Should().Be(expectedK);
             pool.TotalSupply.Should().Be(currentTotalSupply + expectedLiquidity);
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
             pool.ReserveSrc.Should().Be(currentBalanceToken);
+
+            if (pool.MarketFeeEnabled)
+            {
+                pool.KLast.Should().Be(expectedK);
+            }
 
             var traderBalance = pool.GetBalance(trader);
             traderBalance.Should().Be(expectedLiquidity);
@@ -556,9 +566,13 @@ namespace OpdexV1Core.Tests.Pools
             var results = pool.Burn(to);
             results[0].Should().Be((UInt256)expectedReceivedCrs);
             results[1].Should().Be(expectedReceivedSrc);
-            pool.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
-            pool.TotalSupply.Should().Be(currentTotalSupply  - burnAmount);
+            pool.TotalSupply.Should().Be(currentTotalSupply - burnAmount);
+
+            if (pool.MarketFeeEnabled)
+            {
+                pool.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
+            }
             
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, Times.Exactly(2));
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), transferToParams, Times.Once);
@@ -618,9 +632,13 @@ namespace OpdexV1Core.Tests.Pools
             var results = pool.Burn(to);
             results[0].Should().Be((UInt256)expectedReceivedCrs);
             results[1].Should().Be(expectedReceivedSrc);
-            pool.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
             pool.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
+            
+            if (pool.MarketFeeEnabled)
+            {
+                pool.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
+            }
 
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.GetBalance), getBalanceCallParams, Times.Exactly(2));
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.TransferTo), transferToParams, Times.Once);

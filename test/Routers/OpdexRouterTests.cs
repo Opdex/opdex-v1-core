@@ -7,7 +7,7 @@ using Xunit;
 
 namespace OpdexV1Core.Tests.Routers
 {
-    public class OpdexStakingRouterTests : TestBase
+    public class OpdexRouterTests : TestBase
     {
         #region Add Liquidity
 
@@ -22,7 +22,7 @@ namespace OpdexV1Core.Tests.Routers
             const ulong expectedReserveCrs = 0;
             var expectedReserveSrc = UInt256.MinValue;
 
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -62,7 +62,7 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var to = OtherAddress;
 
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -108,7 +108,7 @@ namespace OpdexV1Core.Tests.Routers
         {
             var to = OtherAddress;
 
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -151,7 +151,7 @@ namespace OpdexV1Core.Tests.Routers
         public void AddLiquidity_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, Trader0, deadline))
@@ -170,7 +170,7 @@ namespace OpdexV1Core.Tests.Routers
         {
             var sender = Trader0;
             var receiver = OtherAddress;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -203,7 +203,7 @@ namespace OpdexV1Core.Tests.Routers
         [Fact]
         public void RemoveLiquidity_Throws_InvalidPool()
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             SetupCall(StakingMarket, 0, nameof(IOpdexStakingMarket.GetPool), new object[] {Token}, TransferResult.Transferred(Address.Zero));
             
@@ -221,7 +221,7 @@ namespace OpdexV1Core.Tests.Routers
             UInt256 liquidity = 100;
             const ulong amountCrsMin = 1000;
             UInt256 amountSrcMin = 1000;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -249,7 +249,7 @@ namespace OpdexV1Core.Tests.Routers
             UInt256 liquidity = 100;
             const ulong amountCrsMin = 1000;
             UInt256 amountSrcMin = 1000;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -275,7 +275,7 @@ namespace OpdexV1Core.Tests.Routers
         public void RemoveLiquidity_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.RemoveLiquidity(Token, UInt256.MaxValue, ulong.MaxValue, UInt256.MaxValue, Trader0, deadline))
@@ -302,7 +302,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapExactCrsForSrc_Success(UInt256 amountSrcOutMin, ulong amountCrsIn, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             var sender = Trader0;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -336,7 +336,7 @@ namespace OpdexV1Core.Tests.Routers
         [Fact]
         public void SwapExactCrsForSrc_Throws_InvalidPool()
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
             
             SetupCall(StakingMarket, 0, nameof(IOpdexStakingMarket.GetPool), new object[] {Token}, TransferResult.Transferred(Address.Zero));
 
@@ -350,7 +350,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(6500, 14625, 200_000, 450_000)]
         public void SwapExactCrsForSrc_Throws_InsufficientOutputAmount(UInt256 amountSrcOutMin, ulong amountCrsIn, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -370,7 +370,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapExactCrsForSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.SwapExactCrsForSrc(10ul, Token, Trader0, deadline))
@@ -397,7 +397,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapSrcForExactCrs_Success(ulong amountCrsOut, UInt256 expectedSrcIn, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             var sender = Trader0;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -433,7 +433,7 @@ namespace OpdexV1Core.Tests.Routers
         [Fact]
         public void SwapSrcForExactCrs_Throws_InvalidPool()
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             SetupCall(StakingMarket, 0, nameof(IOpdexStakingMarket.GetPool), new object[] {Token}, TransferResult.Transferred(Address.Zero));
             
@@ -447,7 +447,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(ulong.MaxValue - 1, 2000, 200_000, ulong.MaxValue)]
         public void SwapSrcForExactCrs_Throws_ExcessiveInputAmount(ulong amountCrsOut, UInt256 amountSrcInMax, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -467,7 +467,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapSrcForExactCrs_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.SwapSrcForExactCrs(10ul, UInt256.MaxValue, Token, Trader0, deadline))
@@ -494,7 +494,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapExactSrcForCrs_Success(UInt256 amountSrcIn, ulong amountCrsOutMin, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             var sender = Trader0;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -533,7 +533,7 @@ namespace OpdexV1Core.Tests.Routers
         [Fact]
         public void SwapExactSrcForCrs_Throws_InvalidPool()
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
             
             SetupCall(StakingMarket, 0, nameof(IOpdexStakingMarket.GetPool), new object[] {Token}, TransferResult.Transferred(Address.Zero));
 
@@ -547,7 +547,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(6500, 20000, 200_000, 450_000)]
         public void SwapExactSrcForCrs_Throws_InsufficientOutputAmount(UInt256 amountSrcIn, ulong amountCrsOutMin, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -567,7 +567,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapExactSrcForCrs_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.SwapExactSrcForCrs(10ul, 10ul, Token, Trader0, deadline))
@@ -595,7 +595,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapCrsForExactSrc_Success(ulong amountCrsIn, UInt256 amountSrcOut, UInt256 reserveSrc, ulong reserveCrs, bool requireAuth, uint fee)
         {
             var sender = Trader0;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -641,7 +641,7 @@ namespace OpdexV1Core.Tests.Routers
         [Fact]
         public void SwapCrsForExactSrc_Throws_InvalidPool()
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             SetupCall(StakingMarket, 0, nameof(IOpdexStakingMarket.GetPool), new object[] {Token}, TransferResult.Failed());
 
@@ -655,7 +655,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(2000, 200_000, 450_000)]
         public void SwapCrsForExactSrc_Throws_ExcessiveInputAmount(UInt256 amountSrcOut, UInt256 reserveSrc, ulong reserveCrs)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{Token}", Pool);
 
@@ -674,7 +674,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapCrsForExactSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.SwapCrsForExactSrc(UInt256.MaxValue, Token, Trader0, deadline))
@@ -706,7 +706,7 @@ namespace OpdexV1Core.Tests.Routers
             var tokenInPool = Pool;
             var tokenOutPool = PoolTwo;
             var sender = Trader0;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -759,7 +759,7 @@ namespace OpdexV1Core.Tests.Routers
             var tokenOut = TokenTwo;
             var tokenInPool = Pool;
             var tokenOutPool = PoolTwo;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -784,7 +784,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapSrcForExactSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.SwapSrcForExactSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, deadline))
@@ -816,7 +816,7 @@ namespace OpdexV1Core.Tests.Routers
             var tokenInPool = Pool;
             var tokenOutPool = PoolTwo;
             var sender = Trader0;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -870,7 +870,7 @@ namespace OpdexV1Core.Tests.Routers
             var tokenOut = TokenTwo;
             var tokenInPool = Pool;
             var tokenOutPool = PoolTwo;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             State.SetAddress($"Pool:{tokenIn}", tokenInPool);
             State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
@@ -895,7 +895,7 @@ namespace OpdexV1Core.Tests.Routers
         public void SwapExactSrcForSrc_Throws_ExpiredDeadline()
         {
             const ulong deadline = 1;
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.SwapExactSrcForSrc(UInt256.MaxValue, Token, UInt256.MaxValue, TokenTwo, Trader0, deadline))
@@ -914,7 +914,7 @@ namespace OpdexV1Core.Tests.Routers
         // expected = amountA * reserveB / reserveA;
         public void GetLiquidityQuote_Success(UInt256 amountA, UInt256 reserveA, UInt256 reserveB, UInt256 expected)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
             var quote = market.GetLiquidityQuote(amountA, reserveA, reserveB);
 
             quote.Should().Be(expected);
@@ -923,7 +923,7 @@ namespace OpdexV1Core.Tests.Routers
         [Fact]
         public void GetLiquidityQuote_Throws_InsufficientAmount()
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetLiquidityQuote(0, 10, 100))
@@ -936,7 +936,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(10, 0, 1000)]
         public void GetLiquidityQuote_Throws_InsufficientLiquidity(UInt256 amountA, UInt256 reserveA, UInt256 reserveB)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetLiquidityQuote(amountA, reserveA, reserveB))
@@ -970,7 +970,7 @@ namespace OpdexV1Core.Tests.Routers
         // expected = (amountIn * (1000 - Fee) * reserveOut) / (reserveIn * 1000 + (amountIn * (1000 - Fee)))
         public void GetAmountOut_Success(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected, uint fee)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             var amountOut = market.GetAmountOut(amountIn, reserveIn, reserveOut);
 
@@ -981,7 +981,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(0, 10_000, 100_000)]
         public void GetAmountOut_Throws_InsufficientInputAmount(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountOut(amountIn, reserveIn, reserveOut))
@@ -994,7 +994,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(1_000, 10_000, 0)]
         public void GetAmountOut_Throws_InsufficientLiquidity(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountOut(amountIn, reserveIn, reserveOut))
@@ -1028,7 +1028,7 @@ namespace OpdexV1Core.Tests.Routers
         // expected = (reserveIn * amountOut * 1000) / ((reserveOut - amountOut) * (1000 - Fee)) + 1
         public void GetAmountIn_Success(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut, UInt256 expected, uint fee)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             var amountIn = market.GetAmountIn(amountOut, reserveIn, reserveOut);
 
@@ -1039,7 +1039,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(0, 10_000, 100_000)]
         public void GetAmountIn_Throws_InsufficientInputAmount(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountIn(amountOut, reserveIn, reserveOut))
@@ -1052,7 +1052,7 @@ namespace OpdexV1Core.Tests.Routers
         [InlineData(1_000, 10_000, 0)]
         public void GetAmountIn_Throws_InsufficientLiquidity(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountIn(amountOut, reserveIn, reserveOut))
@@ -1088,7 +1088,7 @@ namespace OpdexV1Core.Tests.Routers
         public void GetAmountIn_SrcToSrc_Success(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc,
             UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc, UInt256 expectedTokenInAmountIn, uint fee)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             var amountIn = market.GetAmountIn(tokenOutAmount, tokenOutReserveCrs, tokenOutReserveSrc, tokenInReserveCrs, tokenInReserveSrc);
 
@@ -1103,7 +1103,7 @@ namespace OpdexV1Core.Tests.Routers
         public void GetAmountIn_SrcToSrc_Throws_InsufficientLiquidity(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc,
             UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountIn(tokenOutAmount, tokenOutReserveCrs, tokenOutReserveSrc, tokenInReserveCrs, tokenInReserveSrc))
@@ -1116,7 +1116,7 @@ namespace OpdexV1Core.Tests.Routers
         public void GetAmountIn_SrcToSrc_Throws_InsufficientInputAmount(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc,
             UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountIn(tokenOutAmount, tokenOutReserveCrs, tokenOutReserveSrc, tokenInReserveCrs, tokenInReserveSrc))
@@ -1152,7 +1152,7 @@ namespace OpdexV1Core.Tests.Routers
         public void GetAmountOut_SrcToSrc_Success(UInt256 tokenInAmount, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc,
             UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, UInt256 expectedTokenOutAmount, uint fee)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, fee);
+            var market = CreateNewOpdexRouter(StakingMarket, fee);
 
             var amountIn = market.GetAmountOut(tokenInAmount, tokenInReserveCrs, tokenInReserveSrc, tokenOutReserveCrs, tokenOutReserveSrc);
 
@@ -1167,7 +1167,7 @@ namespace OpdexV1Core.Tests.Routers
         public void GetAmountOut_SrcToSrc_Throws_InsufficientLiquidity(UInt256 tokenInAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc,
             UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountOut(tokenInAmount, tokenOutReserveCrs, tokenOutReserveSrc, tokenInReserveCrs, tokenInReserveSrc))
@@ -1180,7 +1180,7 @@ namespace OpdexV1Core.Tests.Routers
         public void GetAmountOut_SrcToSrc_Throws_InsufficientInputAmount(UInt256 tokenInAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc,
             UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc)
         {
-            var market = CreateNewOpdexStakingRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StakingMarket, 3);
 
             market
                 .Invoking(c => c.GetAmountOut(tokenInAmount, tokenOutReserveCrs, tokenOutReserveSrc, tokenInReserveCrs, tokenInReserveSrc))

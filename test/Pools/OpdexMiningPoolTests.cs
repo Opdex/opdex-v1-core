@@ -858,7 +858,7 @@ namespace OpdexV1Core.Tests.Pools
         private void StartMining(IOpdexMiningPool miningPool, Address miner, UInt256 amount)
         {
             SetupMessage(MiningPool1, miner);
-            SetupCall(Pool1, 0, nameof(IOpdexPool.TransferFrom), new object[] {miner, MiningPool1, amount}, TransferResult.Transferred(true));
+            SetupCall(Pool1, 0, nameof(IOpdexLiquidityPool.TransferFrom), new object[] {miner, MiningPool1, amount}, TransferResult.Transferred(true));
 
             var currentBalance = miningPool.GetBalance(miner);
             var expectedTotalSupply = miningPool.TotalSupply + amount;
@@ -867,27 +867,27 @@ namespace OpdexV1Core.Tests.Pools
             miningPool.GetBalance(miner).Should().Be(currentBalance + amount);
             miningPool.TotalSupply.Should().Be(expectedTotalSupply);
 
-            VerifyCall(Pool1, 0, nameof(IOpdexPool.TransferFrom), new object[] {miner, MiningPool1, amount}, Times.Once);
+            VerifyCall(Pool1, 0, nameof(IOpdexLiquidityPool.TransferFrom), new object[] {miner, MiningPool1, amount}, Times.Once);
             VerifyLog(new MineLog {Miner = miner, Amount = amount, TotalSupply = expectedTotalSupply, EventType = (byte)MineEventType.StartMining}, Times.Once);
         }
         
         private void CollectMiningRewards(IOpdexMiningPool miningPool, Address miner, UInt256 rewards)
         {
             SetupMessage(MiningPool1, miner);
-            SetupCall(StakingToken, 0, nameof(IOpdexPool.TransferTo), new object[] {miner, rewards}, TransferResult.Transferred(true));
+            SetupCall(StakingToken, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, rewards}, TransferResult.Transferred(true));
 
             miningPool.CollectMiningRewards();
             miningPool.GetStoredReward(miner).Should().Be(UInt256.Zero);
             
-            VerifyCall(StakingToken, 0, nameof(IOpdexPool.TransferTo), new object[] {miner, rewards}, Times.AtLeastOnce);
+            VerifyCall(StakingToken, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, rewards}, Times.AtLeastOnce);
             VerifyLog(new CollectMiningRewardsLog {Miner = miner, Amount = rewards}, Times.AtLeastOnce);
         }
 
         private void StopMining(IOpdexMiningPool miningPool, Address miner, UInt256 amount, UInt256 rewards)
         {
             SetupMessage(MiningPool1, miner);
-            SetupCall(Pool1, 0, nameof(IOpdexPool.TransferTo), new object[] {miner, amount}, TransferResult.Transferred(true));
-            SetupCall(StakingToken, 0, nameof(IOpdexPool.TransferTo), new object[] {miner, rewards}, TransferResult.Transferred(true));
+            SetupCall(Pool1, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, amount}, TransferResult.Transferred(true));
+            SetupCall(StakingToken, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, rewards}, TransferResult.Transferred(true));
 
             var currentBalance = miningPool.GetBalance(miner);
             var expectedTotalSupply = miningPool.TotalSupply - amount;
@@ -897,8 +897,8 @@ namespace OpdexV1Core.Tests.Pools
             miningPool.GetMiningRewards(miner).Should().Be(UInt256.Zero);
             miningPool.TotalSupply.Should().Be(expectedTotalSupply);
             
-            VerifyCall(Pool1, 0, nameof(IOpdexPool.TransferTo), new object[] {miner, amount}, Times.AtLeastOnce);
-            VerifyCall(StakingToken, 0, nameof(IOpdexPool.TransferTo), new object[] {miner, rewards}, Times.AtLeastOnce);
+            VerifyCall(Pool1, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, amount}, Times.AtLeastOnce);
+            VerifyCall(StakingToken, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, rewards}, Times.AtLeastOnce);
             VerifyLog(new CollectMiningRewardsLog { Miner = miner, Amount = rewards }, Times.AtLeastOnce);
             VerifyLog(new MineLog { Miner = miner, Amount = amount, TotalSupply = expectedTotalSupply, EventType = (byte)MineEventType.StopMining }, Times.AtLeastOnce);
         }

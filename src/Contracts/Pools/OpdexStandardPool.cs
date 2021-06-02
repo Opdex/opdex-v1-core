@@ -12,15 +12,17 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="token">The address of the SRC token in the pool.</param>
+    /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%.</param>
     /// <param name="authProviders">Flag to authorize liquidity providers or not.</param>
     /// <param name="authTraders">Flag to authorize traders or not.</param>
-    /// <param name="fee">The market transaction fee, 0-10 equal to 0-1%.</param>
-    public OpdexStandardPool(ISmartContractState state, Address token, bool authProviders, bool authTraders, uint fee) 
-        : base(state, token, fee)
+    /// <param name="marketFeeEnabled">Flag determining if 1/6 of transaction fees are collected by the market owner.</param>
+    public OpdexStandardPool(ISmartContractState state, Address token, uint transactionFee, bool authProviders, bool authTraders, bool marketFeeEnabled) 
+        : base(state, token, transactionFee)
     {
         Market = Message.Sender;
         AuthProviders = authProviders;
         AuthTraders = authTraders;
+        MarketFeeEnabled = marketFeeEnabled;
     }
 
     /// <inheritdoc />
@@ -46,14 +48,27 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
         get => State.GetBool(nameof(AuthTraders));
         private set => State.SetBool(nameof(AuthTraders), value);
     }
+    
+    /// <inheritdoc />
+    public bool MarketFeeEnabled
+    {
+        get => State.GetBool(nameof(MarketFeeEnabled));
+        private set => State.SetBool(nameof(MarketFeeEnabled), value);
+    }
 
     /// <inheritdoc />
     public override UInt256 Mint(Address to)
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
+
+        var marketFeeEnabled = MarketFeeEnabled;
+        
+        if (marketFeeEnabled) MintMarketFee();
         
         var liquidity = MintExecute(to);
+        
+        if (marketFeeEnabled) UpdateKLast();
         
         Unlock();
         
@@ -66,7 +81,13 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         
+        var marketFeeEnabled = MarketFeeEnabled;
+        
+        if (marketFeeEnabled) MintMarketFee();
+        
         var amounts = BurnExecute(to,  GetBalance(Address));
+        
+        if (marketFeeEnabled) UpdateKLast();
         
         Unlock();
         
@@ -117,7 +138,6 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
         {
             case Permissions.Provide when !AuthProviders:
             case Permissions.Trade when !AuthTraders: return true;
-            case Permissions.Unknown: return false;
             default:
                 var authParameters = secondary == Address.Zero 
                     ? new object[] {primary, permission} 
@@ -127,5 +147,25 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
 
                 return isAuthorizedResponse.Success && (bool)isAuthorizedResponse.ReturnValue;
         }
+    }
+    
+    private void MintMarketFee()
+    {
+        var kLast = KLast;
+        
+        if (kLast == 0) return;
+        
+        var rootK = Sqrt(ReserveCrs * ReserveSrc);
+        var rootKLast = Sqrt(kLast);
+        
+        if (rootK <= rootKLast) return;
+        
+        var numerator = TotalSupply * (rootK - rootKLast);
+        var denominator = (rootK * 5) + rootKLast;
+        var liquidity = numerator / denominator;
+        
+        if (liquidity == 0) return;
+
+        MintTokensExecute(Market, liquidity);
     }
 }
