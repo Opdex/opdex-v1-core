@@ -1,9 +1,8 @@
 using Stratis.SmartContracts;
 
 /// <summary>
-/// Standard liquidity pool including CRS and one SRC20 token. Methods in this contract should not be called directly
-/// unless integrated through a third party contract. The market contract has safeguards and prerequisite
-/// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
+/// Base liquidity pool including CRS and an SRC20 token along with a Liquidity Pool token (SRC20) in this contract.
+/// Mint, Swap and Burn methods should be called through an integrated Router contract.
 /// </summary>
 public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 {
@@ -20,7 +19,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
     /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%.</param>
     protected OpdexLiquidityPool(ISmartContractState state, Address token, uint transactionFee) : base(state)
     {
-        Assert(transactionFee <= 10);
+        Assert(transactionFee <= 10, "OPDEX: INVALID_TRANSACTION_FEE");
         Token = token;
         TransactionFee = transactionFee;
     }
@@ -122,6 +121,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
         var totalSupply = TotalSupply;
 
         UInt256 liquidity;
+        
         if (totalSupply == 0)
         {
             liquidity = Sqrt(amountCrs * amountSrc) - MinimumLiquidity;
@@ -196,13 +196,14 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
         var reserveSrc = ReserveSrc;
         var token = Token;
     
-        Assert(amountCrsOut > 0 ^ amountSrcOut > 0, "OPDEX: INVALID_OUTPUT_AMOUNT");
+        Assert(amountCrsOut > 0 || amountSrcOut > 0, "OPDEX: INVALID_OUTPUT_AMOUNT");
         Assert(amountCrsOut < reserveCrs && amountSrcOut < reserveSrc, "OPDEX: INSUFFICIENT_LIQUIDITY");
         Assert(to != token && to != Address, "OPDEX: INVALID_TO");
     
         SafeTransfer(to, amountCrsOut);
         SafeTransferTo(token, to, amountSrcOut);
 
+        // Optional callback
         if (data.Length > 0)
         {
             var callbackData = Serializer.ToStruct<CallbackData>(data);
@@ -222,7 +223,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
         var fee = TransactionFee;
         const uint feeOffset = 1_000;
 
-        var balanceCrsAdjusted = (balanceCrs * feeOffset) - (amountCrsIn * fee);
+        var balanceCrsAdjusted = checked(balanceCrs * feeOffset) - checked(amountCrsIn * fee);
         var balanceSrcAdjusted = (balanceSrc * feeOffset) - (amountSrcIn * fee);
         
         Assert(balanceCrsAdjusted * balanceSrcAdjusted >= reserveCrs * reserveSrc * (feeOffset * feeOffset), "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
@@ -281,7 +282,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 
         if (allowance < amount) return false;
         
-        if (allowance > 0) SetAllowance(from, Message.Sender, allowance - amount);
+        SetAllowance(from, Message.Sender, allowance - amount);
         
         return TransferTokensExecute(from, to, amount);
     }
@@ -336,8 +337,9 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
         KLast = 0;
     }
     
-    protected static UInt256 Sqrt(UInt256 value)
+    private static UInt256 Sqrt(UInt256 value)
     {
+        if (value == 0) return 0;
         if (value <= 3) return 1;
     
         var result = value;
@@ -377,6 +379,24 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
         var result = Call(token, 0, nameof(TransferFrom), new object[] {from, to, amount});
         
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
+    }
+    
+    protected UInt256 CalculateFee()
+    {
+        var kLast = KLast;
+        
+        if (kLast == 0) return 0;
+        
+        var rootK = Sqrt(ReserveCrs * ReserveSrc);
+        var rootKLast = Sqrt(kLast);
+        
+        if (rootK <= rootKLast) return 0;
+        
+        var numerator = TotalSupply * (rootK - rootKLast);
+        var denominator = (rootK * 5) + rootKLast;
+        var liquidity = numerator / denominator;
+        
+        return liquidity;
     }
 
     private void SafeTransfer(Address to, ulong amount)

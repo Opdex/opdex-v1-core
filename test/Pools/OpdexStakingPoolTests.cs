@@ -409,7 +409,7 @@ namespace OpdexV1Core.Tests.Pools
             var mintedLiquidity = pool.Mint(trader);
             mintedLiquidity.Should().Be(expectedLiquidity);
             
-            pool.KLast.Should().Be(expectedKLast);
+            pool.KLast.Should().Be(UInt256.Zero); // nodody staking
             pool.TotalSupply.Should().Be(expectedLiquidity + expectedBurnAmount); // burned
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
             pool.ReserveSrc.Should().Be(currentBalanceSrc);
@@ -637,7 +637,6 @@ namespace OpdexV1Core.Tests.Pools
             const ulong currentReserveCrs = 100_000;
             UInt256 currentReserveSrc = 1_000_000;
             UInt256 currentTotalSupply = 15_000;
-            UInt256 currentKLast = 100_000_000_000;
             UInt256 burnAmount = 14_000; // Total Supply - Minimum Liquidity
             const ulong expectedReceivedCrs = 93_333;
             UInt256 expectedReceivedSrc = 933_333;
@@ -650,7 +649,6 @@ namespace OpdexV1Core.Tests.Pools
             State.SetUInt256(nameof(IOpdexStakingPool.ReserveSrc), currentReserveSrc);
             State.SetUInt256(nameof(IOpdexStakingPool.TotalSupply), currentTotalSupply);
             State.SetUInt256($"Balance:{Pool}", burnAmount);
-            State.SetUInt256(nameof(IOpdexStakingPool.KLast), currentKLast);
             
             SetupCall(Token, 0, nameof(IOpdexStakingPool.GetBalance), new object[] {Pool}, TransferResult.Transferred(currentReserveSrc));
             SetupTransfer(to, expectedReceivedCrs, TransferResult.Transferred(true));
@@ -662,7 +660,6 @@ namespace OpdexV1Core.Tests.Pools
             var results = pool.Burn(to);
             results[0].Should().Be((UInt256)expectedReceivedCrs);
             results[1].Should().Be(expectedReceivedSrc);
-            pool.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
             pool.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
 
@@ -1427,7 +1424,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 stakingRewardsBalance = 0;
             UInt256 currentStakerBalance = 10_000;
             UInt256 expectedReward = 0;
-            UInt256 expectedTotalStaked = totalStaked - currentStakerBalance;
+            UInt256 expectedTotalStaked = 0;
             UInt256 expectedStakerBalance = 0;
             
             var pool = CreateNewOpdexStakingPool();
@@ -1457,7 +1454,7 @@ namespace OpdexV1Core.Tests.Pools
             pool.ApplicableStakingRewards.Should().Be(UInt256.Zero);
             pool.ReserveSrc.Should().Be(reserveSrc);
             pool.ReserveCrs.Should().Be(reserveCrs);
-            pool.KLast.Should().Be(kLast);
+            pool.KLast.Should().Be(UInt256.Zero); // No stakers
             pool.GetStakedBalance(Trader0).Should().Be(expectedStakerBalance);
             pool.GetBalance(Trader0).Should().Be(expectedReward);
             pool.GetStoredReward(Trader0).Should().Be(UInt256.Zero);

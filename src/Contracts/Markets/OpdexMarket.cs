@@ -1,7 +1,7 @@
 using Stratis.SmartContracts;
 
 /// <summary>
-/// An abstract class of core market functionality.
+/// An abstract class of base market functionality.
 /// </summary>
 public abstract class OpdexMarket : SmartContract, IOpdexMarket
 {

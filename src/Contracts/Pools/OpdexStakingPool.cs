@@ -1,9 +1,9 @@
 using Stratis.SmartContracts;
 
 /// <summary>
-/// Standard liquidity pool with added staking capabilities. Inflates liquidity pool token supply
-/// by .05% according to the difference between root K and root KLast. Stakers deposit the staking
-/// token and receive the inflated fees according to their weight staked for governance participation.
+/// Staking liquidity pool including CRS and an SRC20 token along with a Liquidity Pool token (SRC20) in this contract.
+/// Additional staking methods support a staking token used to nominate this pool for liquidity mining in return for partial transaction fees.
+/// Mint, Swap and Burn methods should be called through an integrated Router contract.
 /// </summary>
 public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 {
@@ -107,11 +107,11 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureStakingEnabled();
         Assert(amount > 0, "OPDEX: CANNOT_STAKE_ZERO");
 
-        MintStakingRewards();
+        var totalStaked = TotalStaked;
+        
+        if (totalStaked > 0) MintStakingRewards();
         
         UpdateStakingPosition(Message.Sender);
-
-        var totalStaked = TotalStaked;
         
         totalStaked += amount;
 
@@ -125,7 +125,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         NominateLiquidityPool();
         
-        UpdateKLast();
+        if (totalStaked > 0) UpdateKLast();
         
         Unlock();
     }
@@ -136,13 +136,15 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureUnlocked();
         EnsureStakingEnabled();
         
-        MintStakingRewards();
+        var totalStaked = TotalStaked;
+        
+        if (totalStaked > 0) MintStakingRewards();
         
         UpdateStakingPosition(Message.Sender);
         
         CollectStakingRewardsExecute(Message.Sender, liquidate);
         
-        UpdateKLast();
+        if (totalStaked > 0) UpdateKLast();
         
         Unlock();
     }
@@ -153,7 +155,9 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         EnsureUnlocked();
         EnsureStakingEnabled();
         
-        MintStakingRewards();
+        var totalStaked = TotalStaked;
+        
+        if (totalStaked > 0) MintStakingRewards();
         
         UpdateStakingPosition(Message.Sender);
         
@@ -161,8 +165,6 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         Assert(amount <= stakedBalance && amount > 0, "OPDEX: INVALID_AMOUNT");
 
-        var totalStaked = TotalStaked;
-        
         totalStaked -= amount;
 
         TotalStaked = totalStaked;
@@ -177,7 +179,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         NominateLiquidityPool();
         
-        UpdateKLast();
+        if (totalStaked > 0) UpdateKLast();
         
         Unlock();
     }
@@ -187,11 +189,13 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     {
         EnsureUnlocked();
 
-        MintStakingRewards();
+        var totalStaked = TotalStaked;
+        
+        if (totalStaked > 0) MintStakingRewards();
         
         var liquidity = MintExecute(to);
         
-        UpdateKLast();
+        if (totalStaked > 0) UpdateKLast();
 
         Unlock();
         
@@ -202,12 +206,14 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     public override UInt256[] Burn(Address to)
     {
         EnsureUnlocked();
+
+        var totalStaked = TotalStaked;
         
-        MintStakingRewards();
+        if (totalStaked > 0) MintStakingRewards();
         
         var amounts = BurnExecute(to, GetBalance(Address) - StakingRewardsBalance);
         
-        UpdateKLast();
+        if (totalStaked > 0) UpdateKLast();
         
         Unlock();
         
@@ -247,7 +253,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         {
             var balance = GetBalance(Address);
 
-            ApplicableStakingRewards += balance - StakingRewardsBalance;
+            ApplicableStakingRewards += (balance - StakingRewardsBalance);
             StakingRewardsBalance = balance;
         }
 
@@ -290,9 +296,19 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     private void CollectStakingRewardsExecute(Address to, bool liquidate)
     {
         var rewards = GetStoredReward(Message.Sender);
-        
-        // Dust from rounding with no stakers goes to the next burn,mint,skim or sync
-        StakingRewardsBalance = TotalStaked > 0 ? StakingRewardsBalance - rewards : 0;
+
+        var totalStaked = TotalStaked;
+
+        if (totalStaked == 0)
+        {
+            // Dust from rounding with no stakers goes to the next burn,mint,skim or sync
+            StakingRewardsBalance = 0;
+            ResetKLast();
+        }
+        else
+        {
+            StakingRewardsBalance -= rewards;
+        }
         
         if (rewards == 0) return;
         
@@ -312,33 +328,11 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         
         Assert(enabled, "OPDEX: STAKING_UNAVAILABLE");
     }
-
+    
     private void MintStakingRewards()
     {
-        var kLast = KLast;
-        
-        if (kLast == 0) return;
-
-        if (TotalStaked == 0)
-        {
-            // stakers to 0 stakers, klast 100 should be reset to 0
-            // prevent new stakers minting fees they don't yet deserve
-            //
-            // Realistically, UpdateKLast and this method should never run when TotalStaked = 0
-            // Todo: Refactor
-            ResetKLast();
-            return;
-        }
-        
-        var rootK = Sqrt(ReserveCrs * ReserveSrc);
-        var rootKLast = Sqrt(kLast);
-        
-        if (rootK <= rootKLast) return;
-        
-        var numerator = TotalSupply * (rootK - rootKLast);
-        var denominator = (rootK * 5) + rootKLast;
-        var liquidity = numerator / denominator;
-        
+        var liquidity = CalculateFee();
+    
         if (liquidity == 0) return;
         
         StakingRewardsBalance += liquidity;

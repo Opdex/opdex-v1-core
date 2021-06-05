@@ -15,7 +15,7 @@ public interface IOpdexMarket
     Address GetPool(Address token);
     
     /// <summary>
-    /// Create a liquidity pool for the provided token.
+    /// Create a liquidity pool for the provided token if one does not already exist.
     /// </summary>
     /// <param name="token">The address of the SRC token.</param>
     /// <returns>The address of the created pool.</returns>

@@ -18,7 +18,7 @@ public interface IOpdexStandardPool : IOpdexLiquidityPool
     bool AuthTraders { get; }
     
     /// <summary>
-    /// 
+    /// Flag indicating if the market owner collects 1/6 of all transaction fees.
     /// </summary>
     bool MarketFeeEnabled { get; }
 }

@@ -1,9 +1,9 @@
 using Stratis.SmartContracts;
 
 /// <summary>
-/// Standard liquidity pool including CRS and one SRC20 token. Methods in this contract should not be called directly
-/// unless integrated through a third party contract. The market contract has safeguards and prerequisite
-/// transactions in place. Responsible for managing the pools reserves and the pool's liquidity token.
+/// Standard liquidity pool including CRS and an SRC20 token along with a Liquidity Pool token (SRC20) in this contract.
+/// Configurable authorizations, transaction fees and market fees are set during contract creation.
+/// Mint, Swap and Burn methods should be called through an integrated Router contract.
 /// </summary>
 public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
 {
@@ -85,7 +85,7 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
         
         if (marketFeeEnabled) MintMarketFee();
         
-        var amounts = BurnExecute(to,  GetBalance(Address));
+        var amounts = BurnExecute(to, GetBalance(Address));
         
         if (marketFeeEnabled) UpdateKLast();
         
@@ -151,21 +151,10 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     
     private void MintMarketFee()
     {
-        var kLast = KLast;
-        
-        if (kLast == 0) return;
-        
-        var rootK = Sqrt(ReserveCrs * ReserveSrc);
-        var rootKLast = Sqrt(kLast);
-        
-        if (rootK <= rootKLast) return;
-        
-        var numerator = TotalSupply * (rootK - rootKLast);
-        var denominator = (rootK * 5) + rootKLast;
-        var liquidity = numerator / denominator;
-        
-        if (liquidity == 0) return;
+        var liquidity = CalculateFee();
 
+        if (liquidity == 0) return;
+        
         MintTokensExecute(Market, liquidity);
     }
 }

@@ -1,9 +1,8 @@
-﻿using Stratis.SmartContracts;
+﻿using System;
+using Stratis.SmartContracts;
 
 /// <summary>
-/// Standard market contract used for managing available pools and routing transactions. Validates and completes prerequisite
-/// transactions necessary for adding or removing liquidity or swapping in liquidity pools. Optionally requires a whitelist
-/// for liquidity providing, creating pools, or swaps.
+/// Standard market contract used for managing available pools and optionally permissions for market access.
 /// </summary>
 public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
 {
@@ -26,6 +25,8 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
         bool authTraders,
         bool enableMarketFee) : base(state, transactionFee)
     {
+        if (transactionFee == 0) Assert(!enableMarketFee, "OPDEX: INVALID_MARKET_FEE");
+        
         AuthPoolCreators = authPoolCreators;
         AuthProviders = authProviders;
         AuthTraders = authTraders;
@@ -91,8 +92,9 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     public void Authorize(Address address, byte permission, bool authorize)
     {
         EnsureAuthorizationFor(Message.Sender, Permissions.SetPermissions);
-        
-        Assert((Permissions)permission != Permissions.Unknown, "OPDEX: INVALID_PERMISSION");
+
+        // permission != 0 && permission <= 4
+        Assert((Permissions)permission != Permissions.Unknown && permission <= (byte)Permissions.SetPermissions, "OPDEX: INVALID_PERMISSION");
         
         State.SetBool($"IsAuthorized:{permission}:{address}", authorize);
         
@@ -136,7 +138,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     /// <inheritdoc />
     public void CollectMarketFees(Address token, UInt256 amount)
     {
-        if (!MarketFeeEnabled) return;
+        if (!MarketFeeEnabled || amount == 0) return;
         
         var owner = Owner;
         

@@ -9,6 +9,32 @@ namespace OpdexV1Core.Tests.Routers
 {
     public class OpdexRouterTests : TestBase
     {
+        [Theory]
+        [InlineData(0, true, false)]
+        [InlineData(3, false, true)]
+        [InlineData(8, true, true)]
+        [InlineData(10, false, false)]
+        public void CreateRouter_Success(uint transactionFee, bool authProviders, bool authTraders)
+        {
+            var router = CreateNewOpdexRouter(StandardMarket, transactionFee, authProviders, authTraders);
+
+            router.Market.Should().Be(StandardMarket);
+            router.TransactionFee.Should().Be(transactionFee);
+            router.AuthProviders.Should().Be(authProviders);
+            router.AuthTraders.Should().Be(authTraders);
+        }
+
+        [Fact]
+        public void CreateRouter_Throws_InvalidTransactionFee()
+        {
+            uint invalidFee = 11;
+            
+            this.Invoking(c => c.CreateNewOpdexRouter(StandardMarket, invalidFee))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: INVALID_TRANSACTION_FEE");
+        }
+        
         #region Add Liquidity
 
         [Theory]
@@ -62,17 +88,19 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var to = OtherAddress;
 
-            var market = CreateNewOpdexRouter(StakingMarket, 3);
+            var market = CreateNewOpdexRouter(StandardMarket, 3, authProvider);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            var getPoolParams = new object[] {Token};
+            SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.GetPool), getPoolParams, TransferResult.Transferred(Pool));
 
+            object[] authParams = null;
             if (authProvider)
             {
-                State.SetBool($"IsAuthorized:{(byte) Permissions.Provide}:{sender}", true);
-                State.SetBool($"IsAuthorized:{(byte) Permissions.Provide}:{to}", true);
+                authParams = new object[] {sender, (byte) Permissions.Provide};
+                SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, TransferResult.Transferred(true));
             }
 
-            SetupMessage(StakingMarket, sender, amountCrsDesired);
+            SetupMessage(StandardMarket, sender, amountCrsDesired);
 
             // Call to get reserves from pool
             var expectedReserves = new[] {reserveCrs, reserveSrc};
@@ -98,6 +126,12 @@ namespace OpdexV1Core.Tests.Routers
             VerifyCall(Pool, 0, $"get_{nameof(IOpdexStandardPool.Reserves)}", null, Times.Once);
             VerifyCall(Token, 0, nameof(IOpdexStandardPool.TransferFrom), transferFromParams, Times.Once);
             VerifyCall(Pool, amountCrsDesired, nameof(IOpdexStandardPool.Mint), mintParams, Times.Once);
+            VerifyCall(StandardMarket, 0,nameof(IOpdexStandardMarket.GetPool), getPoolParams, Times.Once);
+
+            if (authProvider)
+            {
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, Times.Once);
+            }
         }
 
         [Theory]
@@ -157,6 +191,25 @@ namespace OpdexV1Core.Tests.Routers
                 .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, Trader0, deadline))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: EXPIRED_DEADLINE");
+        }
+        
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void AddLiquidity_Throws_Unauthorized(bool success)
+        {
+            var market = CreateNewOpdexRouter(StandardMarket, 3, true);
+            
+            SetupMessage(Router, Miner1);
+
+            var transferResult = success ? TransferResult.Transferred(false) : TransferResult.Failed();
+            var authParams = new object[] {Miner1, (byte) Permissions.Provide};
+            SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams, transferResult);
+
+            market
+                .Invoking(c => c.AddLiquidity(Token, 10, 10, 10, Trader0, 0))
+                .Should().Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
         }
 
         #endregion
@@ -777,7 +830,7 @@ namespace OpdexV1Core.Tests.Routers
             market
                 .Invoking(c => c.SwapSrcForExactSrc(amountSrcInMax, tokenIn, amountSrcOut, tokenOut, OtherAddress, 0))
                 .Should().Throw<SmartContractAssertException>()
-                .WithMessage("OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+                .WithMessage("OPDEX: EXCESSIVE_INPUT_AMOUNT");
         }
 
         [Fact]

@@ -3,30 +3,30 @@ using Stratis.SmartContracts;
 public interface IOpdexRouter
 {
     /// <summary>
-    /// 
+    /// The address of the market the router is intended for.
     /// </summary>
-    public Address Market { get; }
+    Address Market { get; }
     
     /// <summary>
-    /// 
+    /// The transaction fee per swap transaction. Ranging from 0-10 equal to 0-1%.
     /// </summary>
-    public uint TransactionFee { get; }
+    uint TransactionFee { get; }
     
     /// <summary>
-    /// Flag indicating if liquidity providers should be authorized
+    /// Flag indicating if liquidity providers should be authorized.
     /// </summary>
     bool AuthProviders { get; }
         
     /// <summary>
-    /// Flag indicating if traders should be authorized
+    /// Flag indicating if traders should be authorized.
     /// </summary>
     bool AuthTraders { get; }
 
     /// <summary>
-    /// 
+    /// Retrieve a pool that has been previously fetched from the market and stored in the router contract.
     /// </summary>
-    /// <param name="token"></param>
-    /// <returns></returns>
+    /// <param name="token">The address of the SRC token used to lookup the pool.</param>
+    /// <returns>The address of the stored liquidity pool.</returns>
     Address GetStoredPool(Address token);
     
     /// <summary>
@@ -34,7 +34,7 @@ public interface IOpdexRouter
     /// SRC20 tokens used for providing liquidity must have previously approved an allowance for this contract to spend.
     /// </summary>
     /// <param name="token">The SRC token address to lookup its pool by.</param>
-    /// <param name="amountSrcDesired">The wishful amount of SRC tokens to deposit.</param>
+    /// <param name="amountSrcDesired">The desired amount of SRC tokens to deposit.</param>
     /// <param name="amountCrsMin">The minimum amount of CRS tokens to deposit.</param>
     /// <param name="amountSrcMin">The minimum amount of SRC tokens to deposit.</param>
     /// <param name="to">The address to deposit the liquidity pool tokens to.</param>
@@ -90,7 +90,7 @@ public interface IOpdexRouter
     ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline);
     
     /// <summary>
-    /// Swaps a maximum amount of CRS tokens for an exact amount of SRC tokens, overpayment is sent back to message sender.
+    /// Swaps a maximum amount of CRS tokens for an exact amount of SRC tokens, overpayment is sent back to the transaction sender.
     /// </summary>
     /// <param name="amountSrcOut">The exact amount of SRC tokens to receive.</param>
     /// <param name="token">The SRC token address to lookup its pool by.</param>
@@ -102,10 +102,12 @@ public interface IOpdexRouter
     /// <summary>
     /// Swaps a maximum amount of SRC tokens for an exact amount of SRC tokens. SRC tokens being swapped must
     /// have previously approved the market contract with the desired amount.
+    /// </summary>
+    /// <remarks>
     /// SRC to SRC token swaps hop between two pools which incurs double the market's transaction
     /// fees but is done in a single transaction. Input SRC tokens are swapped for CRS tokens which
-    /// are then swapped for the desired SRC token.
-    /// </summary>
+    /// are then swapped for the desired SRC tokens.
+    /// </remarks>
     /// <param name="amountSrcInMax">The maximum amount of SRC tokens to swap.</param>
     /// <param name="tokenIn">The address of the SRC token being swapped.</param>
     /// <param name="amountSrcOut">The exact amount of SRC tokens to receive.</param>
@@ -118,10 +120,12 @@ public interface IOpdexRouter
     /// <summary>
     /// Swaps an exact amount of SRC tokens for a minimum amount of SRC tokens. SRC tokens being swapped must
     /// have previously approved the market contract with the desired amount.
+    /// </summary>
+    /// <remarks>
     /// SRC to SRC token swaps hop between two pools which incurs double the market's transaction
     /// fees but is done in a single transaction. Input SRC tokens are swapped for CRS tokens which
-    /// are then swapped for the desired SRC token.
-    /// </summary>
+    /// are then swapped for the desired SRC tokens.
+    /// </remarks>
     /// <param name="amountSrcIn">The amount of SRC tokens to swap.</param>
     /// <param name="tokenIn">The address of the SRC token being swapped.</param>
     /// <param name="amountSrcOutMin">The minimum amount of SRC tokens to receive.</param>
@@ -169,7 +173,7 @@ public interface IOpdexRouter
     /// <param name="tokenOutReserveSrc">The pool's SRC reserve amount of the output token type.</param>
     /// <param name="tokenInReserveCrs">The pool's CRS reserve amount of the input token type.</param>
     /// <param name="tokenInReserveSrc">The pool's SRC reserve amount of the input token type.</param>
-    /// <returns>The number of SRC tokens to deposit.</returns>
+    /// <returns>The number of SRC tokens needed to be input for the desired output.</returns>
     UInt256 GetAmountIn(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc);
     
     /// <summary>
@@ -181,6 +185,6 @@ public interface IOpdexRouter
     /// <param name="tokenInReserveSrc">The pool's SRC reserve amount of the input token type.</param>
     /// <param name="tokenOutReserveCrs">The pool's CRS reserve amount of the output token type.</param>
     /// <param name="tokenOutReserveSrc">The pool's SRC reserve amount of the output token type.</param>
-    /// <returns>The number of SRC tokens to receive.</returns>
+    /// <returns>The number of SRC tokens to be received with the desired input amount.</returns>
     UInt256 GetAmountOut(UInt256 tokenInAmount, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc);
 }

@@ -128,7 +128,9 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     /// <inheritdoc />
     public ulong LatestBlockApplicable()
     {
-        return Block.Number > MiningPeriodEndBlock ? MiningPeriodEndBlock : Block.Number;
+        var miningPeriodEndBlock = MiningPeriodEndBlock;
+        
+        return Block.Number > miningPeriodEndBlock ? miningPeriodEndBlock : Block.Number;
     }
 
     /// <inheritdoc />

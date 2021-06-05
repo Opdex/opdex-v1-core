@@ -1,10 +1,11 @@
 using System;
-using System.Net.PeerToPeer;
 using FluentAssertions;
+using Microsoft.Extensions.ObjectPool;
 using Moq;
 using OpdexV1Core.Tests.Base;
 using Stratis.SmartContracts;
 using Stratis.SmartContracts.CLR;
+using Stratis.SmartContracts.Standards;
 using Xunit;
 
 namespace OpdexV1Core.Tests.Pools
@@ -252,13 +253,13 @@ namespace OpdexV1Core.Tests.Pools
             var pool = CreateNewOpdexStandardPool();
             var from = Trader0;
             var to = Trader1;
-            UInt256 amount = 30;
+            UInt256 amount = 200;
             UInt256 initialFromBalance = 200;
             UInt256 initialToBalance = 50;
-            UInt256 initialSpenderAllowance = 100;
-            UInt256 finalFromBalance = 170;
-            UInt256 finalToBalance = 80;
-            UInt256 finalSpenderAllowance = 70;
+            UInt256 initialSpenderAllowance = 200;
+            UInt256 finalFromBalance = 0;
+            UInt256 finalToBalance = 250;
+            UInt256 finalSpenderAllowance = 0;
          
             State.SetUInt256($"Balance:{from}", initialFromBalance);
             State.SetUInt256($"Balance:{to}", initialToBalance);
@@ -416,21 +417,22 @@ namespace OpdexV1Core.Tests.Pools
             }, Times.Once);
         }
         
-        [Fact]
-        public void MintWithExistingReserves_Success()
+        [Theory]
+        [InlineData(false, 250, 0)]
+        [InlineData(true, 252, 21)]
+        public void MintWithExistingReserves_Success(bool marketFeeEnabled, UInt256 expectedLiquidity, UInt256 mintedFee)
         {
             const ulong currentBalanceCrs = 5_500ul;
             UInt256 currentBalanceToken = 11_000;
             const ulong currentReserveCrs = 5_000;
             UInt256 currentReserveSrc = 10_000;
             UInt256 currentTotalSupply = 2500;
-            UInt256 expectedLiquidity = 250;
             UInt256 expectedKLast = 45_000_000;
             UInt256 expectedK = currentBalanceCrs * currentBalanceToken;
             UInt256 currentTraderBalance = 0;
             var trader = Trader0;
 
-            var pool = CreateNewOpdexStandardPool(currentBalanceCrs);
+            var pool = CreateNewOpdexStandardPool(currentBalanceCrs, marketFeeEnabled: marketFeeEnabled);
             SetupMessage(Pool, trader);
             
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
@@ -445,7 +447,7 @@ namespace OpdexV1Core.Tests.Pools
             var mintedLiquidity = pool.Mint(Trader0);
             mintedLiquidity.Should().Be(expectedLiquidity);
             
-            pool.TotalSupply.Should().Be(currentTotalSupply + expectedLiquidity);
+            pool.TotalSupply.Should().Be(currentTotalSupply + expectedLiquidity + mintedFee);
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
             pool.ReserveSrc.Should().Be(currentBalanceToken);
 
@@ -532,19 +534,19 @@ namespace OpdexV1Core.Tests.Pools
         
         #region Burn Tests
         
-        [Fact]
-        public void BurnPartialLiquidity_Success()
+        [Theory]
+        [InlineData(false, 8_000, 80_000, 0)]
+        [InlineData(true, 7_931, 79_317, 129)]
+        public void BurnPartialLiquidity_Success(bool marketFeeEnabled, ulong expectedReceivedCrs, UInt256 expectedReceivedSrc, UInt256 expectedMintedFee)
         {
             const ulong currentReserveCrs = 100_000;
             UInt256 currentReserveSrc = 1_000_000;
             UInt256 currentTotalSupply = 15_000;
             UInt256 currentKLast = 90_000_000_000;
             UInt256 burnAmount = 1_200;
-            const ulong expectedReceivedCrs = 8_000;
-            UInt256 expectedReceivedSrc = 80_000;
             var to = Trader0;
 
-            var pool = CreateNewOpdexStandardPool(currentReserveCrs);
+            var pool = CreateNewOpdexStandardPool(currentReserveCrs, marketFeeEnabled: marketFeeEnabled);
             SetupMessage(Pool, StandardMarket);
             State.SetUInt64(nameof(IOpdexStandardPool.ReserveCrs), currentReserveCrs);
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
@@ -567,7 +569,8 @@ namespace OpdexV1Core.Tests.Pools
             results[0].Should().Be((UInt256)expectedReceivedCrs);
             results[1].Should().Be(expectedReceivedSrc);
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
-            pool.TotalSupply.Should().Be(currentTotalSupply - burnAmount);
+            pool.TotalSupply.Should().Be(currentTotalSupply - burnAmount + expectedMintedFee);
+            pool.GetBalance(StandardMarket).Should().Be(expectedMintedFee);
 
             if (pool.MarketFeeEnabled)
             {
@@ -791,10 +794,8 @@ namespace OpdexV1Core.Tests.Pools
             }, Times.Once);
         }
 
-        [Theory]
-        [InlineData(0, 0)]
-        [InlineData(1, 1)]
-        public void Swap_Throws_InvalidOutputAmount(ulong amountCrsOut, UInt256 amountSrcOut)
+        [Fact]
+        public void Swap_Throws_InvalidOutputAmount()
         {
             const ulong currentReserveCrs = 450_000;
             UInt256 currentReserveSrc = 200_000;
@@ -806,7 +807,7 @@ namespace OpdexV1Core.Tests.Pools
             State.SetUInt256(nameof(IOpdexStandardPool.ReserveSrc), currentReserveSrc);
             
             pool
-                .Invoking(p => p.Swap(amountCrsOut, amountSrcOut, Trader0, new byte[0]))
+                .Invoking(p => p.Swap(0, 0, Trader0, new byte[0]))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_OUTPUT_AMOUNT");
         }
@@ -1406,6 +1407,210 @@ namespace OpdexV1Core.Tests.Pools
                 Sender = StandardMarket,
                 To = to
             }, Times.Once);
+        }
+
+        #endregion
+        
+        #region Maintain State Tests
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(4)]
+        [InlineData(5)]
+        [InlineData(6)]
+        [InlineData(7)]
+        [InlineData(8)]
+        [InlineData(9)]
+        [InlineData(10)]
+        public void MaintainState_FeesEnabled_NoAuth(uint fee)
+        {
+            var pool = CreateNewOpdexStandardPool(fee: fee, marketFeeEnabled: true);
+            var router = CreateNewOpdexRouter(StandardMarket, fee);
+
+            // trader 0 add liquidity
+            var trader0Liquidity1 = AddLiquidity(pool, Trader0, 100_000_000, 250_000_000);
+            
+            // trader 0 add more liquidity
+            var trader0Liquidity2 = AddLiquidity(pool, Trader0, 100_000_000, 250_000_000);
+            
+            // trader 1 swap src for crs
+            Swap(pool, router, Trader1, 0, 150_000);
+            
+            // miner 1 swap crs for src
+            Swap(pool, router, Miner1, 250_000, 0);
+
+            // miner 1 add liquidity
+            var miner1LiquidityAmountSrc = router.GetLiquidityQuote(300_000_000, pool.ReserveCrs, pool.ReserveSrc);
+            var miner1Liquidity = AddLiquidity(pool, Miner1, 300_000_000, miner1LiquidityAmountSrc);
+            
+            // trader 0 remove liquidity
+            RemoveLiquidity(pool, Trader0, trader0Liquidity1 + trader0Liquidity2);
+            
+            // miner 1 remove liquidity
+            RemoveLiquidity(pool, Miner1, miner1Liquidity);
+
+            // All have exited, total supply should be 1000 burned plus fees to the market
+            pool.TotalSupply.Should().Be(1000 + pool.GetBalance(StandardMarket));
+        }
+
+        private UInt256 AddLiquidity(IOpdexStandardPool pool, Address trader, ulong amountCrs, UInt256 amountSrc)
+        {
+            // Notice we're sending the amountCrs in the message
+            SetupMessage(Pool, trader, amountCrs);
+            
+            // Set balance as the Router contract would have with previous calls in the same transaction
+            // Router uses TransferFrom to send SRC Tokens from the trader to the pool
+            var srcBalance = pool.ReserveSrc + amountSrc;
+            SetupCall(pool.Token, 0, nameof(IStandardToken256.GetBalance), new object[] { Pool }, TransferResult.Transferred(srcBalance));
+
+            // Simulate 1000 burn if TotalSupply is 0
+            var currentTotalSupply = pool.TotalSupply == 0 ? 1000 : pool.TotalSupply;
+            var currentTraderBalance = pool.GetBalance(trader);
+            
+            var expectedMintedFee = CalculateFee(pool);
+            
+            var liquidity = pool.Mint(trader);
+
+            liquidity.Should().NotBe(UInt256.Zero);
+            pool.ReserveSrc.Should().Be(srcBalance);
+            pool.ReserveCrs.Should().Be(pool.Balance);
+            
+            if (pool.MarketFeeEnabled)
+            {
+                pool.KLast.Should().Be(pool.ReserveSrc * pool.ReserveCrs);
+            }
+            else
+            {
+                pool.KLast.Should().Be(UInt256.Zero);
+            }
+            
+            pool.TotalSupply.Should().Be(currentTotalSupply + liquidity + expectedMintedFee);
+            pool.GetBalance(trader).Should().Be(currentTraderBalance + liquidity);
+
+            VerifyLog(new MintLog { AmountCrs = amountCrs, AmountSrc = amountSrc, AmountLpt = liquidity, Sender = trader, To = trader}, Times.Once);
+            VerifyLog(new TransferLog { From = Address.Zero, To = trader, Amount = liquidity}, Times.Once);
+            VerifyLog(new ReservesLog { ReserveCrs = pool.Balance, ReserveSrc = srcBalance}, Times.Once);
+
+            return liquidity;
+        }
+
+        private void Swap(IOpdexStandardPool pool, IOpdexRouter router, Address trader, ulong amountCrsIn, UInt256 amountSrcIn)
+        {
+            SetupMessage(Pool, trader, amountCrsIn);
+
+            // SRC in for CRS out
+            var amountCrsOut = amountCrsIn == 0 ? (ulong)router.GetAmountOut(amountSrcIn, pool.ReserveSrc, pool.ReserveCrs) : 0;
+            
+            // CRS in for SRC Out
+            var amountSrcOut = amountSrcIn == 0 ? router.GetAmountOut(amountCrsIn, pool.ReserveCrs, pool.ReserveSrc) : 0;
+            
+            var currentBalance = pool.GetBalance(trader);
+            var currentReserveCrs = pool.ReserveCrs;
+            var currentReserveSrc = pool.ReserveSrc;
+            var currentKLast = pool.KLast;
+
+            SetupTransfer(trader, amountCrsOut, TransferResult.Transferred(true));
+            SetupCall(pool.Token, 0, nameof(IStandardToken256.TransferTo), new object[] { trader, amountSrcOut }, TransferResult.Transferred(true));
+            var srcBalance = pool.ReserveSrc + amountSrcIn - amountSrcOut;
+            SetupCall(pool.Token, 0, nameof(IStandardToken256.GetBalance), new object[] { Pool }, TransferResult.Transferred(srcBalance));
+            
+            pool.Swap(amountCrsOut, amountSrcOut, trader, new byte[0]);
+            pool.ReserveSrc.Should().Be(currentReserveSrc + amountSrcIn - amountSrcOut);
+            pool.ReserveCrs.Should().Be(currentReserveCrs + amountCrsIn - amountCrsOut);
+            pool.KLast.Should().Be(currentKLast);
+            pool.GetBalance(trader).Should().Be(currentBalance);
+            
+            VerifyLog(new ReservesLog { ReserveCrs = pool.Balance, ReserveSrc = srcBalance}, Times.Once);
+            VerifyLog(new SwapLog
+            {
+                AmountCrsIn = amountCrsIn, AmountCrsOut = amountCrsOut, AmountSrcIn = amountSrcIn, AmountSrcOut = amountSrcOut,
+                Sender = trader, To = trader
+            }, Times.Once);
+        }
+
+        private void RemoveLiquidity(IOpdexStandardPool pool, Address trader, UInt256 amountLpt)
+        {
+            SetupMessage(Pool, trader);
+            
+            var currentBalance = pool.GetBalance(trader);
+            var currentMarketBalance = pool.GetBalance(StandardMarket);
+            var currentReserveCrs = pool.ReserveCrs;
+            var currentReserveSrc = pool.ReserveSrc;
+
+            // Set balance as the Router contract would have with previous calls in the same transaction
+            // Router uses TransferFrom to send LP Tokens from the trader to the pool
+            State.SetUInt256($"Balance:{Pool}", amountLpt);
+            State.SetUInt256($"Balance:{trader}", currentBalance - amountLpt);
+
+            // Manually added and calculate the expected minted fee
+            var expectedMintedFee = CalculateFee(pool);
+            var totalSupplyWithExpectedMintedFee = pool.TotalSupply + expectedMintedFee;
+            var expectedAmountCrs = (ulong)(amountLpt * pool.ReserveCrs / totalSupplyWithExpectedMintedFee);
+            var expectedAmountSrc = amountLpt * pool.ReserveSrc / totalSupplyWithExpectedMintedFee;
+            
+            SetupCall(pool.Token, 0, nameof(IStandardToken256.GetBalance), new object[] { Pool }, TransferResult.Transferred(pool.ReserveSrc), () =>
+            {
+                // Setup second call to get balance after tokens have been transferred to the trader
+                SetupCall(pool.Token, 0, nameof(IStandardToken256.GetBalance), new object[] { Pool }, TransferResult.Transferred(pool.ReserveSrc - expectedAmountSrc));
+            });
+            
+            SetupTransfer(trader, expectedAmountCrs, TransferResult.Transferred(true));
+            SetupCall(pool.Token, 0, nameof(IStandardToken256.TransferTo), new object[] { trader, expectedAmountSrc }, TransferResult.Transferred(true));
+
+            var tokens = pool.Burn(trader);
+
+            ((ulong)tokens[0]).Should().Be(expectedAmountCrs);
+            tokens[1].Should().Be(expectedAmountSrc);
+            
+            var expectedReserveCrs = currentReserveCrs - expectedAmountCrs;
+            var expectedReserveSrc = currentReserveSrc - expectedAmountSrc;
+
+            pool.ReserveSrc.Should().Be(expectedReserveSrc);
+            pool.ReserveCrs.Should().Be(expectedReserveCrs);
+            pool.GetBalance(trader).Should().Be(currentBalance - amountLpt);
+            pool.GetBalance(StandardMarket).Should().Be(currentMarketBalance + expectedMintedFee);
+            
+            if (pool.MarketFeeEnabled)
+            {
+                pool.KLast.Should().NotBe(UInt256.Zero);
+            }
+            else
+            {
+                pool.KLast.Should().Be(UInt256.Zero);
+            }
+            
+            VerifyLog(new BurnLog { AmountCrs = expectedAmountCrs, AmountSrc = expectedAmountSrc, AmountLpt = amountLpt, Sender = trader, To = trader}, Times.Once);
+            VerifyLog(new TransferLog { From = Pool, To = Address.Zero, Amount = amountLpt}, Times.Once);
+            VerifyLog(new ReservesLog { ReserveCrs = expectedReserveCrs, ReserveSrc = expectedReserveSrc}, Times.Once);
+        }
+
+        private UInt256 CalculateFee(IOpdexStandardPool pool)
+        {
+            var rootK = Sqrt(pool.ReserveSrc * pool.ReserveCrs);
+            var rootKLast = Sqrt(pool.KLast);
+            
+            var numerator = pool.TotalSupply * (rootK - rootKLast);
+            var denominator = (rootK * 5) + rootKLast;
+            return numerator / denominator;
+        }
+
+        private UInt256 Sqrt(UInt256 value)
+        {
+            if (value <= 3) return 1;
+    
+            var result = value;
+            var root = (value / 2) + 1;
+    
+            while (root < result) 
+            {
+                result = root;
+                root = ((value / root) + root) / 2;
+            }
+    
+            return result;
         }
 
         #endregion

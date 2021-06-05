@@ -1,8 +1,7 @@
 using Stratis.SmartContracts;
 
 /// <summary>
-/// Staking market contract used for managing available staking pools and routing transactions. Validates and completes prerequisite
-/// transactions necessary for adding or removing liquidity or swapping in liquidity pools.
+/// Staking market contract used for managing available staking pools.
 /// </summary>
 public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
 {
@@ -10,7 +9,7 @@ public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
     /// Constructor initializing the staking market.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
-    /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%, Market Deploy hard-codes 3.</param>
+    /// <param name="transactionFee">The market transaction fee, 0-10 equal to 0-1%.</param>
     /// <param name="stakingToken">The address of the staking token.</param>
     public OpdexStakingMarket(ISmartContractState state, uint transactionFee, Address stakingToken) : base(state, transactionFee)
     {

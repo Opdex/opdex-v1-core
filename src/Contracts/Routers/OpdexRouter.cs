@@ -2,7 +2,7 @@ using Stratis.SmartContracts;
 using Stratis.SmartContracts.Standards;
 
 /// <summary>
-/// A contract used to quote and route multi-step transactions for interactions with liquidity pools.
+/// A contract used to quote and route multi-step transactions for swaps and adding or removing liquidity.
 /// </summary>
 public class OpdexRouter : SmartContract, IOpdexRouter
 {
@@ -11,7 +11,7 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     /// <param name="market">The address of the market associated.</param>
-    /// <param name="transactionFee">0-10 transaction fee representing 0-1% in .1 increments.</param>
+    /// <param name="transactionFee">0-10 transaction fee equal to 0-1%.</param>
     /// <param name="authProviders">Flag indicating if liquidity providers should be authorized.</param>
     /// <param name="authTraders">Flag indicating if traders should be authorized.</param>
     public OpdexRouter(ISmartContractState state, Address market, uint transactionFee, bool authProviders, bool authTraders) : base(state)
@@ -65,14 +65,15 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public UInt256[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         
         var pool = GetValidatedPool(token);
         var amounts = CalculateLiquidityAmounts(pool, Message.Value, amountSrcDesired, amountCrsMin, amountSrcMin);
         var amountCrs = (ulong)amounts[0];
         var amountSrc = amounts[1];
 
+        // Return change
         SafeTransfer(Message.Sender, Message.Value - amountCrs);
         SafeTransferFrom(token, Message.Sender, pool, amountSrc);
 
@@ -85,8 +86,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public UInt256[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
         
         var pool = GetValidatedPool(token);
         
@@ -106,8 +107,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public UInt256 SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         
         var pool = GetValidatedPool(token);
         var reserves = GetReserves(pool);
@@ -123,8 +124,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public UInt256 SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         
         var pool = GetValidatedPool(token);
         var reserves = GetReserves(pool);
@@ -141,8 +142,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         
         var pool = GetValidatedPool(token);
         var reserves = GetReserves(pool);
@@ -159,8 +160,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public ulong SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         
         var pool = GetValidatedPool(token);
         var reserves = GetReserves(pool);
@@ -168,6 +169,7 @@ public class OpdexRouter : SmartContract, IOpdexRouter
         
         Assert(amountIn <= Message.Value, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
         
+        // Return change
         SafeTransfer(Message.Sender, Message.Value - amountIn);
         Swap(0, amountSrcOut, pool, to, amountIn);
 
@@ -177,8 +179,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public UInt256 SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         
         var tokenInPool = GetValidatedPool(tokenIn);
         var tokenOutPool = GetValidatedPool(tokenOut);
@@ -188,7 +190,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
         var amountCrs = (ulong)amounts[0];
         var amountSrcIn = amounts[1];
         
-        Assert(amounts[1] <= amountSrcInMax, "OPDEX: INSUFFICIENT_INPUT_AMOUNT");
+        // Todo: Error Message
+        Assert(amountSrcIn <= amountSrcInMax, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
 
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
         Swap(amountCrs, 0, tokenInPool, tokenOutPool, 0);
@@ -200,8 +203,8 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     /// <inheritdoc />
     public UInt256 SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline)
     {
-        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         ValidateDeadline(deadline);
+        EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
         
         var tokenInPool = GetValidatedPool(tokenIn);
         var tokenOutPool = GetValidatedPool(tokenOut);
@@ -390,14 +393,14 @@ public class OpdexRouter : SmartContract, IOpdexRouter
     
     private void EnsureAuthorizationFor(Address sender, Address recipient, Permissions permission)
     {
-        // Skip auth if sender is recipient, the liquidity pool will authorize the recipient and this contracts address
+        // Skip auth if the sender is the recipient, the liquidity pool will authorize them
         if (sender == recipient) return;
         
         // Skip auth if it is not required for the associated market
         if (permission == Permissions.Trade && !AuthTraders) return;
         if (permission == Permissions.Provide && !AuthProviders) return;
 
-        var authParams = new object[] {Message.Sender, (byte) permission};
+        var authParams = new object[] {Message.Sender, (byte)permission};
         var isAuthorizedResponse = Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParams);
         
         Assert(isAuthorizedResponse.Success && (bool)isAuthorizedResponse.ReturnValue, "OPDEX: UNAUTHORIZED");

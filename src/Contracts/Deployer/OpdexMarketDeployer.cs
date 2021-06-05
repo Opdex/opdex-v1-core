@@ -1,13 +1,13 @@
 using Stratis.SmartContracts;
 
 /// <summary>
-/// Deploys Opdex markets of staking or standard types.
+/// Deploys Opdex markets of staking or standard types with an individual router contract per market.
 /// </summary>
 [Deploy]
 public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
 {
     /// <summary>
-    /// Constructor initializing the contract.
+    /// Constructor initializing the market deployer contract.
     /// </summary>
     /// <param name="state">Smart contract state.</param>
     public OpdexMarketDeployer(ISmartContractState state) : base(state)

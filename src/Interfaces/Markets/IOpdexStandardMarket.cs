@@ -18,7 +18,7 @@ public interface IOpdexStandardMarket : IOpdexMarket
     bool AuthPoolCreators { get; }
     
     /// <summary>
-    /// 
+    /// Flag indicating if the market owner collects 1/6 of all transaction fees.
     /// </summary>
     bool MarketFeeEnabled { get; }
     
@@ -43,11 +43,11 @@ public interface IOpdexStandardMarket : IOpdexMarket
     /// <param name="primary">The primary address to check permissions for.</param>
     /// <param name="secondary">The secondary address to check permissions for.</param>
     /// <param name="permission">The permission to check authorizations for.</param>
-    /// <returns></returns>
+    /// <returns>Flag describing if the addresses are authorized or not.</returns>
     bool IsAuthorized(Address primary, Address secondary, byte permission);
 
     /// <summary>
-    /// Allows permitted addresses to sets authorization for a provided address and permission.
+    /// Allows permitted addresses to set an authorization for a provided address and permission.
     /// </summary>
     /// <param name="address">The address to set the permission for.</param>
     /// <param name="permission">The permission being set. See <see cref="Permissions"/> for list of available options.</param>
@@ -61,9 +61,12 @@ public interface IOpdexStandardMarket : IOpdexMarket
     void SetOwner(Address address);
 
     /// <summary>
-    /// 
+    /// Looks up a pool by the SRC token and transfers any Market contract owned fees (LP tokens) in the pool to the current <see cref="Owner"/> of the market.
     /// </summary>
-    /// <param name="token"></param>
-    /// <param name="amount"></param>
+    /// <remarks>
+    /// See <see cref="IOpdexLiquidityPool.GetBalance"/> for retrieving the current amount of fees available for collection held by the market contract.
+    /// </remarks>
+    /// <param name="token">The SRC token address to lookup the liquidity pool by.</param>
+    /// <param name="amount">The amount of fees (LP tokens) to collect from the pool and transfer to the market owner.</param>
     void CollectMarketFees(Address token, UInt256 amount);
 }
