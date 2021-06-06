@@ -26,7 +26,7 @@ namespace OpdexV1Core.Tests.Markets
             market.TransactionFee.Should().Be(fee);
             market.MarketFeeEnabled.Should().Be(marketFeeEnabled);
         }
-        
+
         [Fact]
         public void CreatesNewStandardMarket_ZeroFee_FeesEnabled_Throws_InvalidMarketFee()
         {
@@ -40,7 +40,7 @@ namespace OpdexV1Core.Tests.Markets
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_MARKET_FEE");
         }
-        
+
         [Fact]
         public void CreatesNewStandardMarket_FeeTooHigh_Throws_InvalidMarketFee()
         {
@@ -56,19 +56,19 @@ namespace OpdexV1Core.Tests.Markets
         }
 
         #region Set Owner
-        
+
         [Fact]
         public void SetOwner_Success()
         {
             var market = CreateNewOpdexStandardMarket();
-            
+
             market.SetOwner(OtherAddress);
 
             market.Owner.Should().Be(OtherAddress);
 
             VerifyLog(new ChangeMarketOwnerLog { From = Owner, To = OtherAddress }, Times.Once);
         }
-        
+
         [Fact]
         public void SetOwner_Throws_Unauthorized()
         {
@@ -82,9 +82,9 @@ namespace OpdexV1Core.Tests.Markets
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: UNAUTHORIZED");
         }
-        
+
         #endregion
-        
+
         #region Authorizations
 
         [Theory]
@@ -101,9 +101,9 @@ namespace OpdexV1Core.Tests.Markets
             var authPoolCreators = (Permissions)permission == Permissions.CreatePool;
             var authProviders = (Permissions)permission == Permissions.Provide;
             var authTraders = (Permissions)permission == Permissions.Trade;
-            
+
             var market = CreateNewOpdexStandardMarket(authPoolCreators, authProviders, authTraders);
-            
+
             market.Authorize(OtherAddress, permission, isAuthorized);
 
             market.IsAuthorized(OtherAddress, permission).Should().Be(isAuthorized);
@@ -115,7 +115,7 @@ namespace OpdexV1Core.Tests.Markets
                 IsAuthorized = isAuthorized
             }, Times.Once);
         }
-        
+
         [Theory]
         [InlineData((byte)Permissions.SetPermissions, true)]
         [InlineData((byte)Permissions.SetPermissions, false)]
@@ -130,15 +130,15 @@ namespace OpdexV1Core.Tests.Markets
             var authPoolCreators = (Permissions)permission == Permissions.CreatePool;
             var authProviders = (Permissions)permission == Permissions.Provide;
             var authTraders = (Permissions)permission == Permissions.Trade;
-            
+
             var market = CreateNewOpdexStandardMarket(authPoolCreators, authProviders, authTraders);
 
             SetupMessage(StandardMarket, Owner);
-            
+
             market.Authorize(OtherAddress, (byte)Permissions.SetPermissions, true);
-            
+
             SetupMessage(StandardMarket, OtherAddress);
-            
+
             market.Authorize(Trader0, permission, isAuthorized);
 
             market.IsAuthorized(Trader0, permission).Should().Be(isAuthorized);
@@ -149,7 +149,7 @@ namespace OpdexV1Core.Tests.Markets
                 Permission = (byte)Permissions.SetPermissions,
                 IsAuthorized = true
             }, Times.Once);
-            
+
             VerifyLog(new ChangeMarketPermissionLog
             {
                 Address = Trader0,
@@ -164,14 +164,14 @@ namespace OpdexV1Core.Tests.Markets
             var market = CreateNewOpdexStandardMarket(true, true, true);
 
             SetupMessage(StandardMarket, Trader0);
-            
+
             market
                 .Invoking(m => m.Authorize(Trader0, (byte) Permissions.SetPermissions, true))
                 .Should()
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: UNAUTHORIZED");
         }
-        
+
         [Theory]
         [InlineData((byte)Permissions.Unknown)]
         [InlineData(9)]
@@ -180,14 +180,14 @@ namespace OpdexV1Core.Tests.Markets
             var market = CreateNewOpdexStandardMarket(true, true, true);
 
             SetupMessage(StandardMarket, Owner);
-            
+
             market
                 .Invoking(m => m.Authorize(Trader0, permission, true))
                 .Should()
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_PERMISSION");
         }
-        
+
         [Theory]
         [InlineData(true, (byte)Permissions.Provide)]
         [InlineData(false, (byte)Permissions.Provide)]
@@ -202,14 +202,14 @@ namespace OpdexV1Core.Tests.Markets
 
             if (authAddress)
             {
-                State.SetBool($"IsAuthorized:{permission}:{Trader0}", true);
+                State.SetBool($"{MarketStateKeys.IsAuthorized}:{permission}:{Trader0}", true);
             }
-            
+
             SetupMessage(StandardMarket, Trader0);
 
             market.IsAuthorized(Trader0, permission).Should().BeTrue();
         }
-        
+
         [Theory]
         [InlineData((byte)Permissions.Provide)]
         [InlineData((byte)Permissions.Trade)]
@@ -239,15 +239,15 @@ namespace OpdexV1Core.Tests.Markets
 
             if (authAddress)
             {
-                State.SetBool($"IsAuthorized:{permission}:{Trader0}", true);
-                State.SetBool($"IsAuthorized:{permission}:{Trader1}", true);
+                State.SetBool($"{MarketStateKeys.IsAuthorized}:{permission}:{Trader0}", true);
+                State.SetBool($"{MarketStateKeys.IsAuthorized}:{permission}:{Trader1}", true);
             }
-            
+
             SetupMessage(StandardMarket, Trader0);
 
             market.IsAuthorized(Trader0, Trader1, permission).Should().BeTrue();
         }
-        
+
         [Theory]
         [InlineData((byte)Permissions.Provide)]
         [InlineData((byte)Permissions.Trade)]
@@ -262,9 +262,9 @@ namespace OpdexV1Core.Tests.Markets
 
             market.IsAuthorized(Trader0, permission).Should().BeFalse();
         }
-        
+
         #endregion
-        
+
         #region Pools
 
         [Theory]
@@ -277,13 +277,13 @@ namespace OpdexV1Core.Tests.Markets
         public void CreateStandardPool_Success(bool authProviders, bool authTraders, uint fee)
         {
             const bool authPoolCreators = false;
-            
+
             var market = CreateNewOpdexStandardMarket(authPoolCreators, authProviders, authTraders, fee);
-            
+
             State.SetContract(Token, true);
 
             var parameters = new object[] { Token, market.TransactionFee, market.AuthProviders, market.AuthTraders, false };
-            
+
             SetupCreate<OpdexStandardPool>(CreateResult.Succeeded(Pool), parameters: parameters);
 
             var pool = market.CreatePool(Token);
@@ -295,84 +295,84 @@ namespace OpdexV1Core.Tests.Markets
             market.Owner.Should().Be(Owner);
 
             var expectedPoolCreatedLog = new CreateLiquidityPoolLog { Token = Token, Pool = Pool };
-            
+
             VerifyLog(expectedPoolCreatedLog, Times.Once);
         }
-        
+
         [Fact]
         public void CreatesNewStandardPool_Throws_Unauthorized()
         {
             var unauthorizedUser = Trader0;
-            
+
             var market = CreateNewOpdexStandardMarket(authPoolCreators: true);
-            
+
             State.SetContract(Token, true);
 
             var parameters = new object[] { Token, false, false, market.TransactionFee };
-            
+
             SetupCreate<OpdexStandardPool>(CreateResult.Succeeded(Pool), parameters: parameters);
 
             SetupMessage(StandardMarket, unauthorizedUser);
-            
+
             market
                 .Invoking(p => p.CreatePool(Token))
                 .Should()
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: UNAUTHORIZED");
         }
-        
+
         #endregion
-        
+
         #region Collect Market Fees
 
         [Fact]
         public void CollectMarketFees_Success_TransferFees()
         {
             UInt256 amount = 250;
-            
+
             var market = CreateNewOpdexStandardMarket(marketFeeEnabled: true);
-            
-            State.SetAddress($"Pool:{Token}", Pool);
+
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Pool);
 
             var transferParams = new object[] {Owner, amount};
             SetupCall(Pool, 0, nameof(IOpdexLiquidityPool.TransferTo), transferParams, TransferResult.Transferred(true));
-            
+
             SetupMessage(StandardMarket, Owner);
-            
+
             market.CollectMarketFees(Token, amount);
-            
+
             VerifyCall(Pool, 0, nameof(IOpdexLiquidityPool.TransferTo), transferParams, Times.Once);
         }
-        
+
         [Fact]
         public void CollectMarketFees_Success_MarketFeesDisabled()
         {
             UInt256 amount = 765;
-            
+
             var market = CreateNewOpdexStandardMarket(marketFeeEnabled: false);
-            
-            State.SetAddress($"Pool:{Token}", Pool);
-            
+
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Pool);
+
             SetupMessage(StandardMarket, Owner);
-            
+
             market.CollectMarketFees(Token, amount);
-            
+
             VerifyCall(It.IsAny<Address>(), It.IsAny<ulong>(), It.IsAny<string>(), It.IsAny<object[]>(), Times.Never);
         }
-        
+
         [Fact]
         public void CollectMarketFees_Success_ZeroAmount()
         {
             UInt256 amount = 0;
-            
+
             var market = CreateNewOpdexStandardMarket(marketFeeEnabled: true);
-            
-            State.SetAddress($"Pool:{Token}", Pool);
-            
+
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Pool);
+
             SetupMessage(StandardMarket, Owner);
-            
+
             market.CollectMarketFees(Token, amount);
-            
+
             VerifyCall(It.IsAny<Address>(), It.IsAny<ulong>(), It.IsAny<string>(), It.IsAny<object[]>(), Times.Never);
         }
 
@@ -380,11 +380,11 @@ namespace OpdexV1Core.Tests.Markets
         public void CollectMarketFees_Unauthorized()
         {
             UInt256 amount = 763;
-            
+
             var market = CreateNewOpdexStandardMarket(marketFeeEnabled: true);
-            
-            State.SetAddress($"Pool:{Token}", Pool);
-            
+
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Pool);
+
             SetupMessage(StandardMarket, Trader0);
 
             market
@@ -398,11 +398,11 @@ namespace OpdexV1Core.Tests.Markets
         public void CollectMarketFees_InvalidPool()
         {
             UInt256 amount = 763;
-            
+
             var market = CreateNewOpdexStandardMarket(marketFeeEnabled: true);
-            
-            State.SetAddress($"Pool:{Token}", Address.Zero);
-            
+
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Address.Zero);
+
             SetupMessage(StandardMarket, Owner);
 
             market
@@ -411,28 +411,28 @@ namespace OpdexV1Core.Tests.Markets
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_POOL");
         }
-        
+
         [Fact]
         public void CollectMarketFees_Throws_InvalidTransferTo()
         {
             UInt256 amount = 250;
-            
+
             var market = CreateNewOpdexStandardMarket(marketFeeEnabled: true);
-            
-            State.SetAddress($"Pool:{Token}", Pool);
+
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Pool);
 
             var transferParams = new object[] {Owner, amount};
             SetupCall(Pool, 0, nameof(IOpdexLiquidityPool.TransferTo), transferParams, TransferResult.Failed());
-            
+
             SetupMessage(StandardMarket, Owner);
-            
+
             market
                 .Invoking(m => m.CollectMarketFees(Token, amount))
                 .Should()
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_TRANSFER_TO");
         }
-        
+
         #endregion
     }
 }

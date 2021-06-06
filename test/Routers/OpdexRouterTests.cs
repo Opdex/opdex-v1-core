@@ -50,7 +50,7 @@ namespace OpdexV1Core.Tests.Routers
 
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress, amountCrsDesired);
 
@@ -144,7 +144,7 @@ namespace OpdexV1Core.Tests.Routers
 
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress, amountCrsDesired);
 
@@ -225,7 +225,7 @@ namespace OpdexV1Core.Tests.Routers
             var receiver = OtherAddress;
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             if (authProvider)
             {
@@ -276,7 +276,7 @@ namespace OpdexV1Core.Tests.Routers
             UInt256 amountSrcMin = 1000;
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress);
 
@@ -304,7 +304,7 @@ namespace OpdexV1Core.Tests.Routers
             UInt256 amountSrcMin = 1000;
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress);
 
@@ -357,7 +357,7 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var market = CreateNewOpdexRouter(StakingMarket, fee);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             if (requireAuth)
             {
@@ -405,7 +405,7 @@ namespace OpdexV1Core.Tests.Routers
         {
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress, amountCrsIn);
 
@@ -452,7 +452,7 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var market = CreateNewOpdexRouter(StakingMarket, fee);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             if (requireAuth)
             {
@@ -502,7 +502,7 @@ namespace OpdexV1Core.Tests.Routers
         {
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress);
 
@@ -549,7 +549,7 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var market = CreateNewOpdexRouter(StakingMarket, fee);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             if (requireAuth)
             {
@@ -602,7 +602,7 @@ namespace OpdexV1Core.Tests.Routers
         {
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress);
 
@@ -650,7 +650,7 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var market = CreateNewOpdexRouter(StakingMarket, fee);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             if (requireAuth)
             {
@@ -710,7 +710,7 @@ namespace OpdexV1Core.Tests.Routers
         {
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{Token}", Pool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{Token}", Pool);
 
             SetupMessage(StakingMarket, OtherAddress);
 
@@ -761,8 +761,8 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var market = CreateNewOpdexRouter(StakingMarket, fee);
 
-            State.SetAddress($"Pool:{tokenIn}", tokenInPool);
-            State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenIn}", tokenInPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenOut}", tokenOutPool);
 
             if (requireAuth)
             {
@@ -814,8 +814,8 @@ namespace OpdexV1Core.Tests.Routers
             var tokenOutPool = PoolTwo;
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{tokenIn}", tokenInPool);
-            State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenIn}", tokenInPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenOut}", tokenOutPool);
 
             SetupMessage(StakingMarket, OtherAddress);
 
@@ -871,8 +871,8 @@ namespace OpdexV1Core.Tests.Routers
             var sender = Trader0;
             var market = CreateNewOpdexRouter(StakingMarket, fee);
 
-            State.SetAddress($"Pool:{tokenIn}", tokenInPool);
-            State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenIn}", tokenInPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenOut}", tokenOutPool);
 
             if (requireAuth)
             {
@@ -925,8 +925,8 @@ namespace OpdexV1Core.Tests.Routers
             var tokenOutPool = PoolTwo;
             var market = CreateNewOpdexRouter(StakingMarket, 3);
 
-            State.SetAddress($"Pool:{tokenIn}", tokenInPool);
-            State.SetAddress($"Pool:{tokenOut}", tokenOutPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenIn}", tokenInPool);
+            State.SetAddress($"{RouterStateKeys.Pool}:{tokenOut}", tokenOutPool);
 
             SetupMessage(StakingMarket, OtherAddress);
 

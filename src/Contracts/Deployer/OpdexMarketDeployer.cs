@@ -18,20 +18,20 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     /// <inheritdoc />
     public Address Owner
     {
-        get => State.GetAddress(nameof(Owner));
-        private set => State.SetAddress(nameof(Owner), value);
+        get => State.GetAddress(DeployerStateKeys.Owner);
+        private set => State.SetAddress(DeployerStateKeys.Owner, value);
     }
-    
+
     /// <inheritdoc />
     public void SetOwner(Address address)
     {
         EnsureOwnerOnly();
-        
+
         Owner = address;
-        
+
         Log(new ChangeDeployerOwnerLog {From = Message.Sender, To = address});
     }
-    
+
     /// <inheritdoc />
     public Address CreateStandardMarket(Address marketOwner, uint transactionFee, bool authPoolCreators, bool authProviders, bool authTraders, bool enableMarketFee)
     {
@@ -41,47 +41,47 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         var marketResponse = Create<OpdexStandardMarket>(0, marketParams);
 
         Assert(marketResponse.Success && marketResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_MARKET");
-        
+
         var market = marketResponse.NewContractAddress;
         var router = CreateOpdexRouter(market, transactionFee, authProviders, authTraders);
 
         Log(new CreateMarketLog
         {
-            Market = market, 
+            Market = market,
             Owner = marketOwner,
             Router = router,
-            AuthPoolCreators = authPoolCreators, 
-            AuthProviders = authProviders, 
-            AuthTraders = authTraders, 
+            AuthPoolCreators = authPoolCreators,
+            AuthProviders = authProviders,
+            AuthTraders = authTraders,
             TransactionFee = transactionFee,
             MarketFeeEnabled = enableMarketFee
         });
-            
+
         return market;
     }
-        
+
     /// <inheritdoc />
     public Address CreateStakingMarket(Address stakingToken)
     {
         EnsureOwnerOnly();
-        
+
         const uint transactionFee = 3; // .3% for the staking market
-        
+
         Assert(State.IsContract(stakingToken), "OPDEX: INVALID_STAKING_TOKEN");
 
         var marketParams = new object[] {transactionFee, stakingToken};
         var marketResponse = Create<OpdexStakingMarket>(0, marketParams);
-        
+
         Assert(marketResponse.Success && marketResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_MARKET");
 
         var market = marketResponse.NewContractAddress;
         var router = CreateOpdexRouter(market, transactionFee, false, false);
 
         Log(new CreateMarketLog
-        { 
-            Market = market, 
+        {
+            Market = market,
             Owner = Message.Sender,
-            Router = router, 
+            Router = router,
             TransactionFee = transactionFee,
             StakingToken = stakingToken
         });
@@ -92,9 +92,9 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     private Address CreateOpdexRouter(Address market, uint transactionFee, bool authProviders, bool authTraders)
     {
         var routerResponse = Create<OpdexRouter>(0, new object[] {market, transactionFee, authProviders, authTraders});
-        
+
         Assert(routerResponse.Success && routerResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_ROUTER");
-        
+
         return routerResponse.NewContractAddress;
     }
 

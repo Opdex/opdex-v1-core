@@ -15,25 +15,25 @@ public abstract class OpdexMarket : SmartContract, IOpdexMarket
         Assert(transactionFee <= 10, "OPDEX: INVALID_TRANSACTION_FEE");
         TransactionFee = transactionFee;
     }
-    
+
     /// <inheritdoc />
     public uint TransactionFee
     {
-        get => State.GetUInt32(nameof(TransactionFee));
-        private set => State.SetUInt32(nameof(TransactionFee), value);
+        get => State.GetUInt32(MarketStateKeys.TransactionFee);
+        private set => State.SetUInt32(MarketStateKeys.TransactionFee, value);
     }
 
     /// <inheritdoc />
     public Address GetPool(Address token)
     {
-        return State.GetAddress($"Pool:{token}");
+        return State.GetAddress($"{MarketStateKeys.Pool}:{token}");
     }
 
     /// <inheritdoc />
     public abstract Address CreatePool(Address token);
-    
+
     protected void SetPool(Address token, Address contract)
     {
-        State.SetAddress($"Pool:{token}", contract);
+        State.SetAddress($"{MarketStateKeys.Pool}:{token}", contract);
     }
 }

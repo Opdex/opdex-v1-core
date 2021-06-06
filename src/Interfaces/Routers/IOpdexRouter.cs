@@ -6,17 +6,17 @@ public interface IOpdexRouter
     /// The address of the market the router is intended for.
     /// </summary>
     Address Market { get; }
-    
+
     /// <summary>
     /// The transaction fee per swap transaction. Ranging from 0-10 equal to 0-1%.
     /// </summary>
     uint TransactionFee { get; }
-    
+
     /// <summary>
     /// Flag indicating if liquidity providers should be authorized.
     /// </summary>
     bool AuthProviders { get; }
-        
+
     /// <summary>
     /// Flag indicating if traders should be authorized.
     /// </summary>
@@ -27,8 +27,8 @@ public interface IOpdexRouter
     /// </summary>
     /// <param name="token">The address of the SRC token used to lookup the pool.</param>
     /// <returns>The address of the stored liquidity pool.</returns>
-    Address GetStoredPool(Address token);
-    
+    Address GetPool(Address token);
+
     /// <summary>
     /// Allows users to provide liquidity to a pool, provided amounts must match the same ratio as the pool's current reserves.
     /// SRC20 tokens used for providing liquidity must have previously approved an allowance for this contract to spend.
@@ -41,7 +41,7 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The final amounts used to provide liquidity. [amountCrsIn, amountSrcIn, amountLptOut]</returns>
     UInt256[] AddLiquidity(Address token, UInt256 amountSrcDesired, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline);
-    
+
     /// <summary>
     /// Remove liquidity from a specified pool. Liquidity Pool tokens being removed and burned must
     /// have previously approved the market contract with the desired burn amount.
@@ -54,9 +54,9 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The amounts of received reserve tokens. [amountCrsOut, amountSrcOut]</returns>
     UInt256[] RemoveLiquidity(Address token, UInt256 liquidity, ulong amountCrsMin, UInt256 amountSrcMin, Address to, ulong deadline);
-    
+
     /// <summary>
-    /// Swaps an exact amount of CRS tokens for a set minimum amount of SRC tokens. 
+    /// Swaps an exact amount of CRS tokens for a set minimum amount of SRC tokens.
     /// </summary>
     /// <param name="amountSrcOutMin">The minimum amount of SRC tokens acceptable to receive.</param>
     /// <param name="token">The SRC token address to lookup its pool by.</param>
@@ -64,7 +64,7 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The final amount of SRC tokens received.</returns>
     UInt256 SwapExactCrsForSrc(UInt256 amountSrcOutMin, Address token, Address to, ulong deadline);
-    
+
     /// <summary>
     /// Swaps a maximum amount of SRC tokens for an exact amount of CRS tokens.
     /// SRC tokens must have previously approved the market contract with the desired amount.
@@ -76,7 +76,7 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The final amount of CRS tokens swapped.</returns>
     UInt256 SwapSrcForExactCrs(ulong amountCrsOut, UInt256 amountSrcInMax, Address token, Address to, ulong deadline);
-    
+
     /// <summary>
     /// Swaps an exact amount of SRC tokes for a minimum amount of CRS tokens. Swapped SRC tokens must have
     /// previously approved the market contract with the desired amount.
@@ -88,7 +88,7 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The final amount of CRS tokens received.</returns>
     ulong SwapExactSrcForCrs(UInt256 amountSrcIn, ulong amountCrsOutMin, Address token, Address to, ulong deadline);
-    
+
     /// <summary>
     /// Swaps a maximum amount of CRS tokens for an exact amount of SRC tokens, overpayment is sent back to the transaction sender.
     /// </summary>
@@ -98,7 +98,7 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The final amount of CRS tokens swapped.</returns>
     ulong SwapCrsForExactSrc(UInt256 amountSrcOut, Address token, Address to, ulong deadline);
-    
+
     /// <summary>
     /// Swaps a maximum amount of SRC tokens for an exact amount of SRC tokens. SRC tokens being swapped must
     /// have previously approved the market contract with the desired amount.
@@ -116,7 +116,7 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The final amount of SRC tokens swapped.</returns>
     UInt256 SwapSrcForExactSrc(UInt256 amountSrcInMax, Address tokenIn, UInt256 amountSrcOut, Address tokenOut, Address to, ulong deadline);
-    
+
     /// <summary>
     /// Swaps an exact amount of SRC tokens for a minimum amount of SRC tokens. SRC tokens being swapped must
     /// have previously approved the market contract with the desired amount.
@@ -134,7 +134,7 @@ public interface IOpdexRouter
     /// <param name="deadline">Block number deadline to execute the transaction by.</param>
     /// <returns>The final amount of SRC tokens received.</returns>
     UInt256 SwapExactSrcForSrc(UInt256 amountSrcIn, Address tokenIn, UInt256 amountSrcOutMin, Address tokenOut, Address to, ulong deadline);
-    
+
     /// <summary>
     /// Calculates the value of amountB to be deposited with amountA to a pool based on the pool's current reserves.
     /// </summary>
@@ -143,7 +143,7 @@ public interface IOpdexRouter
     /// <param name="reserveB">The pool's reserve of the TokenB.</param>
     /// <returns>The amount of necessary tokens to provide for TokenB.</returns>
     UInt256 GetLiquidityQuote(UInt256 amountA, UInt256 reserveA, UInt256 reserveB);
-    
+
     /// <summary>
     /// Calculate the amount returned after transaction fees based on the token input amount and the pool's reserves.
     /// Used for CRS-SRC or SRC-CRS single pool transactions.
@@ -153,7 +153,7 @@ public interface IOpdexRouter
     /// <param name="reserveOut">The pool's reserve amount of the output token type.</param>
     /// <returns>Number of tokens to receive.</returns>
     UInt256 GetAmountOut(UInt256 amountIn, UInt256 reserveIn, UInt256 reserveOut);
-    
+
     /// <summary>
     /// Calculates the necessary deposit amount, including transaction fees, based on the amount to receive and the pool's reserves.
     /// Used for CRS-SRC or SRC-CRS single pool transactions.
@@ -163,7 +163,7 @@ public interface IOpdexRouter
     /// <param name="reserveOut">The pool's reserve amount of the output token type.</param>
     /// <returns>Number of tokens to deposit.</returns>
     UInt256 GetAmountIn(UInt256 amountOut, UInt256 reserveIn, UInt256 reserveOut);
-    
+
     /// <summary>
     /// Calculates the necessary SRC deposit amount, including transaction fees, based on the amount to receive and the pool's reserves.
     /// Used for SRC-SRC multi-pool transactions.
@@ -175,7 +175,7 @@ public interface IOpdexRouter
     /// <param name="tokenInReserveSrc">The pool's SRC reserve amount of the input token type.</param>
     /// <returns>The number of SRC tokens needed to be input for the desired output.</returns>
     UInt256 GetAmountIn(UInt256 tokenOutAmount, UInt256 tokenOutReserveCrs, UInt256 tokenOutReserveSrc, UInt256 tokenInReserveCrs, UInt256 tokenInReserveSrc);
-    
+
     /// <summary>
     /// Calculates the amount of SRC tokens returned after transaction fees based on the token input amount and the pool's reserves.
     /// Used for SRC-SRC multi-pool transactions.

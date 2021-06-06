@@ -16,7 +16,7 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
     /// <param name="authProviders">Flag to authorize liquidity providers or not.</param>
     /// <param name="authTraders">Flag to authorize traders or not.</param>
     /// <param name="marketFeeEnabled">Flag determining if 1/6 of transaction fees are collected by the market owner.</param>
-    public OpdexStandardPool(ISmartContractState state, Address token, uint transactionFee, bool authProviders, bool authTraders, bool marketFeeEnabled) 
+    public OpdexStandardPool(ISmartContractState state, Address token, uint transactionFee, bool authProviders, bool authTraders, bool marketFeeEnabled)
         : base(state, token, transactionFee)
     {
         Market = Message.Sender;
@@ -27,33 +27,33 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
 
     /// <inheritdoc />
     public override void Receive() { }
-    
+
     /// <inheritdoc />
     public Address Market
     {
-        get => State.GetAddress(nameof(Market));
-        private set => State.SetAddress(nameof(Market), value);
+        get => State.GetAddress(PoolStateKeys.Market);
+        private set => State.SetAddress(PoolStateKeys.Market, value);
     }
-    
+
     /// <inheritdoc />
     public bool AuthProviders
     {
-        get => State.GetBool(nameof(AuthProviders));
-        private set => State.SetBool(nameof(AuthProviders), value);
+        get => State.GetBool(PoolStateKeys.AuthProviders);
+        private set => State.SetBool(PoolStateKeys.AuthProviders, value);
     }
-    
+
     /// <inheritdoc />
     public bool AuthTraders
     {
-        get => State.GetBool(nameof(AuthTraders));
-        private set => State.SetBool(nameof(AuthTraders), value);
+        get => State.GetBool(PoolStateKeys.AuthTraders);
+        private set => State.SetBool(PoolStateKeys.AuthTraders, value);
     }
-    
+
     /// <inheritdoc />
     public bool MarketFeeEnabled
     {
-        get => State.GetBool(nameof(MarketFeeEnabled));
-        private set => State.SetBool(nameof(MarketFeeEnabled), value);
+        get => State.GetBool(PoolStateKeys.MarketFeeEnabled);
+        private set => State.SetBool(PoolStateKeys.MarketFeeEnabled, value);
     }
 
     /// <inheritdoc />
@@ -63,75 +63,75 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
         EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
 
         var marketFeeEnabled = MarketFeeEnabled;
-        
+
         if (marketFeeEnabled) MintMarketFee();
-        
+
         var liquidity = MintExecute(to);
-        
+
         if (marketFeeEnabled) UpdateKLast();
-        
+
         Unlock();
-        
+
         return liquidity;
     }
-        
+
     /// <inheritdoc />
     public override UInt256[] Burn(Address to)
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
-        
+
         var marketFeeEnabled = MarketFeeEnabled;
-        
+
         if (marketFeeEnabled) MintMarketFee();
-        
+
         var amounts = BurnExecute(to, GetBalance(Address));
-        
+
         if (marketFeeEnabled) UpdateKLast();
-        
+
         Unlock();
-        
+
         return amounts;
     }
-    
+
     /// <inheritdoc />
     public override void Swap(ulong amountCrsOut, UInt256 amountSrcOut, Address to, byte[] data)
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, to, Permissions.Trade);
-        
+
         SwapExecute(amountCrsOut, amountSrcOut, to, data);
-        
+
         Unlock();
     }
-        
+
     /// <inheritdoc />
     public override void Skim(Address to)
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, to, Permissions.Provide);
-        
+
         SkimExecute(to);
-        
+
         Unlock();
     }
-    
+
     /// <inheritdoc />
     public override void Sync()
     {
         EnsureUnlocked();
         EnsureAuthorizationFor(Message.Sender, Address.Zero, Permissions.Provide);
-        
+
         UpdateReserves(Balance, GetSrcBalance(Token, Address));
-        
+
         Unlock();
     }
-    
+
     private void EnsureAuthorizationFor(Address primary, Address secondary, Permissions permission)
     {
         Assert(IsAuthorized(primary, secondary, (byte)permission), "OPDEX: UNAUTHORIZED");
     }
-    
+
     private bool IsAuthorized(Address primary, Address secondary, byte permission)
     {
         switch ((Permissions)permission)
@@ -139,22 +139,22 @@ public class OpdexStandardPool : OpdexLiquidityPool, IOpdexStandardPool
             case Permissions.Provide when !AuthProviders:
             case Permissions.Trade when !AuthTraders: return true;
             default:
-                var authParameters = secondary == Address.Zero 
-                    ? new object[] {primary, permission} 
+                var authParameters = secondary == Address.Zero
+                    ? new object[] {primary, permission}
                     : new object[] {primary, secondary, permission};
-                
+
                 var isAuthorizedResponse = Call(Market, 0, nameof(IOpdexStandardMarket.IsAuthorized), authParameters);
 
                 return isAuthorizedResponse.Success && (bool)isAuthorizedResponse.ReturnValue;
         }
     }
-    
+
     private void MintMarketFee()
     {
         var liquidity = CalculateFee();
 
         if (liquidity == 0) return;
-        
+
         MintTokensExecute(Market, liquidity);
     }
 }

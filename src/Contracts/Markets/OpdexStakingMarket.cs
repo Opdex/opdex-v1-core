@@ -19,29 +19,29 @@ public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
     /// <inheritdoc />
     public Address StakingToken
     {
-        get => State.GetAddress(nameof(StakingToken));
-        private set => State.SetAddress(nameof(StakingToken), value);
+        get => State.GetAddress(MarketStateKeys.StakingToken);
+        private set => State.SetAddress(MarketStateKeys.StakingToken, value);
     }
-        
+
     /// <inheritdoc />
     public override Address CreatePool(Address token)
     {
         Assert(State.IsContract(token), "OPDEX: INVALID_TOKEN");
-        
+
         var pool = GetPool(token);
-        
+
         Assert(pool == Address.Zero, "OPDEX: POOL_EXISTS");
-        
+
         var poolResponse = Create<OpdexStakingPool>(0, new object[] {token, TransactionFee, StakingToken});
-        
+
         Assert(poolResponse.Success && poolResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_POOL");
 
         pool = poolResponse.NewContractAddress;
-        
+
         SetPool(token, pool);
-        
+
         Log(new CreateLiquidityPoolLog { Token = token, Pool = pool });
-        
+
         return pool;
     }
 }
