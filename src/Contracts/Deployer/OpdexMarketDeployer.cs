@@ -37,13 +37,29 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     {
         EnsureOwnerOnly();
 
-        var marketParams = new object[] {transactionFee, marketOwner, authPoolCreators, authProviders, authTraders, enableMarketFee};
+        // Temporarily set this contract as owner if the router needs permissions
+        var ownerToSet = authProviders || authTraders ? Address : marketOwner;
+
+        var marketParams = new object[] {transactionFee, ownerToSet, authPoolCreators, authProviders, authTraders, enableMarketFee};
         var marketResponse = Create<OpdexStandardMarket>(0, marketParams);
 
         Assert(marketResponse.Success, "OPDEX: INVALID_MARKET");
 
         var market = marketResponse.NewContractAddress;
         var router = CreateOpdexRouter(market, transactionFee, authProviders, authTraders);
+
+        // Give the router provide permissions if necessary
+        if (authProviders) AuthRouter(market, router, Permissions.Provide);
+
+        // Give the router trade permissions if necessary
+        if (authTraders) AuthRouter(market, router, Permissions.Trade);
+
+        // Replace this contract as the market owner with the intended market owner if necessary
+        if (ownerToSet != marketOwner)
+        {
+            var setOwnerResponse = Call(market, 0, nameof(IOpdexStandardMarket.SetOwner), new object[] { marketOwner });
+            Assert(setOwnerResponse.Success, "OPDEX: SET_OWNER_FAILURE");
+        }
 
         Log(new CreateMarketLog
         {
@@ -96,6 +112,13 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         Assert(routerResponse.Success, "OPDEX: INVALID_ROUTER");
 
         return routerResponse.NewContractAddress;
+    }
+
+    private void AuthRouter(Address market, Address router, Permissions permission)
+    {
+        const bool authorize = true;
+        var authRouterResponse = Call(market, 0, nameof(IOpdexStandardMarket.Authorize), new object[] { router, (byte)permission, authorize });
+        Assert(authRouterResponse.Success, "OPDEX: AUTH_ROUTER_FAILURE");
     }
 
     private void EnsureOwnerOnly()

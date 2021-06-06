@@ -344,7 +344,7 @@ public class OpdexRouter : SmartContract, IOpdexRouter
 
         if (pool != Address.Zero) return pool;
 
-        var poolResponse = Call(Market, 0, "GetPool", new object[] {token});
+        var poolResponse = Call(Market, 0, nameof(IOpdexMarket.GetPool), new object[] {token});
 
         Assert(poolResponse.Success && (Address)poolResponse.ReturnValue != Address.Zero, "OPDEX: INVALID_POOL");
 
