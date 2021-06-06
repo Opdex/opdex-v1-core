@@ -138,7 +138,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     /// <inheritdoc />
     public void CollectMarketFees(Address token, UInt256 amount)
     {
-        if (!MarketFeeEnabled || amount == 0) return;
+        if (amount == 0 || !MarketFeeEnabled) return;
 
         var owner = Owner;
 
