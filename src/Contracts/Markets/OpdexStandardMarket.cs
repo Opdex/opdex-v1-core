@@ -124,7 +124,7 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
 
         var poolResponse = Create<OpdexStandardPool>(0, new object[] {token, TransactionFee, AuthProviders, AuthTraders, MarketFeeEnabled});
 
-        Assert(poolResponse.Success && poolResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_POOL");
+        Assert(poolResponse.Success, "OPDEX: INVALID_POOL");
 
         pool = poolResponse.NewContractAddress;
 

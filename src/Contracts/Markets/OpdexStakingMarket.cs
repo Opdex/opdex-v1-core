@@ -34,7 +34,7 @@ public class OpdexStakingMarket : OpdexMarket, IOpdexStakingMarket
 
         var poolResponse = Create<OpdexStakingPool>(0, new object[] {token, TransactionFee, StakingToken});
 
-        Assert(poolResponse.Success && poolResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_POOL");
+        Assert(poolResponse.Success, "OPDEX: INVALID_POOL");
 
         pool = poolResponse.NewContractAddress;
 

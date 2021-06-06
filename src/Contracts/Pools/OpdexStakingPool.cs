@@ -353,7 +353,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 
         var response = Create<OpdexMiningPool>(0, new object[] {stakingToken, Address});
 
-        Assert(response.Success && response.NewContractAddress != Address.Zero, "OPDEX: INVALID_MINING_POOL");
+        Assert(response.Success, "OPDEX: INVALID_MINING_POOL");
 
         return response.NewContractAddress;
     }

@@ -40,7 +40,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         var marketParams = new object[] {transactionFee, marketOwner, authPoolCreators, authProviders, authTraders, enableMarketFee};
         var marketResponse = Create<OpdexStandardMarket>(0, marketParams);
 
-        Assert(marketResponse.Success && marketResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_MARKET");
+        Assert(marketResponse.Success, "OPDEX: INVALID_MARKET");
 
         var market = marketResponse.NewContractAddress;
         var router = CreateOpdexRouter(market, transactionFee, authProviders, authTraders);
@@ -72,7 +72,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         var marketParams = new object[] {transactionFee, stakingToken};
         var marketResponse = Create<OpdexStakingMarket>(0, marketParams);
 
-        Assert(marketResponse.Success && marketResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_MARKET");
+        Assert(marketResponse.Success, "OPDEX: INVALID_MARKET");
 
         var market = marketResponse.NewContractAddress;
         var router = CreateOpdexRouter(market, transactionFee, false, false);
@@ -93,7 +93,7 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     {
         var routerResponse = Create<OpdexRouter>(0, new object[] {market, transactionFee, authProviders, authTraders});
 
-        Assert(routerResponse.Success && routerResponse.NewContractAddress != Address.Zero, "OPDEX: INVALID_ROUTER");
+        Assert(routerResponse.Success, "OPDEX: INVALID_ROUTER");
 
         return routerResponse.NewContractAddress;
     }
