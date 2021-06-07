@@ -15,7 +15,7 @@ namespace OpdexV1Core.Tests.Markets
             var market = CreateNewOpdexStakingMarket();
 
             market.StakingToken.Should().Be(StakingToken);
-            market.Fee.Should().Be(3);
+            market.TransactionFee.Should().Be(3);
         }
 
         #region Pool
@@ -25,8 +25,8 @@ namespace OpdexV1Core.Tests.Markets
         {
             var market = CreateNewOpdexStakingMarket();
             State.SetContract(Pool, true);
-            State.SetAddress($"Pool:{Token}", Pool);
-            
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Pool);
+
             market.GetPool(Token).Should().Be(Pool);
         }
 
@@ -34,11 +34,11 @@ namespace OpdexV1Core.Tests.Markets
         public void CreatesPoolWithStakingToken_Success()
         {
             var market = CreateNewOpdexStakingMarket();
-            
-            State.SetContract(Token, true);
-            State.SetAddress(nameof(StakingToken), StakingToken);
 
-            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, StakingToken, market.Fee});
+            State.SetContract(Token, true);
+            State.SetAddress(PoolStateKeys.StakingToken, StakingToken);
+
+            SetupCreate<OpdexStakingPool>(CreateResult.Succeeded(Pool), parameters: new object[] {Token, market.TransactionFee, StakingToken});
 
             var pool = market.CreatePool(Token);
 
@@ -53,26 +53,26 @@ namespace OpdexV1Core.Tests.Markets
         {
             var token = Address.Zero;
             var market = CreateNewOpdexStakingMarket();
-            
+
             market
                 .Invoking(c => c.CreatePool(token))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: INVALID_TOKEN");
         }
-        
+
         [Fact]
         public void CreatesPool_Throws_PoolExists()
         {
             var market = CreateNewOpdexStakingMarket();
             State.SetContract(Token, true);
-            State.SetAddress($"Pool:{Token}", Pool);
-            
+            State.SetAddress($"{MarketStateKeys.Pool}:{Token}", Pool);
+
             market
                 .Invoking(c => c.CreatePool(Token))
                 .Should().Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: POOL_EXISTS");
         }
-        
+
         #endregion
     }
 }
