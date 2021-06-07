@@ -190,7 +190,6 @@ public class OpdexRouter : SmartContract, IOpdexRouter
         var amountCrs = (ulong)amounts[0];
         var amountSrcIn = amounts[1];
 
-        // Todo: Error Message
         Assert(amountSrcIn <= amountSrcInMax, "OPDEX: EXCESSIVE_INPUT_AMOUNT");
 
         SafeTransferFrom(tokenIn, Message.Sender, tokenInPool, amountSrcIn);
