@@ -70,6 +70,13 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     }
 
     /// <inheritdoc />
+    public Address PendingOwner
+    {
+        get => State.GetAddress(MarketStateKeys.PendingOwner);
+        private set => State.SetAddress(MarketStateKeys.PendingOwner, value);
+    }
+
+    /// <inheritdoc />
     public bool IsAuthorized(Address address, byte permission)
     {
         switch ((Permissions)permission)
@@ -102,13 +109,28 @@ public class OpdexStandardMarket : OpdexMarket, IOpdexStandardMarket
     }
 
     /// <inheritdoc />
-    public void SetOwner(Address address)
+    public void SetPendingOwnership(Address pendingOwner)
     {
         Assert(Message.Sender == Owner, "OPDEX: UNAUTHORIZED");
 
-        Owner = address;
+        PendingOwner = pendingOwner;
 
-        Log(new ChangeMarketOwnerLog {From = Message.Sender, To = address});
+        Log(new SetPendingMarketOwnershipLog {From = Message.Sender, To = pendingOwner});
+    }
+
+    /// <inheritdoc />
+    public void ClaimPendingOwnership()
+    {
+        var pendingOwner = PendingOwner;
+
+        Assert(Message.Sender == pendingOwner, "OPDEX: UNAUTHORIZED");
+
+        var oldOwner = Owner;
+
+        Owner = pendingOwner;
+        PendingOwner = Address.Zero;
+
+        Log(new ClaimPendingMarketOwnershipLog {From = oldOwner, To = pendingOwner});
     }
 
     /// <inheritdoc />

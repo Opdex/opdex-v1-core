@@ -824,7 +824,7 @@ namespace OpdexV1Core.Tests.Pools
         }
 
         [Fact]
-        public void TwoStakers_OneLargeAmount_WithSyncedDust_Success()
+        public void TwoMiners_OneLargeAmount_WithSyncedDust_Success()
         {
             const ulong periodStart = 100;
             const ulong periodEnd = 200;

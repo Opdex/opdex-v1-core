@@ -1039,7 +1039,7 @@ namespace OpdexV1Core.Tests.Pools
             VerifyLog(new CollectStakingRewardsLog
             {
                 Staker = Trader0,
-                Reward = expectedReward
+                Amount = expectedReward
             }, Times.Once);
         }
 
@@ -1089,7 +1089,7 @@ namespace OpdexV1Core.Tests.Pools
             VerifyLog(new CollectStakingRewardsLog
             {
                 Staker = Trader0,
-                Reward = expectedReward
+                Amount = expectedReward
             }, Times.Once);
         }
 
@@ -1264,7 +1264,7 @@ namespace OpdexV1Core.Tests.Pools
             VerifyLog(new CollectStakingRewardsLog
             {
                 Staker = Trader0,
-                Reward = expectedReward
+                Amount = expectedReward
             }, Times.Once);
         }
 
@@ -1328,7 +1328,7 @@ namespace OpdexV1Core.Tests.Pools
             VerifyLog(new CollectStakingRewardsLog
             {
                 Staker = Trader0,
-                Reward = expectedReward
+                Amount = expectedReward
             }, Times.Once);
 
             VerifyLog(new StakeLog
@@ -1401,7 +1401,7 @@ namespace OpdexV1Core.Tests.Pools
             VerifyLog(new CollectStakingRewardsLog
             {
                 Staker = Trader0,
-                Reward = expectedReward
+                Amount = expectedReward
             }, Times.Once);
 
             VerifyLog(new StakeLog
@@ -1811,7 +1811,7 @@ namespace OpdexV1Core.Tests.Pools
 
             if (rewards > 0)
             {
-                VerifyLog(new CollectStakingRewardsLog {Reward = rewards, Staker = staker}, Times.AtLeastOnce);
+                VerifyLog(new CollectStakingRewardsLog {Amount = rewards, Staker = staker}, Times.AtLeastOnce);
             }
         }
 
@@ -1835,7 +1835,7 @@ namespace OpdexV1Core.Tests.Pools
 
             if (rewards > 0)
             {
-                VerifyLog(new CollectStakingRewardsLog {Reward = rewards, Staker = staker}, Times.AtLeastOnce);
+                VerifyLog(new CollectStakingRewardsLog {Amount = rewards, Staker = staker}, Times.AtLeastOnce);
             }
 
             VerifyLog(new StakeLog {Amount = amount, Staker = staker, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StopStaking}, Times.AtLeastOnce);

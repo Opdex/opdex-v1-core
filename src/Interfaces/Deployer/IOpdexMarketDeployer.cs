@@ -3,16 +3,31 @@ using Stratis.SmartContracts;
 public interface IOpdexMarketDeployer
 {
     /// <summary>
-    /// The owner of the market deployer contract with the ability to create new markets.
+    /// The owner of the market deployer contract. with the ability to create new markets.
     /// </summary>
+    /// <remarks>
+    /// The owner's privileges include the ability to create markets and setting a new pending owner.
+    /// </remarks>
     Address Owner { get; }
 
     /// <summary>
-    /// Promote an address to be the new owner of the market deployer.
+    /// A pending wallet address that has been suggested to take ownership of the contract. This value
+    /// acts as a whitelist for access to <see cref="ClaimPendingOwnership"/>.
     /// </summary>
-    /// <param name="address">The address to set as the new owner.</param>
-    void SetOwner(Address address);
-    
+    Address PendingOwner { get; }
+
+    /// <summary>
+    /// Public method allowing the current contract owner to whitelist a new pending owner. The newly pending owner
+    /// will then call <see cref="ClaimPendingOwnership"/> to accept.
+    /// </summary>
+    /// <param name="pendingOwner">The address to set as the new pending owner.</param>
+    void SetPendingOwnership(Address pendingOwner);
+
+    /// <summary>
+    /// Public method to allow the pending new owner to accept ownership replacing the current contract owner.
+    /// </summary>
+    void ClaimPendingOwnership();
+
     /// <summary>
     /// Creates a configured standard market smart contract.
     /// </summary>
@@ -24,7 +39,7 @@ public interface IOpdexMarketDeployer
     /// <param name="enableMarketFee">Flag to enable the market fee where 1/6 of transaction fees are collected by the market owner.</param>
     /// <returns>The contract address of the created standard market.</returns>
     Address CreateStandardMarket(Address marketOwner, uint transactionFee, bool authPoolCreators, bool authProviders, bool authTraders, bool enableMarketFee);
-    
+
     /// <summary>
     /// Creates a public staking market contract with a .3% transaction fee.
     /// </summary>

@@ -73,7 +73,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         return State.GetUInt256($"{PoolStateKeys.RewardPerStakedToken}:{staker}");
     }
 
-    private void SeStoredRewardPerStakedToken(Address staker, UInt256 reward)
+    private void SetStoredRewardPerStakedToken(Address staker, UInt256 reward)
     {
         State.SetUInt256($"{PoolStateKeys.RewardPerStakedToken}:{staker}", reward);
     }
@@ -290,7 +290,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         RewardPerStakedTokenLast = rewardPerToken;
 
         SetStoredReward(address, GetStakingRewards(address));
-        SeStoredRewardPerStakedToken(address, rewardPerToken);
+        SetStoredRewardPerStakedToken(address, rewardPerToken);
     }
 
     private void CollectStakingRewardsExecute(Address to, bool liquidate)
@@ -317,7 +317,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         if (liquidate) BurnExecute(to, rewards);
         else Assert(TransferTokensExecute(Address, to, rewards), "OPDEX: INVALID_TRANSFER");
 
-        Log(new CollectStakingRewardsLog { Staker = Message.Sender, Reward = rewards });
+        Log(new CollectStakingRewardsLog { Staker = Message.Sender, Amount = rewards });
     }
 
     private void EnsureStakingEnabled()
@@ -343,8 +343,12 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 
     private void NominateLiquidityPool()
     {
+        // References external IOpdexMiningGovernance.NominateLiquidityPool method in the Opdex Governance codebase.
+        // Limitations prevent re-use of the interface here, using a constant instead.
+        const string governanceNominationMethod = "NominateLiquidityPool";
+
         // Failures shouldn't prevent the staking action
-        Call(StakingToken, 0, nameof(NominateLiquidityPool));
+        Call(StakingToken, 0, governanceNominationMethod);
     }
 
     private Address InitializeMiningPool(Address token, Address stakingToken)

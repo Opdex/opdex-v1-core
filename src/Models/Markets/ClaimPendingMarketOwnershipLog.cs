@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct ChangeMarketLog
+public struct ClaimPendingMarketOwnershipLog
 {
     [Index] public Address From;
     [Index] public Address To;

@@ -241,7 +241,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
             RewardRate = (reward + leftover) / miningDuration;
         }
 
-        var balanceResult = Call(MinedToken, 0, nameof(IStandardToken.GetBalance), new object[] {Address});
+        var balanceResult = Call(MinedToken, 0, nameof(IStandardToken256.GetBalance), new object[] {Address});
         var balance = (UInt256)balanceResult.ReturnValue;
 
         Assert(balanceResult.Success && balance > 0, "OPDEX: INVALID_BALANCE");
@@ -287,7 +287,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(IStandardToken.TransferTo), new object[] {to, amount});
+        var result = Call(token, 0, nameof(IStandardToken256.TransferTo), new object[] {to, amount});
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_TO");
     }
@@ -296,7 +296,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(IStandardToken.TransferFrom), new object[] {from, to, amount});
+        var result = Call(token, 0, nameof(IStandardToken256.TransferFrom), new object[] {from, to, amount});
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
     }
