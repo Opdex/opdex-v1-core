@@ -263,13 +263,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     /// <inheritdoc />
     public UInt256 GetStakingRewards(Address staker)
     {
-        var stakedBalance = GetStakedBalance(staker);
-        var rewardPerTokenStaked = GetRewardPerStakedToken();
-        var rewardPerTokenPaid = GetStoredRewardPerStakedToken(staker);
-        var rewardsDifference = rewardPerTokenStaked - rewardPerTokenPaid;
-        var reward = GetStoredReward(staker);
-
-        return reward + (stakedBalance * rewardsDifference / SatsPerToken);
+        return GetStakingRewards(staker, GetRewardPerStakedToken());
     }
 
     /// <inheritdoc />
@@ -282,6 +276,16 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         return RewardPerStakedTokenLast + (ApplicableStakingRewards * SatsPerToken / totalStaked);
     }
 
+    private UInt256 GetStakingRewards(Address staker, UInt256 rewardPerToken)
+    {
+        var stakedBalance = GetStakedBalance(staker);
+        var rewardPerTokenPaid = GetStoredRewardPerStakedToken(staker);
+        var rewardsDifference = rewardPerToken - rewardPerTokenPaid;
+        var reward = GetStoredReward(staker);
+
+        return reward + (stakedBalance * rewardsDifference / SatsPerToken);
+    }
+
     private void UpdateStakingPosition(Address address)
     {
         var rewardPerToken = GetRewardPerStakedToken();
@@ -289,7 +293,7 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
         ApplicableStakingRewards = 0;
         RewardPerStakedTokenLast = rewardPerToken;
 
-        SetStoredReward(address, GetStakingRewards(address));
+        SetStoredReward(address, GetStakingRewards(address, rewardPerToken));
         SetStoredRewardPerStakedToken(address, rewardPerToken);
     }
 

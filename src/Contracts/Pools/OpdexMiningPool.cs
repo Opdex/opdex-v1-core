@@ -154,13 +154,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     /// <inheritdoc />
     public UInt256 GetMiningRewards(Address miner)
     {
-        var balance = GetBalance(miner);
-        var rewardPerToken = GetRewardPerStakedToken();
-        var storedRewardPerToken = GetStoredRewardPerStakedToken(miner);
-        var remainingReward = rewardPerToken - storedRewardPerToken;
-        var reward = GetStoredReward(miner);
-
-        return reward + (balance * remainingReward / SatsPerToken);
+        return GetMiningRewards(miner, GetRewardPerStakedToken());
     }
 
     /// <inheritdoc />
@@ -270,6 +264,16 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         Log(new CollectMiningRewardsLog { Miner = Message.Sender, Amount = reward });
     }
 
+    private UInt256 GetMiningRewards(Address miner, UInt256 rewardPerToken)
+    {
+        var balance = GetBalance(miner);
+        var storedRewardPerToken = GetStoredRewardPerStakedToken(miner);
+        var remainingReward = rewardPerToken - storedRewardPerToken;
+        var reward = GetStoredReward(miner);
+
+        return reward + (balance * remainingReward / SatsPerToken);
+    }
+
     private void UpdateMiningPosition(Address miner)
     {
         var rewardPerToken = GetRewardPerStakedToken();
@@ -279,7 +283,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         if (miner == Address.Zero) return;
 
-        SetStoredReward(miner, GetMiningRewards(miner));
+        SetStoredReward(miner, GetMiningRewards(miner, rewardPerToken));
         SetStoredRewardPerStakedToken(miner, rewardPerToken);
     }
 
