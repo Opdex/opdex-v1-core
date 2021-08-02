@@ -117,11 +117,13 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 
         TotalStaked = totalStaked;
 
-        SetStakedBalance(Message.Sender, GetStakedBalance(Message.Sender) + amount);
+        var newBalance = GetStakedBalance(Message.Sender) + amount;
+
+        SetStakedBalance(Message.Sender, newBalance);
 
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
 
-        Log(new StakeLog { Staker = Message.Sender, Amount = amount, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StartStaking});
+        Log(new StartStakingLog {Staker = Message.Sender, Amount = amount, TotalStaked = totalStaked, StakerBalance = newBalance});
 
         NominateLiquidityPool();
 
@@ -169,13 +171,15 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
 
         TotalStaked = totalStaked;
 
-        SetStakedBalance(Message.Sender, stakedBalance - amount);
+        var newBalance = stakedBalance - amount;
+
+        SetStakedBalance(Message.Sender, newBalance);
 
         CollectStakingRewardsExecute(Message.Sender, liquidate);
 
         SafeTransferTo(StakingToken, Message.Sender, amount);
 
-        Log(new StakeLog {Amount = amount, Staker = Message.Sender, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StopStaking});
+        Log(new StopStakingLog {Amount = amount, Staker = Message.Sender, TotalStaked = totalStaked, StakerBalance = newBalance});
 
         NominateLiquidityPool();
 
@@ -348,7 +352,6 @@ public class OpdexStakingPool : OpdexLiquidityPool, IOpdexStakingPool
     private void NominateLiquidityPool()
     {
         // References external IOpdexMiningGovernance.NominateLiquidityPool method in the Opdex Governance codebase.
-        // Limitations prevent re-use of the interface here, using a constant instead.
         const string governanceNominationMethod = "NominateLiquidityPool";
 
         // Failures shouldn't prevent the staking action

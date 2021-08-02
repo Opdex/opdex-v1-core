@@ -7,4 +7,5 @@ public struct MintLog
     public ulong AmountCrs;
     public UInt256 AmountSrc;
     public UInt256 AmountLpt;
+    public UInt256 TotalSupply;
 }

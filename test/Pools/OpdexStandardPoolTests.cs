@@ -399,7 +399,8 @@ namespace OpdexV1Core.Tests.Pools
                 AmountSrc = currentBalanceToken,
                 Sender = trader,
                 To = trader,
-                AmountLpt = expectedLiquidity
+                AmountLpt = expectedLiquidity,
+                TotalSupply = expectedLiquidity + expectedBurnAmount
             }, Times.Once);
 
             VerifyLog(new TransferLog
@@ -431,6 +432,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 expectedK = currentBalanceCrs * currentBalanceToken;
             UInt256 currentTraderBalance = 0;
             var trader = Trader0;
+            var expectedTotalSupply = currentTotalSupply + expectedLiquidity + mintedFee;
 
             var pool = CreateNewOpdexStandardPool(currentBalanceCrs, marketFeeEnabled: marketFeeEnabled);
             SetupMessage(Pool, trader);
@@ -447,7 +449,7 @@ namespace OpdexV1Core.Tests.Pools
             var mintedLiquidity = pool.Mint(Trader0);
             mintedLiquidity.Should().Be(expectedLiquidity);
 
-            pool.TotalSupply.Should().Be(currentTotalSupply + expectedLiquidity + mintedFee);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
             pool.ReserveSrc.Should().Be(currentBalanceToken);
 
@@ -473,7 +475,8 @@ namespace OpdexV1Core.Tests.Pools
                 AmountSrc = 1000,
                 Sender = trader,
                 To = trader,
-                AmountLpt = expectedLiquidity
+                AmountLpt = expectedLiquidity,
+                TotalSupply = expectedTotalSupply
             }, Times.Once);
 
             VerifyLog(new TransferLog
@@ -545,6 +548,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 currentKLast = 90_000_000_000;
             UInt256 burnAmount = 1_200;
             var to = Trader0;
+            var expectedTotalSupply = currentTotalSupply - burnAmount + expectedMintedFee;
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs, marketFeeEnabled: marketFeeEnabled);
             SetupMessage(Pool, StandardMarket);
@@ -569,7 +573,7 @@ namespace OpdexV1Core.Tests.Pools
             results[0].Should().Be((UInt256)expectedReceivedCrs);
             results[1].Should().Be(expectedReceivedSrc);
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
-            pool.TotalSupply.Should().Be(currentTotalSupply - burnAmount + expectedMintedFee);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
             pool.GetBalance(StandardMarket).Should().Be(expectedMintedFee);
 
             if (pool.MarketFeeEnabled)
@@ -596,7 +600,8 @@ namespace OpdexV1Core.Tests.Pools
                 To = to,
                 AmountCrs = expectedReceivedCrs,
                 AmountSrc = expectedReceivedSrc,
-                AmountLpt = burnAmount
+                AmountLpt = burnAmount,
+                TotalSupply = expectedTotalSupply
             }, Times.Once);
         }
 
@@ -612,6 +617,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 expectedReceivedSrc = 933_333;
             UInt256 expectedMintedFee = 0;
             var to = Trader0;
+            var expectedTotalSupply = currentTotalSupply + expectedMintedFee - burnAmount;
 
             var pool = CreateNewOpdexStandardPool(currentReserveCrs);
             SetupMessage(Pool, StandardMarket);
@@ -636,7 +642,7 @@ namespace OpdexV1Core.Tests.Pools
             results[0].Should().Be((UInt256)expectedReceivedCrs);
             results[1].Should().Be(expectedReceivedSrc);
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
-            pool.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
 
             if (pool.MarketFeeEnabled)
             {
@@ -662,7 +668,8 @@ namespace OpdexV1Core.Tests.Pools
                 To = to,
                 AmountCrs = expectedReceivedCrs,
                 AmountSrc = expectedReceivedSrc,
-                AmountLpt = burnAmount
+                AmountLpt = burnAmount,
+                TotalSupply = expectedTotalSupply
             }, Times.Once);
         }
 
@@ -1469,10 +1476,9 @@ namespace OpdexV1Core.Tests.Pools
             // Simulate 1000 burn if TotalSupply is 0
             var currentTotalSupply = pool.TotalSupply == 0 ? 1000 : pool.TotalSupply;
             var currentTraderBalance = pool.GetBalance(trader);
-
             var expectedMintedFee = CalculateFee(pool);
-
             var liquidity = pool.Mint(trader);
+            var expectedTotalSupply = currentTotalSupply + liquidity + expectedMintedFee;
 
             liquidity.Should().NotBe(UInt256.Zero);
             pool.ReserveSrc.Should().Be(srcBalance);
@@ -1487,10 +1493,10 @@ namespace OpdexV1Core.Tests.Pools
                 pool.KLast.Should().Be(UInt256.Zero);
             }
 
-            pool.TotalSupply.Should().Be(currentTotalSupply + liquidity + expectedMintedFee);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
             pool.GetBalance(trader).Should().Be(currentTraderBalance + liquidity);
 
-            VerifyLog(new MintLog { AmountCrs = amountCrs, AmountSrc = amountSrc, AmountLpt = liquidity, Sender = trader, To = trader}, Times.Once);
+            VerifyLog(new MintLog { AmountCrs = amountCrs, AmountSrc = amountSrc, AmountLpt = liquidity, Sender = trader, To = trader, TotalSupply = expectedTotalSupply}, Times.Once);
             VerifyLog(new TransferLog { From = Address.Zero, To = trader, Amount = liquidity}, Times.Once);
             VerifyLog(new ReservesLog { ReserveCrs = pool.Balance, ReserveSrc = srcBalance}, Times.Once);
 
@@ -1582,7 +1588,7 @@ namespace OpdexV1Core.Tests.Pools
                 pool.KLast.Should().Be(UInt256.Zero);
             }
 
-            VerifyLog(new BurnLog { AmountCrs = expectedAmountCrs, AmountSrc = expectedAmountSrc, AmountLpt = amountLpt, Sender = trader, To = trader}, Times.Once);
+            VerifyLog(new BurnLog { AmountCrs = expectedAmountCrs, AmountSrc = expectedAmountSrc, AmountLpt = amountLpt, Sender = trader, To = trader, TotalSupply = totalSupplyWithExpectedMintedFee - amountLpt}, Times.Once);
             VerifyLog(new TransferLog { From = Pool, To = Address.Zero, Amount = amountLpt}, Times.Once);
             VerifyLog(new ReservesLog { ReserveCrs = expectedReserveCrs, ReserveSrc = expectedReserveSrc}, Times.Once);
         }

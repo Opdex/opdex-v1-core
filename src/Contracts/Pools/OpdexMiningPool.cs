@@ -167,11 +167,13 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         TotalSupply += amount;
 
-        SetBalance(Message.Sender, GetBalance(Message.Sender) + amount);
+        var newBalance = GetBalance(Message.Sender) + amount;
+
+        SetBalance(Message.Sender, newBalance);
 
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
 
-        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = (byte)MineEventType.StartMining });
+        Log(new StartMiningLog {Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, MinerBalance = newBalance});
 
         Unlock();
     }
@@ -201,13 +203,15 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         TotalSupply -= amount;
 
-        SetBalance(Message.Sender, balance - amount);
+        var newBalance = balance - amount;
+
+        SetBalance(Message.Sender, newBalance);
 
         SafeTransferTo(StakingToken, Message.Sender, amount);
 
         CollectMiningRewardsExecute();
 
-        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = (byte)MineEventType.StopMining });
+        Log(new StopMiningLog {Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, MinerBalance = newBalance});
 
         Unlock();
     }

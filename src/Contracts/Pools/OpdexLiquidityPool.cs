@@ -145,6 +145,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
             AmountCrs = amountCrs,
             AmountSrc = amountSrc,
             AmountLpt = liquidity,
+            TotalSupply = TotalSupply,
             Sender = Message.Sender,
             To = to
         });
@@ -181,6 +182,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
             AmountCrs = amountCrs,
             AmountSrc = amountSrc,
             AmountLpt = liquidity,
+            TotalSupply = TotalSupply,
             Sender = Message.Sender,
             To = to
         });

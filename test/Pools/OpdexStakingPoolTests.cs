@@ -429,7 +429,8 @@ namespace OpdexV1Core.Tests.Pools
                 AmountSrc = currentBalanceSrc,
                 Sender = trader,
                 To = trader,
-                AmountLpt = expectedLiquidity
+                AmountLpt = expectedLiquidity,
+                TotalSupply = expectedLiquidity + expectedBurnAmount
             }, Times.Once);
 
             VerifyLog(new TransferLog
@@ -461,6 +462,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 currentTraderBalance = 0;
             UInt256 mintedFee = 21;
             var trader = Trader0;
+            UInt256 expectedTotalSupply = currentTotalSupply + expectedLiquidity + mintedFee;
 
             var pool = CreateNewOpdexStakingPool(currentBalanceCrs);
             SetupMessage(Pool, trader);
@@ -480,7 +482,7 @@ namespace OpdexV1Core.Tests.Pools
             mintedLiquidity.Should().Be(expectedLiquidity);
 
             pool.KLast.Should().Be(expectedK);
-            pool.TotalSupply.Should().Be(currentTotalSupply + expectedLiquidity + mintedFee);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
             pool.ReserveCrs.Should().Be(currentBalanceCrs);
             pool.ReserveSrc.Should().Be(currentBalanceSrc);
 
@@ -499,7 +501,8 @@ namespace OpdexV1Core.Tests.Pools
                 AmountSrc = 1000,
                 Sender = trader,
                 To = trader,
-                AmountLpt = expectedLiquidity
+                AmountLpt = expectedLiquidity,
+                TotalSupply = expectedTotalSupply
             }, Times.Once);
 
             VerifyLog(new TransferLog
@@ -579,6 +582,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 expectedReceivedSrc = 79_317;
             UInt256 expectedMintedFee = 129;
             var to = Trader0;
+            UInt256 expectedTotalSupply = currentTotalSupply + expectedMintedFee - burnAmount;
 
             var pool = CreateNewOpdexStakingPool(currentReserveCrs);
             SetupMessage(Pool, StakingMarket);
@@ -602,7 +606,7 @@ namespace OpdexV1Core.Tests.Pools
             results[1].Should().Be(expectedReceivedSrc);
             pool.KLast.Should().Be((currentReserveCrs - expectedReceivedCrs) * (currentReserveSrc - expectedReceivedSrc));
             pool.Balance.Should().Be(currentReserveCrs - expectedReceivedCrs);
-            pool.TotalSupply.Should().Be(currentTotalSupply + expectedMintedFee - burnAmount);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
 
             // Mint Fee
             VerifyLog(new TransferLog
@@ -627,7 +631,8 @@ namespace OpdexV1Core.Tests.Pools
                 To = to,
                 AmountCrs = expectedReceivedCrs,
                 AmountSrc = expectedReceivedSrc,
-                AmountLpt = burnAmount
+                AmountLpt = burnAmount,
+                TotalSupply = expectedTotalSupply
             }, Times.Once);
         }
 
@@ -678,7 +683,8 @@ namespace OpdexV1Core.Tests.Pools
                 To = to,
                 AmountCrs = expectedReceivedCrs,
                 AmountSrc = expectedReceivedSrc,
-                AmountLpt = burnAmount
+                AmountLpt = burnAmount,
+                TotalSupply = currentTotalSupply + expectedMintedFee - burnAmount
             }, Times.Once);
         }
 
@@ -799,12 +805,12 @@ namespace OpdexV1Core.Tests.Pools
             VerifyCall(StakingToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
             VerifyCall(StakingToken, 0ul, NominateLiquidityPoolMethod, null, Times.Once);
 
-            VerifyLog(new StakeLog
+            VerifyLog(new StartStakingLog
             {
                 Staker = Trader0,
                 Amount = stakeAmount,
                 TotalStaked = stakeAmount,
-                EventType = (byte)StakeEventType.StartStaking
+                StakerBalance = stakeAmount
             }, Times.Once);
         }
 
@@ -850,12 +856,12 @@ namespace OpdexV1Core.Tests.Pools
             VerifyCall(StakingToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
             VerifyCall(StakingToken, 0ul, NominateLiquidityPoolMethod, null, Times.Once);
 
-            VerifyLog(new StakeLog
+            VerifyLog(new StartStakingLog
             {
                 Staker = Trader0,
                 Amount = stakeAmount,
                 TotalStaked = expectedTotalStaked,
-                EventType = (byte)StakeEventType.StartStaking
+                StakerBalance = stakeAmount
             }, Times.Once);
         }
 
@@ -906,12 +912,12 @@ namespace OpdexV1Core.Tests.Pools
             VerifyCall(StakingToken, 0ul, nameof(IOpdexStakingPool.TransferFrom), transferFromParameters, Times.Once);
             VerifyCall(StakingToken, 0ul, NominateLiquidityPoolMethod, null, Times.Once);
 
-            VerifyLog(new StakeLog
+            VerifyLog(new StartStakingLog
             {
                 Staker = Trader0,
                 Amount = stakeAmount,
                 TotalStaked = expectedTotalStaked,
-                EventType = (byte)StakeEventType.StartStaking
+                StakerBalance = stakeAmount + currentStakerBalance
             }, Times.Once);
         }
 
@@ -975,6 +981,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 expectedRewardSrc = 51;
             UInt256 expectedMintedRewards = 8;
             UInt256 expectedKLast = (reserveCrs - expectedRewardCrs) * (reserveSrc - expectedRewardSrc);
+            UInt256 expectedTotalSupply = currentTotalSupply + expectedMintedRewards - expectedReward;
 
             var pool = CreateNewOpdexStakingPool();
 
@@ -1005,7 +1012,7 @@ namespace OpdexV1Core.Tests.Pools
             pool.CollectStakingRewards(true);
 
             pool.TotalStaked.Should().Be(totalStaked);
-            pool.TotalSupply.Should().Be(currentTotalSupply + expectedMintedRewards - expectedReward);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
             pool.StakingRewardsBalance.Should().Be(stakingRewardsBalance + expectedMintedRewards - expectedReward);
             pool.ApplicableStakingRewards.Should().Be(UInt256.Zero);
             pool.ReserveSrc.Should().Be(reserveSrc - expectedRewardSrc);
@@ -1033,7 +1040,8 @@ namespace OpdexV1Core.Tests.Pools
                 To = Trader0,
                 AmountCrs = expectedRewardCrs,
                 AmountSrc = expectedRewardSrc,
-                AmountLpt = expectedReward
+                AmountLpt = expectedReward,
+                TotalSupply = expectedTotalSupply
             }, Times.Once);
 
             VerifyLog(new CollectStakingRewardsLog
@@ -1184,6 +1192,7 @@ namespace OpdexV1Core.Tests.Pools
             UInt256 expectedMintedRewards = 8;
             UInt256 expectedTotalStaked = totalStaked - currentStakerBalance;
             UInt256 expectedKLast = (reserveCrs - expectedRewardCrs) * (reserveSrc - expectedRewardSrc);
+            UInt256 expectedTotalSupply = currentTotalSupply - expectedReward + expectedMintedRewards;
 
             var pool = CreateNewOpdexStakingPool();
 
@@ -1220,7 +1229,7 @@ namespace OpdexV1Core.Tests.Pools
             pool.StopStaking(currentStakerBalance, true);
 
             pool.TotalStaked.Should().Be(expectedTotalStaked);
-            pool.TotalSupply.Should().Be(currentTotalSupply - expectedReward + expectedMintedRewards);
+            pool.TotalSupply.Should().Be(expectedTotalSupply);
             pool.StakingRewardsBalance.Should().Be(stakingRewardsBalance + expectedMintedRewards - expectedReward);
             pool.ApplicableStakingRewards.Should().Be(UInt256.Zero);
             pool.ReserveSrc.Should().Be(reserveSrc - expectedRewardSrc);
@@ -1250,15 +1259,16 @@ namespace OpdexV1Core.Tests.Pools
                 To = Trader0,
                 AmountCrs = expectedRewardCrs,
                 AmountSrc = expectedRewardSrc,
-                AmountLpt = expectedReward
+                AmountLpt = expectedReward,
+                TotalSupply = expectedTotalSupply
             }, Times.Once);
 
-            VerifyLog(new StakeLog
+            VerifyLog(new StopStakingLog
             {
                 Staker = Trader0,
                 Amount = currentStakerBalance,
                 TotalStaked = expectedTotalStaked,
-                EventType = (byte)StakeEventType.StopStaking
+                StakerBalance = UInt256.Zero
             }, Times.Once);
 
             VerifyLog(new CollectStakingRewardsLog
@@ -1331,12 +1341,12 @@ namespace OpdexV1Core.Tests.Pools
                 Amount = expectedReward
             }, Times.Once);
 
-            VerifyLog(new StakeLog
+            VerifyLog(new StopStakingLog
             {
                 Staker = Trader0,
                 Amount = currentStakerBalance,
                 TotalStaked = expectedTotalStaked,
-                EventType = (byte)StakeEventType.StopStaking
+                StakerBalance = UInt256.Zero
             }, Times.Once);
         }
 
@@ -1404,12 +1414,12 @@ namespace OpdexV1Core.Tests.Pools
                 Amount = expectedReward
             }, Times.Once);
 
-            VerifyLog(new StakeLog
+            VerifyLog(new StopStakingLog
             {
                 Staker = Trader0,
                 Amount = stopStakingAmount,
                 TotalStaked = expectedTotalStaked,
-                EventType = (byte)StakeEventType.StopStaking
+                StakerBalance = currentStakerBalance - stopStakingAmount
             }, Times.Once);
         }
 
@@ -1465,12 +1475,12 @@ namespace OpdexV1Core.Tests.Pools
 
             VerifyLog(It.IsAny<CollectStakingRewardsLog>(), Times.Never);
 
-            VerifyLog(new StakeLog
+            VerifyLog(new StopStakingLog
             {
                 Staker = Trader0,
                 Amount = currentStakerBalance,
                 TotalStaked = expectedTotalStaked,
-                EventType = (byte)StakeEventType.StopStaking
+                StakerBalance = expectedStakerBalance
             }, Times.Once);
         }
 
@@ -1795,7 +1805,7 @@ namespace OpdexV1Core.Tests.Pools
             pool.ApplicableStakingRewards.Should().Be(UInt256.Zero);
 
             VerifyCall(StakingToken, 0, nameof(IOpdexStakingPool.TransferFrom), new object[] { staker, Pool, amount}, Times.AtLeastOnce);
-            VerifyLog(new StakeLog {Amount = amount, Staker = staker, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StartStaking}, Times.AtLeastOnce);
+            VerifyLog(new StartStakingLog {Amount = amount, Staker = staker, TotalStaked = totalStaked, StakerBalance = amount}, Times.AtLeastOnce);
         }
 
         private void CollectStakingReward(IOpdexStakingPool pool, Address staker, UInt256 rewards)
@@ -1838,7 +1848,7 @@ namespace OpdexV1Core.Tests.Pools
                 VerifyLog(new CollectStakingRewardsLog {Amount = rewards, Staker = staker}, Times.AtLeastOnce);
             }
 
-            VerifyLog(new StakeLog {Amount = amount, Staker = staker, TotalStaked = totalStaked, EventType = (byte)StakeEventType.StopStaking}, Times.AtLeastOnce);
+            VerifyLog(new StopStakingLog {Amount = amount, Staker = staker, TotalStaked = totalStaked, StakerBalance = expectedStakedAmount}, Times.AtLeastOnce);
         }
 
         private UInt256 MintNewRewards(IOpdexStakingPool pool, UInt256 currentTotalRewards, UInt256 newRewards)
