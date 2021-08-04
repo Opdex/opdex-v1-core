@@ -83,7 +83,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
     }
 
     /// <inheritdoc />
-    public UInt256[] Reserves => new [] { ReserveCrs, ReserveSrc };
+    public UInt256[] Reserves => new[] { ReserveCrs, ReserveSrc };
 
     /// <inheritdoc />
     public UInt256 GetBalance(Address address)
@@ -184,7 +184,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
             To = to
         });
 
-        return new [] {amountCrs, amountSrc};
+        return new[] { amountCrs, amountSrc };
     }
 
     /// <inheritdoc />
@@ -207,7 +207,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
         if (data.Length > 0)
         {
             var callbackData = Serializer.ToStruct<CallbackData>(data);
-            var parameters = callbackData.Data.Length > 0 ? new object[] {callbackData.Data} : null;
+            var parameters = callbackData.Data.Length > 0 ? new object[] { callbackData.Data } : null;
             Call(to, 0, callbackData.Method, parameters);
         }
 
@@ -270,7 +270,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 
         SetAllowance(Message.Sender, spender, amount);
 
-        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount, OldAmount = currentAmount});
+        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount, OldAmount = currentAmount });
 
         return true;
     }
@@ -282,9 +282,11 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 
         if (allowance < amount) return false;
 
-        SetAllowance(from, Message.Sender, allowance - amount);
+        var transferred = TransferTokensExecute(from, to, amount);
 
-        return TransferTokensExecute(from, to, amount);
+        if (transferred) SetAllowance(from, Message.Sender, allowance - amount);
+
+        return transferred;
     }
 
     protected bool TransferTokensExecute(Address from, Address to, UInt256 amount)
@@ -296,7 +298,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
         SetBalance(from, fromBalance - amount);
         SetBalance(to, GetBalance(to) + amount);
 
-        Log(new TransferLog { From = from,  To = to,  Amount = amount });
+        Log(new TransferLog { From = from, To = to, Amount = amount });
 
         return true;
     }
@@ -307,7 +309,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 
         SetBalance(to, GetBalance(to) + amount);
 
-        Log(new TransferLog { From = Address.Zero,  To = to,  Amount = amount });
+        Log(new TransferLog { From = Address.Zero, To = to, Amount = amount });
     }
 
     private void BurnTokensExecute(Address from, UInt256 amount)
@@ -316,7 +318,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 
         SetBalance(from, GetBalance(from) - amount);
 
-        Log(new TransferLog{ From = from, To = Address.Zero,  Amount = amount });
+        Log(new TransferLog { From = from, To = Address.Zero, Amount = amount });
     }
 
     protected void UpdateReserves(ulong balanceCrs, UInt256 balanceSrc)
@@ -356,7 +358,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 
     protected UInt256 GetSrcBalance(Address token, Address owner)
     {
-        var balanceResponse = Call(token, 0, nameof(GetBalance), new object[] {owner});
+        var balanceResponse = Call(token, 0, nameof(GetBalance), new object[] { owner });
 
         Assert(balanceResponse.Success, "OPDEX: INVALID_BALANCE");
 
@@ -367,7 +369,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(TransferTo), new object[] {to, amount});
+        var result = Call(token, 0, nameof(TransferTo), new object[] { to, amount });
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_TO");
     }
@@ -376,7 +378,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(TransferFrom), new object[] {from, to, amount});
+        var result = Call(token, 0, nameof(TransferFrom), new object[] { from, to, amount });
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
     }
