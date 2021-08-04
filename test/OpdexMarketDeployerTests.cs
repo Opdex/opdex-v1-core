@@ -53,7 +53,7 @@ namespace OpdexV1Core.Tests
             if (ownerToSet != marketOwner)
             {
                 setOwnerParams = new object[] {marketOwner};
-                SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.SetOwner), setOwnerParams, TransferResult.Transferred(null));
+                SetupCall(StandardMarket, 0, nameof(IOpdexStandardMarket.SetPendingOwnership), setOwnerParams, TransferResult.Transferred(null));
             }
 
             var deployer = CreateNewOpdexMarketDeployer();
@@ -76,13 +76,13 @@ namespace OpdexV1Core.Tests
 
             if (ownerToSet != marketOwner)
             {
-                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.SetOwner), setOwnerParams, Times.Once);
+                VerifyCall(StandardMarket, 0, nameof(IOpdexStandardMarket.SetPendingOwnership), setOwnerParams, Times.Once);
             }
 
             VerifyLog(new CreateMarketLog
             {
                 Market = StandardMarket,
-                Owner = marketOwner,
+                Owner = ownerToSet,
                 Router = Router,
                 AuthPoolCreators = authPoolCreators,
                 AuthProviders = authProviders,
@@ -120,30 +120,66 @@ namespace OpdexV1Core.Tests
         }
 
         [Fact]
-        public void SetOwner_Success()
+        public void SetPendingOwnership_Success()
         {
             var deployer = CreateNewOpdexMarketDeployer();
 
-            State.SetAddress(nameof(IOpdexMarketDeployer.Owner), Owner);
+            State.SetAddress(DeployerStateKeys.Owner, Owner);
 
             SetupMessage(Deployer, Owner);
 
-            deployer.SetOwner(OtherAddress);
+            deployer.SetPendingOwnership(OtherAddress);
 
-            deployer.Owner.Should().Be(OtherAddress);
+            deployer.PendingOwner.Should().Be(OtherAddress);
 
-            VerifyLog(new ChangeDeployerOwnerLog { From = Owner, To = OtherAddress }, Times.Once);
+            VerifyLog(new SetPendingDeployerOwnershipLog { From = Owner, To = OtherAddress }, Times.Once);
         }
 
         [Fact]
-        public void SetOwner_Throws_Unauthorized()
+        public void SetPendingOwnership_Throws_Unauthorized()
         {
             var deployer = CreateNewOpdexMarketDeployer();
 
             SetupMessage(Deployer, Trader0);
 
             deployer
-                .Invoking(m => m.SetOwner(OtherAddress))
+                .Invoking(m => m.SetPendingOwnership(OtherAddress))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
+        }
+
+        [Fact]
+        public void ClaimPendingOwnership_Success()
+        {
+            var pendingOwner = OtherAddress;
+            var deployer = CreateNewOpdexMarketDeployer();
+
+            State.SetAddress(DeployerStateKeys.Owner, Owner);
+            State.SetAddress(DeployerStateKeys.PendingOwner, pendingOwner);
+
+            SetupMessage(Deployer, pendingOwner);
+
+            deployer.ClaimPendingOwnership();
+
+            deployer.PendingOwner.Should().Be(Address.Zero);
+            deployer.Owner.Should().Be(pendingOwner);
+
+            VerifyLog(new ClaimPendingDeployerOwnershipLog { From = Owner, To = pendingOwner }, Times.Once);
+        }
+
+        [Fact]
+        public void ClaimPendingOwnership_Throws_Unauthorized()
+        {
+            var deployer = CreateNewOpdexMarketDeployer();
+
+            State.SetAddress(DeployerStateKeys.Owner, Owner);
+            State.SetAddress(DeployerStateKeys.PendingOwner, OtherAddress);
+
+            SetupMessage(Deployer, Trader0);
+
+            deployer
+                .Invoking(m => m.ClaimPendingOwnership())
                 .Should()
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: UNAUTHORIZED");
@@ -177,7 +213,8 @@ namespace OpdexV1Core.Tests
                 Owner = marketOwner,
                 Router = Router,
                 TransactionFee = transactionFee,
-                StakingToken = StakingToken
+                StakingToken = StakingToken,
+                MarketFeeEnabled = true
             }, Times.Once);
         }
 

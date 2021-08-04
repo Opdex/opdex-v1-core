@@ -58,26 +58,66 @@ namespace OpdexV1Core.Tests.Markets
         #region Set Owner
 
         [Fact]
-        public void SetOwner_Success()
+        public void SetPendingOwnership_Success()
         {
             var market = CreateNewOpdexStandardMarket();
 
-            market.SetOwner(OtherAddress);
+            State.SetAddress(MarketStateKeys.Owner, Owner);
 
-            market.Owner.Should().Be(OtherAddress);
+            SetupMessage(Deployer, Owner);
 
-            VerifyLog(new ChangeMarketOwnerLog { From = Owner, To = OtherAddress }, Times.Once);
+            market.SetPendingOwnership(OtherAddress);
+
+            market.PendingOwner.Should().Be(OtherAddress);
+
+            VerifyLog(new SetPendingMarketOwnershipLog { From = Owner, To = OtherAddress }, Times.Once);
         }
 
         [Fact]
-        public void SetOwner_Throws_Unauthorized()
+        public void SetPendingOwnership_Throws_Unauthorized()
         {
             var market = CreateNewOpdexStandardMarket();
 
-            SetupMessage(StandardMarket, Trader0);
+            SetupMessage(Deployer, Trader0);
 
             market
-                .Invoking(m => m.SetOwner(OtherAddress))
+                .Invoking(m => m.SetPendingOwnership(OtherAddress))
+                .Should()
+                .Throw<SmartContractAssertException>()
+                .WithMessage("OPDEX: UNAUTHORIZED");
+        }
+
+        [Fact]
+        public void ClaimPendingOwnership_Success()
+        {
+            var pendingOwner = OtherAddress;
+            var market = CreateNewOpdexStandardMarket();
+
+            State.SetAddress(MarketStateKeys.Owner, Owner);
+            State.SetAddress(MarketStateKeys.PendingOwner, pendingOwner);
+
+            SetupMessage(Deployer, pendingOwner);
+
+            market.ClaimPendingOwnership();
+
+            market.PendingOwner.Should().Be(Address.Zero);
+            market.Owner.Should().Be(pendingOwner);
+
+            VerifyLog(new ClaimPendingMarketOwnershipLog { From = Owner, To = pendingOwner }, Times.Once);
+        }
+
+        [Fact]
+        public void ClaimPendingOwnership_Throws_Unauthorized()
+        {
+            var market = CreateNewOpdexStandardMarket();
+
+            State.SetAddress(MarketStateKeys.Owner, Owner);
+            State.SetAddress(MarketStateKeys.PendingOwner, OtherAddress);
+
+            SetupMessage(Deployer, Trader0);
+
+            market
+                .Invoking(m => m.ClaimPendingOwnership())
                 .Should()
                 .Throw<SmartContractAssertException>()
                 .WithMessage("OPDEX: UNAUTHORIZED");

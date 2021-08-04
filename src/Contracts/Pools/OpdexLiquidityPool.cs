@@ -1,4 +1,5 @@
 using Stratis.SmartContracts;
+using Stratis.SmartContracts.Standards;
 
 /// <summary>
 /// Base liquidity pool including CRS and an SRC20 token along with a Liquidity Pool token (SRC20) in this contract.
@@ -144,6 +145,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
             AmountCrs = amountCrs,
             AmountSrc = amountSrc,
             AmountLpt = liquidity,
+            TotalSupply = TotalSupply,
             Sender = Message.Sender,
             To = to
         });
@@ -180,6 +182,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
             AmountCrs = amountCrs,
             AmountSrc = amountSrc,
             AmountLpt = liquidity,
+            TotalSupply = TotalSupply,
             Sender = Message.Sender,
             To = to
         });
@@ -358,7 +361,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
 
     protected UInt256 GetSrcBalance(Address token, Address owner)
     {
-        var balanceResponse = Call(token, 0, nameof(GetBalance), new object[] { owner });
+        var balanceResponse = Call(token, 0, nameof(IStandardToken256.GetBalance), new object[] {owner});
 
         Assert(balanceResponse.Success, "OPDEX: INVALID_BALANCE");
 
@@ -369,7 +372,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(TransferTo), new object[] { to, amount });
+        var result = Call(token, 0, nameof(IStandardToken256.TransferTo), new object[] {to, amount});
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_TO");
     }
@@ -378,7 +381,7 @@ public abstract class OpdexLiquidityPool : SmartContract, IOpdexLiquidityPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(TransferFrom), new object[] { from, to, amount });
+        var result = Call(token, 0, nameof(IStandardToken256.TransferFrom), new object[] {from, to, amount});
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
     }

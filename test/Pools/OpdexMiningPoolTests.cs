@@ -216,7 +216,7 @@ namespace OpdexV1Core.Tests.Pools
             miningPool.GetStoredRewardPerStakedToken(Miner1).Should().Be(userRewardPerTokenPaid);
 
             VerifyCall(Pool1, 0ul, nameof(IStandardToken256.TransferFrom), transferParams, Times.Once);
-            VerifyLog(new MineLog { Miner = Miner1, Amount = amount, TotalSupply = expectedTotalSupply, EventType = (byte)MineEventType.StartMining }, Times.Once);
+            VerifyLog(new StartMiningLog { Miner = Miner1, Amount = amount, TotalSupply = expectedTotalSupply, MinerBalance = amount}, Times.Once);
         }
 
         [Theory]
@@ -260,7 +260,7 @@ namespace OpdexV1Core.Tests.Pools
             miningPool.LatestBlockApplicable().Should().Be(currentBlock);
 
             VerifyCall(Pool1, 0ul, nameof(IStandardToken256.TransferFrom), transferParams, Times.Once);
-            VerifyLog(new MineLog { Miner = Miner1, Amount = amount, TotalSupply = expectedTotalSupply, EventType = (byte)MineEventType.StartMining }, Times.Once);
+            VerifyLog(new StartMiningLog { Miner = Miner1, Amount = amount, TotalSupply = expectedTotalSupply, MinerBalance = amount * 2}, Times.Once);
         }
 
         [Fact]
@@ -391,7 +391,7 @@ namespace OpdexV1Core.Tests.Pools
             miningPool.LastUpdateBlock.Should().Be(currentBlock);
 
             VerifyCall(Pool1, 0, nameof(IStandardToken256.TransferTo), transferStakingTokensParams, Times.Once);
-            VerifyLog(new MineLog { Miner = Miner1, Amount = minerWithdraw, TotalSupply = expectedTotalSupply, EventType = (byte)MineEventType.StopMining}, Times.Once);
+            VerifyLog(new StopMiningLog { Miner = Miner1, Amount = minerWithdraw, TotalSupply = expectedTotalSupply, MinerBalance = minerBalance - minerWithdraw}, Times.Once);
 
             if (expectedReward > 0)
             {
@@ -824,7 +824,7 @@ namespace OpdexV1Core.Tests.Pools
         }
 
         [Fact]
-        public void TwoStakers_OneLargeAmount_WithSyncedDust_Success()
+        public void TwoMiners_OneLargeAmount_WithSyncedDust_Success()
         {
             const ulong periodStart = 100;
             const ulong periodEnd = 200;
@@ -868,7 +868,7 @@ namespace OpdexV1Core.Tests.Pools
             miningPool.TotalSupply.Should().Be(expectedTotalSupply);
 
             VerifyCall(Pool1, 0, nameof(IOpdexLiquidityPool.TransferFrom), new object[] {miner, MiningPool1, amount}, Times.Once);
-            VerifyLog(new MineLog {Miner = miner, Amount = amount, TotalSupply = expectedTotalSupply, EventType = (byte)MineEventType.StartMining}, Times.Once);
+            VerifyLog(new StartMiningLog {Miner = miner, Amount = amount, TotalSupply = expectedTotalSupply, MinerBalance = currentBalance + amount}, Times.Once);
         }
 
         private void CollectMiningRewards(IOpdexMiningPool miningPool, Address miner, UInt256 rewards)
@@ -900,7 +900,7 @@ namespace OpdexV1Core.Tests.Pools
             VerifyCall(Pool1, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, amount}, Times.AtLeastOnce);
             VerifyCall(StakingToken, 0, nameof(IOpdexLiquidityPool.TransferTo), new object[] {miner, rewards}, Times.AtLeastOnce);
             VerifyLog(new CollectMiningRewardsLog { Miner = miner, Amount = rewards }, Times.AtLeastOnce);
-            VerifyLog(new MineLog { Miner = miner, Amount = amount, TotalSupply = expectedTotalSupply, EventType = (byte)MineEventType.StopMining }, Times.AtLeastOnce);
+            VerifyLog(new StopMiningLog { Miner = miner, Amount = amount, TotalSupply = expectedTotalSupply, MinerBalance = currentBalance - amount}, Times.AtLeastOnce);
         }
 
         #endregion

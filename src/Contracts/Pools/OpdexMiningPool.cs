@@ -154,13 +154,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     /// <inheritdoc />
     public UInt256 GetMiningRewards(Address miner)
     {
-        var balance = GetBalance(miner);
-        var rewardPerToken = GetRewardPerStakedToken();
-        var storedRewardPerToken = GetStoredRewardPerStakedToken(miner);
-        var remainingReward = rewardPerToken - storedRewardPerToken;
-        var reward = GetStoredReward(miner);
-
-        return reward + (balance * remainingReward / SatsPerToken);
+        return GetMiningRewards(miner, GetRewardPerStakedToken());
     }
 
     /// <inheritdoc />
@@ -173,11 +167,13 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         TotalSupply += amount;
 
-        SetBalance(Message.Sender, GetBalance(Message.Sender) + amount);
+        var newBalance = GetBalance(Message.Sender) + amount;
+
+        SetBalance(Message.Sender, newBalance);
 
         SafeTransferFrom(StakingToken, Message.Sender, Address, amount);
 
-        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = (byte)MineEventType.StartMining });
+        Log(new StartMiningLog {Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, MinerBalance = newBalance});
 
         Unlock();
     }
@@ -207,13 +203,15 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         TotalSupply -= amount;
 
-        SetBalance(Message.Sender, balance - amount);
+        var newBalance = balance - amount;
+
+        SetBalance(Message.Sender, newBalance);
 
         SafeTransferTo(StakingToken, Message.Sender, amount);
 
         CollectMiningRewardsExecute();
 
-        Log(new MineLog { Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, EventType = (byte)MineEventType.StopMining });
+        Log(new StopMiningLog {Miner = Message.Sender, Amount = amount, TotalSupply = TotalSupply, MinerBalance = newBalance});
 
         Unlock();
     }
@@ -241,7 +239,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
             RewardRate = (reward + leftover) / miningDuration;
         }
 
-        var balanceResult = Call(MinedToken, 0, nameof(IStandardToken.GetBalance), new object[] {Address});
+        var balanceResult = Call(MinedToken, 0, nameof(IStandardToken256.GetBalance), new object[] {Address});
         var balance = (UInt256)balanceResult.ReturnValue;
 
         Assert(balanceResult.Success && balance > 0, "OPDEX: INVALID_BALANCE");
@@ -270,6 +268,16 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
         Log(new CollectMiningRewardsLog { Miner = Message.Sender, Amount = reward });
     }
 
+    private UInt256 GetMiningRewards(Address miner, UInt256 rewardPerToken)
+    {
+        var balance = GetBalance(miner);
+        var storedRewardPerToken = GetStoredRewardPerStakedToken(miner);
+        var remainingReward = rewardPerToken - storedRewardPerToken;
+        var reward = GetStoredReward(miner);
+
+        return reward + (balance * remainingReward / SatsPerToken);
+    }
+
     private void UpdateMiningPosition(Address miner)
     {
         var rewardPerToken = GetRewardPerStakedToken();
@@ -279,7 +287,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
 
         if (miner == Address.Zero) return;
 
-        SetStoredReward(miner, GetMiningRewards(miner));
+        SetStoredReward(miner, GetMiningRewards(miner, rewardPerToken));
         SetStoredRewardPerStakedToken(miner, rewardPerToken);
     }
 
@@ -287,7 +295,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(IStandardToken.TransferTo), new object[] {to, amount});
+        var result = Call(token, 0, nameof(IStandardToken256.TransferTo), new object[] {to, amount});
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_TO");
     }
@@ -296,7 +304,7 @@ public class OpdexMiningPool : SmartContract, IOpdexMiningPool
     {
         if (amount == 0) return;
 
-        var result = Call(token, 0, nameof(IStandardToken.TransferFrom), new object[] {from, to, amount});
+        var result = Call(token, 0, nameof(IStandardToken256.TransferFrom), new object[] {from, to, amount});
 
         Assert(result.Success && (bool)result.ReturnValue, "OPDEX: INVALID_TRANSFER_FROM");
     }

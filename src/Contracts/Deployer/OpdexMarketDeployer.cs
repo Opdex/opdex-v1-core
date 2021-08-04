@@ -23,13 +23,35 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     }
 
     /// <inheritdoc />
-    public void SetOwner(Address address)
+    public Address PendingOwner
+    {
+        get => State.GetAddress(DeployerStateKeys.PendingOwner);
+        private set => State.SetAddress(DeployerStateKeys.PendingOwner, value);
+    }
+
+    /// <inheritdoc />
+    public void SetPendingOwnership(Address pendingOwner)
     {
         EnsureOwnerOnly();
 
-        Owner = address;
+        PendingOwner = pendingOwner;
 
-        Log(new ChangeDeployerOwnerLog {From = Message.Sender, To = address});
+        Log(new SetPendingDeployerOwnershipLog {From = Message.Sender, To = pendingOwner});
+    }
+
+    /// <inheritdoc />
+    public void ClaimPendingOwnership()
+    {
+        var pendingOwner = PendingOwner;
+
+        Assert(Message.Sender == pendingOwner, "OPDEX: UNAUTHORIZED");
+
+        var oldOwner = Owner;
+
+        Owner = pendingOwner;
+        PendingOwner = Address.Zero;
+
+        Log(new ClaimPendingDeployerOwnershipLog {From = oldOwner, To = pendingOwner});
     }
 
     /// <inheritdoc />
@@ -37,7 +59,8 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
     {
         EnsureOwnerOnly();
 
-        // Temporarily set this contract as owner if the router needs permissions
+        // Creates the market with this contract set as the owner if the router needs permissions
+        // The intended market owner will have pending ownership and will need to claim it.
         var ownerToSet = authProviders || authTraders ? Address : marketOwner;
 
         var marketParams = new object[] {transactionFee, ownerToSet, authPoolCreators, authProviders, authTraders, enableMarketFee};
@@ -48,23 +71,10 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
         var market = marketResponse.NewContractAddress;
         var router = CreateOpdexRouter(market, transactionFee, authProviders, authTraders);
 
-        // Give the router provide permissions if necessary
-        if (authProviders) AuthRouter(market, router, Permissions.Provide);
-
-        // Give the router trade permissions if necessary
-        if (authTraders) AuthRouter(market, router, Permissions.Trade);
-
-        // Replace this contract as the market owner with the intended market owner if necessary
-        if (ownerToSet != marketOwner)
-        {
-            var setOwnerResponse = Call(market, 0, nameof(IOpdexStandardMarket.SetOwner), new object[] { marketOwner });
-            Assert(setOwnerResponse.Success, "OPDEX: SET_OWNER_FAILURE");
-        }
-
         Log(new CreateMarketLog
         {
             Market = market,
-            Owner = marketOwner,
+            Owner = ownerToSet,
             Router = router,
             AuthPoolCreators = authPoolCreators,
             AuthProviders = authProviders,
@@ -72,6 +82,19 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
             TransactionFee = transactionFee,
             MarketFeeEnabled = enableMarketFee
         });
+
+        // Give the router provide permissions if necessary
+        if (authProviders) AuthRouter(market, router, Permissions.Provide);
+
+        // Give the router trade permissions if necessary
+        if (authTraders) AuthRouter(market, router, Permissions.Trade);
+
+        // Set the intended market owner as the new pending market owner if necessary
+        if (ownerToSet != marketOwner)
+        {
+            var setOwnerResponse = Call(market, 0, nameof(IOpdexStandardMarket.SetPendingOwnership), new object[] { marketOwner });
+            Assert(setOwnerResponse.Success, "OPDEX: SET_PENDING_OWNER_FAILURE");
+        }
 
         return market;
     }
@@ -99,7 +122,8 @@ public class OpdexMarketDeployer : SmartContract, IOpdexMarketDeployer
             Owner = Message.Sender,
             Router = router,
             TransactionFee = transactionFee,
-            StakingToken = stakingToken
+            StakingToken = stakingToken,
+            MarketFeeEnabled = true // staking market fees goes to the stakers
         });
 
         return market;

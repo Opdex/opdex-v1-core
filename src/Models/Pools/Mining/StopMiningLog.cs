@@ -1,9 +1,9 @@
 using Stratis.SmartContracts;
 
-public struct MineLog
+public struct StopMiningLog
 {
     [Index] public Address Miner;
     public UInt256 Amount;
     public UInt256 TotalSupply;
-    [Index] public byte EventType;
+    public UInt256 MinerBalance;
 }

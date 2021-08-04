@@ -1,6 +1,6 @@
 using Stratis.SmartContracts;
 
-public struct ChangeDeployerOwnerLog
+public struct SetPendingDeployerOwnershipLog
 {
     [Index] public Address From;
     [Index] public Address To;

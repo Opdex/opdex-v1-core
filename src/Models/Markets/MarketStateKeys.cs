@@ -9,8 +9,9 @@ public struct MarketStateKeys
     public const string IsAuthorized = "ME";
     public const string MarketFeeEnabled = "MF";
     public const string Owner = "MG";
-    public const string Pool = "MH";
+    public const string PendingOwner = "MH";
+    public const string Pool = "MI";
 
     // Staking Market
-    public const string StakingToken = "MI";
+    public const string StakingToken = "MJ";
 }
