@@ -3,10 +3,10 @@ using Stratis.SmartContracts;
 public interface IOpdexMarketDeployer
 {
     /// <summary>
-    /// The owner of the market deployer contract. with the ability to create new markets.
+    /// The owner of the market deployer contract.
     /// </summary>
     /// <remarks>
-    /// The owner's privileges include the ability to create markets and setting a new pending owner.
+    /// The owner's privileges only include the ability to deploy new markets and the ability set pending ownership for another address to claim.
     /// </remarks>
     Address Owner { get; }
 
@@ -17,7 +17,7 @@ public interface IOpdexMarketDeployer
     Address PendingOwner { get; }
 
     /// <summary>
-    /// Public method allowing the current contract owner to whitelist a new pending owner. The newly pending owner
+    /// Allows the current contract owner to whitelist a new pending owner. The newly pending owner
     /// will then call <see cref="ClaimPendingOwnership"/> to accept.
     /// </summary>
     /// <param name="pendingOwner">The address to set as the new pending owner.</param>
