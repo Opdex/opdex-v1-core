@@ -4,8 +4,8 @@ V1 of Opdex core smart contracts. Create markets and liquidity pools for a non-c
 
 View extensive documentation on the protocol on the Opdex website.
 
-<a href="https://opdex.com/docs" target="_blank">
-https://opdex.com/docs
+<a href="https://docs.opdex.com/docs/v1-core-overview" target="_blank">
+https://docs.opdex.com
 </a>
 
 ## Compile
